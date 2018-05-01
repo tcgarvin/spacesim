@@ -5,7 +5,7 @@ namespace Toy
 {
     class Program
     {
-        static void Main(string[] args)
+        static void Main()
         {
             Console.WriteLine("Let's see how this goes.");
 
