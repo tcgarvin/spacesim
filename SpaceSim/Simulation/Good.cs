@@ -1,10 +1,5 @@
 ﻿using System;
 namespace Toy.Simulation
 {
-    public class Good
-    {
-        public Good()
-        {
-        }
-    }
+    public enum Good { Food, Water, Spice }
 }
