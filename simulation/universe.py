@@ -1,7 +1,7 @@
 ﻿from location import Location
 from ship import Ship
 from random import randint
-from star_system import StarSystem
+from star_system import StarSystem, generate_starsystem
 import math
 
 class Universe:
@@ -11,14 +11,15 @@ class Universe:
         self.generate()
 
     def tick(self):
-        return None
+        for starsystem in self.systems:
+            starsystem.tick()
  
     def generate(self):
         new_systems = []
-        for i in range(1000):
+        for i in range(100):
             x = randint(0,1000)
             y = randint(0,1000)
-            new_systems.append(StarSystem(x, y))
+            new_systems.append(generate_starsystem(x, y))
 
         for system in new_systems:
             # Find the nearest system in 4 directions and link to them

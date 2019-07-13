@@ -1,8 +1,9 @@
 ﻿import math
-from good import Good
+from good import GoodKind
 
+# Deprecated in favor of a buy order / sell order market
 class Market:
-    def __init__(self, good: Good, max_price, elasticity, starting_supply):
+    def __init__(self, good: GoodKind, max_price, elasticity, starting_supply):
         self.max_price = max_price
         self.elasticity = elasticity
         self.supply = starting_supply
@@ -13,14 +14,16 @@ class Market:
 
     def buy_one(self):
         if self.supply is 0:
-            raise Exception("No available sellers")
+            raise Exception("No available supply")
         price = self.current_price()
         self.supply = self.supply - 1
         return price
 
     def sell_one(self):
-        price = self.current_price()
+        # Price is set after sale, to be the opposite of the "buy" sequence.
+        # In this way, a buy followed by a sell will result in a net zero.
         self.supply = self.supply + 1
+        price = self.current_price()
         return price
 
     def buy(self, quantity):
@@ -37,3 +40,6 @@ class Market:
         for i in range(quantity):
             revenue = revenue + self.sell_one()
         return revenue
+
+    def tick(self):
+        pass

@@ -3,7 +3,7 @@
 class Simulation:
     def __init__(self, universe: Universe):
         self.universe = universe
-        self.max_ticks = 1000
+        self.max_ticks = 100
 
     def run(self):
         tick = 0
