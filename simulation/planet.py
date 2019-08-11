@@ -1,8 +1,11 @@
 from typing import Iterable
-from good import GoodKind
-from supply_curve_market import Market
+from uuid import uuid4, UUID
+
+from good import GoodKind, Recipe, basic_food_recipe
+from order_matching_market import Market
 from person import Person, generate_person
 from person_actor import PersonActor
+
 
 class Planet:
     """
@@ -25,38 +28,53 @@ class Planet:
             In this fictional economy all buyers and sellers can find each other and anounce their prices immediately.
             There's no theft, or other distortions and goods are transported instantly for no cost.
     """
-    def __init__(self):
-        self.people = []
-        self.people_actors = []
+
+    def __init__(self, uuid: UUID):
+        self.uuid = uuid
+        self.people = {}
+        self.people_actors = {}
         self.markets = {}
-        self.recipies = []
-    
-    def add_person(self, person : Person):
-        self.people.append(person)
+        self.recipes = set()
 
-    def add_person_actor(self, actor : PersonActor):
-        self.people_actors.append(actor)
+    def add_person(self, person: Person, actor: PersonActor):
+        self.people[person.uuid] = person
+        self.people_actors[person.uuid] = actor
 
-    def get_market(self, good : GoodKind):
+    def add_recipe(self, recipe: Recipe):
+        self.recipes.add(recipe)
+
+    def knows_recipe(self, recipe: Recipe):
+        return recipe in self.recipes
+
+    def get_market(self, good: GoodKind):
         market = self.markets.get(good, None)
         if market is None:
-            market = Market(good, 10, 1, 0)
+            market = Market()
+            self.markets[good] = market
 
+        return market
 
     def tick(self):
         # TODO: Scramble turn order
-        for actor in self.people_actors:
+        to_prune = []
+        for person_id, actor in self.people_actors.items():
             actor.tick(self)
+            if self.people[person_id].is_dead():
+                to_prune.append(person_id)
+
+        for person_id in to_prune:
+            del self.people[person_id]
+            del self.people_actors[person_id]
 
         for market in self.markets.values():
             market.tick()
 
 
 def generate_planet():
-    result = Planet()
+    result = Planet(uuid4())
     for i in range(100):
         person = generate_person()
         person_actor = PersonActor(person)
-        result.add_person(person)
-        result.add_person_actor(person_actor)
+        result.add_person(person, person_actor)
+        result.add_recipe(basic_food_recipe)
     return result

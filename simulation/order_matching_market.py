@@ -5,12 +5,14 @@ from typing import Any, Callable, List
 
 from sortedcontainers import SortedKeyList
 
-def count_quantity(orders : List[Order]):
+
+def count_quantity(orders: List[Order]):
     quantity = 0
     for order in orders:
         quantity += order.quantity_unfilled()
 
     return quantity
+
 
 @dataclass()
 class Order:
@@ -32,6 +34,7 @@ class Order:
     def fill(self, quantity_filled):
         self._quantity_filled += quantity_filled
 
+
 OrderCallback = Callable[[Order, int], Any]
 
 
@@ -40,8 +43,12 @@ class Market:
         # Implimentation note: Orders are kept in order, such that the most
         # competative orders are the first in the list, and older orders have
         # priority over newer ones.
-        self.sell_orders = SortedKeyList(key = lambda order: (order.offer_price, order.order_number))
-        self.buy_orders = SortedKeyList(key = lambda order: (-order.offer_price, order.order_number))
+        self.sell_orders = SortedKeyList(
+            key=lambda order: (order.offer_price, order.order_number)
+        )
+        self.buy_orders = SortedKeyList(
+            key=lambda order: (-order.offer_price, order.order_number)
+        )
         self.order_number = 1
 
     def best_buy_orders(self):
@@ -50,7 +57,9 @@ class Market:
         Orders are returned according to the same sorting as the larger order list.
         """
         best_buy_order_price = self.buy_orders[0].offer_price
-        return self.buy_orders.irange_key((-best_buy_order_price, 0), (-best_buy_order_price, self.order_number))
+        return self.buy_orders.irange_key(
+            (-best_buy_order_price, 0), (-best_buy_order_price, self.order_number)
+        )
 
     def best_sell_orders(self):
         """
@@ -58,7 +67,9 @@ class Market:
         Orders are returned according to the same sorting as the larger order list.
         """
         best_sell_order_price = self.sell_orders[0].offer_price
-        return self.sell_orders.irange_key((best_sell_order_price, 0), (best_sell_order_price, self.order_number))
+        return self.sell_orders.irange_key(
+            (best_sell_order_price, 0), (best_sell_order_price, self.order_number)
+        )
 
     def lowest_sell_offer(self):
         """
@@ -72,7 +83,9 @@ class Market:
         """
         return self.buy_orders[0].offer_price
 
-    def place_buy_order(self, offer_price : float, quantity : int, callback : OrderCallback):
+    def place_buy_order(
+        self, offer_price: float, quantity: int, callback: OrderCallback
+    ):
         """
         Places an order, which is returned (unfilled) to the caller.  Upon
         fulfilment, the person holding the order is called back with 
@@ -85,7 +98,9 @@ class Market:
         self.buy_orders.add(order)
         return order
 
-    def place_sell_order(self, offer_price : float, quantity : int, callback : OrderCallback):
+    def place_sell_order(
+        self, offer_price: float, quantity: int, callback: OrderCallback
+    ):
         """
         Places an order, which is returned (unfilled) to the caller.  Upon
         fulfilment, the person holding the order is called back with 
@@ -97,7 +112,6 @@ class Market:
         self.order_number += 1
         self.sell_orders.add(order)
         return order
-
 
     def _resolve_orders(self, orders, num_resolved):
         """
@@ -123,9 +137,12 @@ class Market:
 
         return modified_orders
 
-
     def execute_orders(self):
-        while len(self.buy_orders) > 0 and len(self.sell_orders) > 0 and self.highest_buy_offer() >= self.lowest_sell_offer():
+        while (
+            len(self.buy_orders) > 0
+            and len(self.sell_orders) > 0
+            and self.highest_buy_offer() >= self.lowest_sell_offer()
+        ):
             best_buy_offers = list(self.best_buy_orders())
             best_sell_offers = list(self.best_sell_orders())
 
@@ -135,8 +152,12 @@ class Market:
             quantity_resolved = min(buy_quantity, sell_quantity)
             assert quantity_resolved > 0
 
-            executed_buy_orders = self._resolve_orders(best_buy_offers, quantity_resolved)
-            executed_sell_orders = self._resolve_orders(best_sell_offers, quantity_resolved)
+            executed_buy_orders = self._resolve_orders(
+                best_buy_offers, quantity_resolved
+            )
+            executed_sell_orders = self._resolve_orders(
+                best_sell_offers, quantity_resolved
+            )
             assert len(executed_buy_orders) > 0
             assert len(executed_sell_orders) > 0
 

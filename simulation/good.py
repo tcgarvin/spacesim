@@ -1,37 +1,44 @@
 ﻿from __future__ import annotations
 from collections import Counter
+from distribution import Normal
+
 
 class GoodKind:
     """
     The definition of a kind of good.  "Vegtable" is a kind of good, as is 
     "Iron Ore", "Rocket Fuel", and "Electic Motor"
     """
-    def __init__(self, name : str):
+
+    def __init__(self, name: str):
         assert len(name) > 0
 
         self.name = name
 
     def __hash__(self):
         # Implimenting hash so I can use this in dictionaries
+        # TODO, look again at Dataclasses
         return hash(repr(self))
 
+
 class BagOfGoods(Counter):
-    def several(self, times : int):
+    def several(self, times: int):
         """
         Returns a new bag of goods containing a set of goods that is a
         multiple (times) of the callee.
         """
-        return {g: self[g] * times for g in self.keys()}
+        return BagOfGoods({g: self[g] * times for g in self.keys()})
 
-    def divide(self, other : BagOfGoods):
+    def divide(self, other: BagOfGoods):
         """
         Divides one bag of goods by another.  Returns the quotient as an
         integer.  (Whole number quotients, only.  "Natural" division, no
         negatives, floats, etc.)
         """
+        if not any(other.elements()):
+            raise ZeroDivisionError()
         return min((self[g] // other[g] for g in other.keys()))
 
-    def divide_with_remainder(self, other : BagOfGoods):
+    def divide_with_remainder(self, other: BagOfGoods):
         """
         Like divide(), but returns the quotent and a new bag of goods representing the remainder
         after division.
@@ -41,17 +48,39 @@ class BagOfGoods(Counter):
 
         return quotient, remainder
 
-class Recipe():
+
+class Recipe:
     """
     An accounting of the goods and labor needed to produce something.  An
     invocation of a recipe produces one output
     """
-    def __init__(self, labor_amount : float, required_goods : BagOfGoods, output_good : GoodKind):
+
+    def __init__(
+        self,
+        labor_amount: float,
+        required_goods: BagOfGoods,
+        planet_variation,
+        person_variation,
+        labor_variation,
+        output_good: GoodKind,
+    ):
         self.labor_amount = labor_amount
         self.required_goods = required_goods
+        self.planet_variation = planet_variation
+        self.person_variation = person_variation
+        self.labor_variation = labor_variation
         self.output_good = output_good
 
-    def determine_required_goods(self, output_amount : int):
+    def draw_planet_variation(self):
+        return max(0, self.planet_variation.draw())
+
+    def draw_person_variation(self):
+        return max(0, self.person_variation.draw())
+
+    def draw_labor_variation(self):
+        return max(0, self.labor_variation.draw())
+
+    def determine_required_goods(self, output_amount: int):
         """
         Determines the amount of goods and labor required for a given amount of
         output.  Basically does a multiplication
@@ -60,18 +89,52 @@ class Recipe():
         required_labor = self.labor_amount * output_amount
         return required_goods, required_labor
 
+    def __hash__(self):
+        # Implimenting hash so I can use this in dictionaries
+        # TODO, look again at Dataclasses1G
+        return hash(repr(self))
+
+
 class FactoryKind:
-    def __init__(self, recipe : Recipe, rate : float, name : str = ""):
+    def __init__(self, recipe: Recipe, rate: float, name: str = ""):
         self.name = name
         self.rate = rate
         self.recipe = recipe
 
-    def produce_goods(self, number : int, amount_labor : float, input_goods : BagOfGoods):
-        """
-        Calculates the goods produced by the given amount of labor and the
-        given goods.
-        """
-        required_goods, required_labor = self.recipe.determine_required_goods(number)
-        
-        #if amount_labor < required_labor:
-        
+
+good_index = {}
+
+
+def generate_good(good_name: str):
+    good = GoodKind(good_name)
+    good_index[good_name] = good
+    return good
+
+
+food = generate_good("Food")
+wood = generate_good("Wood")
+
+basic_recipe_index = {}
+
+
+def generate_basic_recipe(
+    labor: int,
+    good: GoodKind,
+    planet_variation,
+    person_variation,
+    labor_variation,
+    required_goods=BagOfGoods(),
+):
+    recipe = Recipe(
+        labor, required_goods, planet_variation, person_variation, labor_variation, good
+    )
+    basic_recipe_index[good.name] = recipe
+    return recipe
+
+
+basic_food_recipe = generate_basic_recipe(
+    1, food, Normal(0.5, 0.5), Normal(1, 0.2), Normal(1, 0.05)
+)
+basic_wood_recipe = generate_basic_recipe(
+    1, wood, Normal(1, 0.5), Normal(1, 0.2), Normal(1, 0.05)
+)
