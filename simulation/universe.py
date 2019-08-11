@@ -12,17 +12,6 @@ class Universe:
         self.ships = []
         self.generate()
 
-    def calculate_population(self):
-        result = 0
-        active_planets = 0
-        for star in self.systems:
-            for planet in star.planets:
-                planet_population = len(planet.people)
-                result += planet_population
-                active_planets += 1 if planet_population > 0 else 0
-
-        return result, active_planets
-
     def tick(self):
         for starsystem in self.systems:
             starsystem.tick()

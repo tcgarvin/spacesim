@@ -15,9 +15,6 @@ class PersonActor:
         """
         p = self.person
 
-        if p.is_dead():
-            return
-
         # First iteration of strategy logic is straightforward: Make food all of the time.
         food_generated = grindstone.calculate_effective_labor(
             basic_food_recipe, (p,), planet

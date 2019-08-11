@@ -56,15 +56,9 @@ class Planet:
 
     def tick(self):
         # TODO: Scramble turn order
-        to_prune = []
-        for person_id, actor in self.people_actors.items():
+        for actor in self.people_actors.values():
             actor.tick(self)
-            if self.people[person_id].is_dead():
-                to_prune.append(person_id)
 
-        for person_id in to_prune:
-            del self.people[person_id]
-            del self.people_actors[person_id]
 
         for market in self.markets.values():
             market.tick()
