@@ -1,7 +1,9 @@
 ﻿from collections import defaultdict
+import json
 from sparklines import sparklines
 
 from good import food, wood
+from log import SimulationLogger, make_log_dir_name
 from person import FoodNeed, ShelterNeed
 from universe import Universe
 
@@ -40,6 +42,7 @@ class Simulation:
 
     def run(self):
         tick = 0
+        logger = SimulationLogger(make_log_dir_name())
         while tick <= self.max_ticks:
             self.universe.tick()
             print(f"Day {tick:>4}.\r", end="")
@@ -49,3 +52,4 @@ class Simulation:
 
             tick += 1
 
+            logger.log_state(tick, self.universe.to_json())

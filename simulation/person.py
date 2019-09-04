@@ -66,6 +66,13 @@ class Person:
         for need in self.needs:
             need.visit(self)
 
+    def to_json(self):
+        return {
+            "id": str(self.uuid),
+            "needs": {need.name: need.score for need in self.needs},
+            "goods": self.goods.to_json()
+        }
+
 
 class Need(ABC):
     """
@@ -96,6 +103,10 @@ class Need(ABC):
         """
         return self.score
 
+    @property
+    def name(self):
+        raise NotImplementedError()
+
 
 class FoodNeed(Need):
     MAX_SCORE = 30
@@ -106,6 +117,10 @@ class FoodNeed(Need):
             self.slide_score(1)
         else:
             self.slide_score(-1)
+
+    @property
+    def name(self):
+        return "FoodNeed"
 
 
 class ShelterNeed(Need):
@@ -121,6 +136,10 @@ class ShelterNeed(Need):
             # minutes fixing it up
             person.goods[wood] -= 1
             self.slide_score(1)
+
+    @property
+    def name(self):
+        return "ShelterNeed"
 
 
 def generate_person():

@@ -48,6 +48,9 @@ class BagOfGoods(Counter):
 
         return quotient, remainder
 
+    def to_json(self):
+        return {g.name: self[g] for g in self.keys() if self[g] > 0}
+
 
 class Recipe:
     """
