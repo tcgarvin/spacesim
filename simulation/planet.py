@@ -54,12 +54,6 @@ class Planet:
 
         return market
 
-    def to_json(self):
-        return {
-            "id": str(self.uuid),
-            "population": [p.to_json() for p in self.people.values()]
-        }
-
     def tick(self):
         # TODO: Scramble turn order
         for actor in self.people_actors.values():

@@ -1,3 +1,4 @@
+jsonpatch==1.24
 sortedcontainers==2.1.0
 sparklines==0.4.2
-ujson=1.35
+ujson==1.35

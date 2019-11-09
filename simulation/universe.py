@@ -16,11 +16,6 @@ class Universe:
         for starsystem in self.systems:
             starsystem.tick()
 
-    def to_json(self):
-        return {
-            "starsystems": list(map(StarSystem.to_json, self.systems))
-        }
-
     def generate(self):
         new_systems = []
         for i in range(100):

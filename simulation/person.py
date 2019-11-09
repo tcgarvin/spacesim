@@ -66,13 +66,6 @@ class Person:
         for need in self.needs:
             need.visit(self)
 
-    def to_json(self):
-        return {
-            "id": str(self.uuid),
-            "needs": {need.name: need.score for need in self.needs},
-            "goods": self.goods.to_json()
-        }
-
 
 class Need(ABC):
     """

@@ -32,15 +32,6 @@ class StarSystem:
     def add_planet(self, planet: Planet):
         self.planets.append(planet)
 
-    def to_json(self):
-        return {
-            "id": str(self.id),
-            "planets": [p.to_json() for p in self.planets],
-            "neighbors": [str(n) for n in self._neighbors.keys()],
-            "x": self.x,
-            "y": self.y
-        }
-
     def tick(self):
         for planet in self.planets:
             planet.tick()
