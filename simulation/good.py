@@ -1,6 +1,6 @@
 ﻿from __future__ import annotations
 from collections import Counter
-from distribution import Normal
+from distribution import Distribution, Normal
 
 
 class GoodKind:
@@ -18,6 +18,9 @@ class GoodKind:
         # Implimenting hash so I can use this in dictionaries
         # TODO, look again at Dataclasses
         return hash(repr(self))
+
+    def __repr__(self):
+        return f"GoodKind('{self.name}')"
 
 
 class BagOfGoods(Counter):
@@ -59,9 +62,9 @@ class Recipe:
         self,
         labor_amount: float,
         required_goods: BagOfGoods,
-        planet_variation,
-        person_variation,
-        labor_variation,
+        planet_variation: Distribution,
+        person_variation: Distribution,
+        labor_variation: Distribution,
         output_good: GoodKind,
     ):
         self.labor_amount = labor_amount
@@ -94,6 +97,9 @@ class Recipe:
         # TODO, look again at Dataclasses1G
         return hash(repr(self))
 
+    def __str__(self):
+        return f"Recipe(for '{self.output_good}')"
+
 
 class FactoryKind:
     def __init__(self, recipe: Recipe, rate: float, name: str = ""):
@@ -120,9 +126,9 @@ basic_recipe_index = {}
 def generate_basic_recipe(
     labor: int,
     good: GoodKind,
-    planet_variation,
-    person_variation,
-    labor_variation,
+    planet_variation: Distribution,
+    person_variation: Distribution,
+    labor_variation: Distribution,
     required_goods=BagOfGoods(),
 ):
     recipe = Recipe(

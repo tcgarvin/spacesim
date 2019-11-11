@@ -24,7 +24,7 @@ class Simulation:
                         bounded_amount = min(amount, 40)
                         good_amounts[kind][bounded_amount] += 1
 
-                    for need in person.needs:
+                    for need in (person.needs.food, person.needs.shelter):
                         score = need.get_score()
                         need_scores[need.__class__.__name__][score] += 1
 

@@ -1,7 +1,7 @@
 from typing import Iterable
 from uuid import uuid4, UUID
 
-from good import GoodKind, Recipe, basic_food_recipe
+from good import GoodKind, Recipe, basic_food_recipe, basic_wood_recipe
 from order_matching_market import Market
 from person import Person, generate_person
 from person_actor import PersonActor
@@ -71,4 +71,5 @@ def generate_planet():
         person_actor = PersonActor(person)
         result.add_person(person, person_actor)
         result.add_recipe(basic_food_recipe)
+        result.add_recipe(basic_wood_recipe)
     return result

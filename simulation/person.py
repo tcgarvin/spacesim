@@ -16,14 +16,19 @@ class Person:
     A person has one or more needs, which are evaluated each turn.
     """
 
-    def __init__(self, uuid: UUID, needs : List[Need]):
+    def __init__(self, uuid: UUID):
         self.uuid = uuid
-        self.needs = needs
+        self.needs = NeedHierarchy()
         self.goods = BagOfGoods()
         self.money = 0
         self.factories = []
-        self._partial_execution_recipe = None
-        self._partial_execution_amount = 0
+        self.partial_labor = {}
+
+    def estimate_production(self, recipe: Recipe, planet: "Planet"):
+        return grindstone.calculate_effective_labor(
+            recipe, (self, ), planet
+        )
+
 
     def execute_recipe(self, recipe: Recipe, planet: "Planet"):
         """
@@ -31,41 +36,19 @@ class Person:
         labor left over and enough goods, a partial execution may be stored,
         which may allow for extra goods to be produced in the future.
         """
-        partial_execution_amount = (
-            self._partial_execution_amount
-            if self._partial_execution_recipe is recipe
-            else 0
+        good = recipe.output_good
+        goods_generated = grindstone.calculate_effective_labor(
+            recipe, (self, ), planet
         )
-        effective_labor_executions = (
-            grindstone.calculate_effective_labor(recipe, (self,), planet)
-            + partial_execution_amount
-        )
-        effective_goods_executions, remaining_goods = grindstone.calculate_effective_goods(
-            recipe, self.goods, planet
-        )
-
-        executions = min(int(effective_labor_executions), effective_goods_executions)
-        self.goods = remaining_goods
-        self.goods.update({recipe.output_good: executions})
-
-        # We store excess labor iff there are enough goods that we could have made another execution
-        left_over_labor = 0
-        if effective_goods_executions > executions:
-            left_over_labor = effective_labor_executions - int(
-                effective_labor_executions
-            )
-
-        self._partial_execution_recipe = recipe
-        self._partial_execution_amount = left_over_labor
-
+        goods_generated += self.partial_labor.get(recipe, 0)
+        self.goods[good] += int(goods_generated)
+        self.partial_labor[recipe] = goods_generated % 1
 
     def tick(self):
         """
         "Involuntary" actions like satisfying "human needs"
         """
-        for need in self.needs:
-            need.visit(self)
-
+        self.needs.visit(self)
 
 class Need(ABC):
     """
@@ -134,6 +117,14 @@ class ShelterNeed(Need):
     def name(self):
         return "ShelterNeed"
 
+class NeedHierarchy:
+    def __init__(self):
+        self.food = FoodNeed()
+        self.shelter = ShelterNeed()
+
+    def visit(self, person: Person):
+        self.food.visit(person)
+        self.shelter.visit(person)
 
 def generate_person():
-    return Person(uuid4(), [FoodNeed(), ShelterNeed()])
+    return Person(uuid4())

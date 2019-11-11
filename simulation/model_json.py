@@ -10,7 +10,7 @@ def bag_of_goods_to_json(bag : BagOfGoods):
 def person_to_json(person : Person):
     return {
         "id": str(person.uuid),
-        "needs": {need.name: need.score for need in person.needs},
+        "needs": {need.name: need.score for need in (person.needs.food, person.needs.shelter)},
         "goods": bag_of_goods_to_json(person.goods)
     }
 
