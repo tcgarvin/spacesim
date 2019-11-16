@@ -5,7 +5,7 @@ from sparklines import sparklines
 from good import food, wood
 from log import SimulationLogger, make_log_dir_name
 from model_json import universe_to_json
-from person import FoodNeed, ShelterNeed
+from person_need import FoodNeed, ShelterNeed
 from universe import Universe
 
 

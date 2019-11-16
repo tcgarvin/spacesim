@@ -39,6 +39,7 @@ class Planet:
     def add_person(self, person: Person, actor: PersonActor):
         self.people[person.uuid] = person
         self.people_actors[person.uuid] = actor
+        person.set_planet(self)
 
     def add_recipe(self, recipe: Recipe):
         self.recipes.add(recipe)
@@ -57,8 +58,7 @@ class Planet:
     def tick(self):
         # TODO: Scramble turn order
         for actor in self.people_actors.values():
-            actor.tick(self)
-
+            actor.tick()
 
         for market in self.markets.values():
             market.tick()
@@ -67,7 +67,7 @@ class Planet:
 def generate_planet():
     result = Planet(uuid4())
     for i in range(100):
-        person = generate_person()
+        person = generate_person(result)
         person_actor = PersonActor(person)
         result.add_person(person, person_actor)
         result.add_recipe(basic_food_recipe)
