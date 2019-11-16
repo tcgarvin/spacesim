@@ -1,4 +1,4 @@
-﻿from good import GoodKind
+from good import GoodKind
 from supply_curve_market import Market as SupplyMarket
 from order_matching_market import Market as OrderMarket
 from universe import Universe

@@ -1,4 +1,4 @@
-﻿import math
+import math
 from good import GoodKind
 
 # Deprecated in favor of a buy order / sell order market

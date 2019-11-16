@@ -1,4 +1,4 @@
-﻿from location import Location
+from location import Location
 from ship import Ship
 from random import randint
 from star_system import StarSystem, generate_starsystem

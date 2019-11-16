@@ -1,5 +1,5 @@
-from person import Person
-from good import basic_food_recipe, basic_wood_recipe, food
+from person import Person, Need
+from good import Recipe, basic_food_recipe, basic_wood_recipe, food
 from grindstone import grindstone
 
 
@@ -9,6 +9,13 @@ class PersonActor:
         self.partial_labor = {}
         self.best_at = None
 
+    def _estimate_gain(self, need:Need, recipe:Recipe, planet:"Planet"):
+        estimated_fulfillment = self.person.estimate_production(recipe,planet)
+        marginal_utility = need.get_marginal_utility()
+        score_gain = estimated_fulfillment * marginal_utility
+        return score_gain
+
+
     def tick(self, planet: "Planet"):
         """
         Entrypoint for person logic.  Makes and executes decisions, and
@@ -16,14 +23,18 @@ class PersonActor:
         """
         p = self.person
 
-        # Second iteration of strategy logic is straightforward: Obtain food if
-        # needed, then wood, then obtain whatever we are best at.
+        # Third iteration of strategy logic is straightforward: Obtain whatever
+        # gives us the greatest increase in score. If no further score is 
+        # possible, then obtain whatever we are best at.
         food_need = p.needs.food
         wood_need = p.needs.shelter
-        if food_need.score < food_need.MAX_SCORE or p.goods[food] < 1:
+
+        food_score_gain = self._estimate_gain(food_need, basic_food_recipe, planet)
+        shelter_score_gain = self._estimate_gain(wood_need, basic_wood_recipe, planet)
+        if food_score_gain > 0 and food_score_gain > shelter_score_gain:
             p.execute_recipe(basic_food_recipe, planet)
 
-        elif wood_need.score < wood_need.MAX_SCORE:
+        elif shelter_score_gain > 0 and shelter_score_gain > food_score_gain:
             p.execute_recipe(basic_wood_recipe, planet)
 
         else:

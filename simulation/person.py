@@ -1,6 +1,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from math import log2
 from random import randrange
 from uuid import UUID, uuid4
 from typing import List
@@ -54,16 +55,16 @@ class Need(ABC):
     """
     A need in the spirit of Mavlov's hierarchy
     """
-    MAX_SCORE = 0
+    MAX_FULFILLMENT_SCORE = 0
     def __init__(self):
-        self.score = self.MAX_SCORE
+        self.fulfillment_score = self.MAX_FULFILLMENT_SCORE // 2
 
-    def slide_score(self, amount):
-        self.score += amount
-        if self.score < 0:
-            self.score = 0
-        elif self.score > self.MAX_SCORE:
-            self.score = self.MAX_SCORE
+    def slide_fulfillment_score(self, amount):
+        self.fulfillment_score += amount
+        if self.fulfillment_score < 0:
+            self.fulfillment_score = 0
+        elif self.fulfillment_score > self.MAX_FULFILLMENT_SCORE:
+            self.fulfillment_score = self.MAX_FULFILLMENT_SCORE
 
     @abstractmethod
     def visit(self, person : Person):
@@ -73,11 +74,26 @@ class Need(ABC):
         """
         pass
 
-    def get_score(self):
+    @abstractmethod
+    def get_score(self, tweak_fulfillment:int=0):
         """
         Returns the current score
         """
-        return self.score
+        pass
+
+    def get_marginal_utility(self):
+        if self.get_fulfillment_score() == self.MAX_FULFILLMENT_SCORE:
+            return 0
+
+        return self.get_score(tweak_fulfillment=1) - self.get_score()
+
+    def get_fulfillment_score(self):
+        """
+        Returns the current fulfillment_score.  The fulfillment score increases
+        linearly to a maxumum, while the score itself may be subject to
+        decreasing marginal utility
+        """
+        return self.fulfillment_score
 
     @property
     def name(self):
@@ -85,14 +101,17 @@ class Need(ABC):
 
 
 class FoodNeed(Need):
-    MAX_SCORE = 30
+    MAX_FULFILLMENT_SCORE = 30
 
     def visit(self, person : Person):
         if person.goods[food] > 0:
             person.goods[food] -= 1
-            self.slide_score(1)
+            self.slide_fulfillment_score(1)
         else:
-            self.slide_score(-1)
+            self.slide_fulfillment_score(-1)
+
+    def get_score(self, tweak_fulfillment:int=0):
+        return log2(self.get_fulfillment_score() + tweak_fulfillment + 1)
 
     @property
     def name(self):
@@ -100,18 +119,21 @@ class FoodNeed(Need):
 
 
 class ShelterNeed(Need):
-    MAX_SCORE = 30
+    MAX_FULFILLMENT_SCORE = 30
 
     def visit(self, person : Person):
         if (randrange(14) == 0):
             # Shelter has degraded, needs some routine maintenance
-            self.slide_score(-1)
+            self.slide_fulfillment_score(-1)
 
-        if self.score < self.MAX_SCORE and person.goods[wood] > 0:
+        if self.fulfillment_score < self.MAX_FULFILLMENT_SCORE and person.goods[wood] > 0:
             # If shelter is not in good shape but we have wood, can spend a few
             # minutes fixing it up
             person.goods[wood] -= 1
-            self.slide_score(1)
+            self.slide_fulfillment_score(1)
+
+    def get_score(self, tweak_fulfillment:int=0):
+        return log2(self.get_fulfillment_score() + tweak_fulfillment + 1)
 
     @property
     def name(self):

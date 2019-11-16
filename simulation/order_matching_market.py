@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 from collections import namedtuple
 from dataclasses import dataclass, field
 from typing import Any, Callable, List
@@ -33,6 +33,12 @@ class Order:
 
     def fill(self, quantity_filled):
         self._quantity_filled += quantity_filled
+
+class BuyOrder(Order):
+    pass
+
+class SellOrder(Order):
+    pass
 
 
 OrderCallback = Callable[[Order, int], Any]
@@ -85,7 +91,7 @@ class Market:
 
     def place_buy_order(
         self, offer_price: float, quantity: int, callback: OrderCallback
-    ):
+    ) -> BuyOrder:
         """
         Places an order, which is returned (unfilled) to the caller.  Upon
         fulfilment, the person holding the order is called back with 
@@ -93,14 +99,14 @@ class Market:
         and it is assumed that the person has kept the needed money in hand to 
         be removed now in exchange for goods.
         """
-        order = Order(self.order_number, offer_price, quantity, callback)
+        order = BuyOrder(self.order_number, offer_price, quantity, callback)
         self.order_number += 1
         self.buy_orders.add(order)
         return order
 
     def place_sell_order(
         self, offer_price: float, quantity: int, callback: OrderCallback
-    ):
+    ) -> SellOrder:
         """
         Places an order, which is returned (unfilled) to the caller.  Upon
         fulfilment, the person holding the order is called back with 
@@ -108,10 +114,22 @@ class Market:
         and it is assumed that the person has kept the needed goods in hand to 
         be removed now in exchange for money.
         """
-        order = Order(self.order_number, offer_price, quantity, callback)
+        order = SellOrder(self.order_number, offer_price, quantity, callback)
         self.order_number += 1
         self.sell_orders.add(order)
         return order
+
+    def cancel_buy_order(self, order: BuyOrder):
+        """
+        Cancels a buy order.  If the order is not in the market, raises a ValueError
+        """
+        self.buy_orders.remove(order)
+
+    def cancel_sell_order(self, order: SellOrder):
+        """
+        Cancels a sell order.  If the order is not in the market, raises a ValueError
+        """
+        self.sell_orders.remove(order)
 
     def _resolve_orders(self, orders, num_resolved):
         """

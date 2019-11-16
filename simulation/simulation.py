@@ -1,4 +1,4 @@
-﻿from collections import defaultdict
+from collections import defaultdict
 import json
 from sparklines import sparklines
 
@@ -14,9 +14,17 @@ class Simulation:
         self.universe = universe
         self.max_ticks = 1000
 
+    def print_graph(self, data, title="", x0="0", x1=None):
+        for i, line in enumerate(sparklines(data, num_lines=2)):
+            if i != 1:
+                print(f"{'':>15}  {' ' * len(x0)} {line} {' ' * len(x1)}")
+            else:
+                print(f"{title:>15}: {x0} {line} {x1}")
+
+
     def show_status(self):
         good_amounts = {kind: [0] * 41 for kind in (food, wood)}
-        need_scores = {need.__name__: [0] * (need.MAX_SCORE + 1) for need in (FoodNeed, ShelterNeed)}
+        need_scores = {need.__name__: [0] * (need.MAX_FULFILLMENT_SCORE + 1) for need in (FoodNeed, ShelterNeed)}
         for system in self.universe.systems:
             for planet in system.planets:
                 for person in planet.people.values():
@@ -25,31 +33,30 @@ class Simulation:
                         good_amounts[kind][bounded_amount] += 1
 
                     for need in (person.needs.food, person.needs.shelter):
-                        score = need.get_score()
+                        score = need.get_fulfillment_score()
                         need_scores[need.__class__.__name__][score] += 1
 
         print(f"{'-' * 40}")
         print("Goods Held Distributions")
         for good, distribution in good_amounts.items():
-            for line in sparklines(distribution):
-                print(f"{good.name:>15}: 0 {line} 40+")
+            self.print_graph(distribution, good.name, "0", "40+")
+            print()
 
         print("Need Score Distributions")
         for need_name, distribution in need_scores.items():
-            for line in sparklines(distribution):
-                print(f"{need_name:>15}: 0 {line} {len(distribution) - 1}")
-
-        print("")
+            self.print_graph(distribution, need_name, "0", str(len(distribution) - 1))
+            print()
 
     def run(self):
         tick = 0
         logger = SimulationLogger(make_log_dir_name())
         while tick <= self.max_ticks:
             self.universe.tick()
-            print(f"Day {tick:>4}.\r", end="")
 
-            if tick % 100 == 0:
+            if tick % 1 == 0:
                 self.show_status()
+
+            print(f"Day {tick:>4}.\r", end="")
 
             tick += 1
 

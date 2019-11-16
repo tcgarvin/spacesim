@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 import math
 from typing import List
 from uuid import uuid4, UUID

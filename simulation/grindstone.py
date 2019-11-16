@@ -51,17 +51,4 @@ class Grindstone:
         recipe_times_executed = effective_labor * planet_multiplier
         return recipe_times_executed
 
-    def calculate_effective_goods(
-        self,
-        recipe: Recipe,
-        input_goods: BagOfGoods,
-        planet: "Planet",
-        factory: FactoryKind = None,
-    ):
-        # This calculation is boring right now, but could involved everything from planet bonuses to randomness
-        if not planet.knows_recipe(recipe):
-            return 0, BagOfGoods()  # Maybe should throw exception
-        return input_goods.divide_with_remainder(recipe.required_goods)
-
-
 grindstone = Grindstone()  # Singleton?  Unclear.
