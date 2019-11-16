@@ -7,7 +7,7 @@ from planet import Planet, generate_planet
 
 
 class StarSystem:
-    def __init__(self, system_id:UUID, x: int, y: int):
+    def __init__(self, system_id: UUID, x: int, y: int):
         self.id = system_id
         self.x = x
         self.y = y
@@ -15,18 +15,12 @@ class StarSystem:
         self.planets = []
 
     def __str__(self):
-        return (
-            "{ x: "
-            + str(self.x)
-            + ", y:"
-            + str(self.y)
-            + "}"
-        )
+        return "{ x: " + str(self.x) + ", y:" + str(self.y) + "}"
 
     def distanceBetween(self, other):
         return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
 
-    def add_neighbor(self, neighbor : StarSystem):
+    def add_neighbor(self, neighbor: StarSystem):
         self._neighbors[neighbor.id] = neighbor
 
     def add_planet(self, planet: Planet):

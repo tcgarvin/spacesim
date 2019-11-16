@@ -5,12 +5,14 @@ from math import log2, log10
 from random import randrange
 
 from typing import TYPE_CHECKING, Iterable
+
 if TYPE_CHECKING:
     from person import Person
 
+
 class Need(ABC):
     @abstractmethod
-    def visit(self, person:Person):
+    def visit(self, person: Person):
         """
         Checks that the conditions to satisfy the need is being met.  May 
         consume goods or have other effects on the person.
@@ -18,21 +20,21 @@ class Need(ABC):
         pass
 
     @abstractmethod
-    def get_score(self, person:Person, **kwargs) -> float:
+    def get_score(self, person: Person, **kwargs) -> float:
         """
         Returns the current score
         """
         pass
 
     @abstractmethod
-    def get_marginal_utility(self, person:Person, **kwargs) -> float:
+    def get_marginal_utility(self, person: Person, **kwargs) -> float:
         """
         Returns the change in score that will occur with the next unit increase in satisfaction.
         """
         pass
 
     @abstractmethod
-    def get_next_tier_impediment(self, person:Person, **kwargs) -> float:
+    def get_next_tier_impediment(self, person: Person, **kwargs) -> float:
         """
         Returns a float between 0 and 1 inclusive that indicates whether or not
         the potential score of the next tier of needs is impeded by this need.
@@ -40,7 +42,6 @@ class Need(ABC):
         while a 1 indicates no impediment whatsoever.
         """
         pass
-
 
     @property
     def name(self) -> str:
@@ -51,7 +52,9 @@ class PhysicalNeed(Need):
     """
     A need in the spirit of Mavlov's hierarchy
     """
+
     MAX_FULFILLMENT_SCORE = 0
+
     def __init__(self):
         self.fulfillment_score = self.MAX_FULFILLMENT_SCORE // 2
 
@@ -62,10 +65,10 @@ class PhysicalNeed(Need):
         elif self.fulfillment_score > self.MAX_FULFILLMENT_SCORE:
             self.fulfillment_score = self.MAX_FULFILLMENT_SCORE
 
-    def get_score(self, person:Person, tweak_fulfillment:int=0):
+    def get_score(self, person: Person, tweak_fulfillment: int = 0):
         return log2(self.get_fulfillment_score() + tweak_fulfillment + 1)
 
-    def get_marginal_utility(self, person:Person):
+    def get_marginal_utility(self, person: Person):
         return self.get_score(person, tweak_fulfillment=1) - self.get_score(person)
 
     def get_fulfillment_score(self):
@@ -83,7 +86,7 @@ class PhysicalNeed(Need):
 class FoodNeed(PhysicalNeed):
     MAX_FULFILLMENT_SCORE = 30
 
-    def visit(self, person : Person):
+    def visit(self, person: Person):
         if person.goods[food] > 0:
             person.goods[food] -= 1
             self.slide_fulfillment_score(1)
@@ -98,12 +101,15 @@ class FoodNeed(PhysicalNeed):
 class ShelterNeed(PhysicalNeed):
     MAX_FULFILLMENT_SCORE = 30
 
-    def visit(self, person : Person):
-        if (randrange(14) == 0):
+    def visit(self, person: Person):
+        if randrange(14) == 0:
             # Shelter has degraded, needs some routine maintenance
             self.slide_fulfillment_score(-1)
 
-        if self.fulfillment_score < self.MAX_FULFILLMENT_SCORE and person.goods[wood] > 0:
+        if (
+            self.fulfillment_score < self.MAX_FULFILLMENT_SCORE
+            and person.goods[wood] > 0
+        ):
             # If shelter is not in good shape but we have wood, can spend a few
             # minutes fixing it up
             person.goods[wood] -= 1
@@ -113,24 +119,25 @@ class ShelterNeed(PhysicalNeed):
     def name(self):
         return "ShelterNeed"
 
+
 class WealthNeed(Need):
-    def __init__(self, preliminary_needs:Iterable[Need]):
+    def __init__(self, preliminary_needs: Iterable[Need]):
         self.preliminary_needs = preliminary_needs
 
-    def visit(self, person:Person):
+    def visit(self, person: Person):
         pass
 
-    def get_score(self, person:Person, tweak_money=0):
+    def get_score(self, person: Person, tweak_money=0):
         modifier = 1
         for need in self.preliminary_needs:
             modifier *= need.get_next_tier_impediment(person)
 
         return log10(person.money + 10) * modifier
 
-    def get_marginal_utility(self, person:Person, **kwargs):
+    def get_marginal_utility(self, person: Person, **kwargs):
         return self.get_score(person, tweak_money=1) - self.get_score(person)
 
-    def get_next_tier_impediment(self, person:Person):
+    def get_next_tier_impediment(self, person: Person):
         return 1.0
 
     @property

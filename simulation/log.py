@@ -9,17 +9,20 @@ import ujson as json
 BASE_LOG_DIR = "log"
 FILE_ENDING = "json.gz"
 
+
 class SimulationLogger:
-    def __init__(self, simulation_id : str):
+    def __init__(self, simulation_id: str):
         self.id = simulation_id
         self.log_dir = f"{BASE_LOG_DIR}/{self.id}"
         self._previous_state = None
 
-    def _write_json(self, to_write:Union[List, Dict], file_short_name:str):
-        with gzip.open(f"{self.log_dir}/{file_short_name}.{FILE_ENDING}", "wt", encoding="utf-8") as logfile:
+    def _write_json(self, to_write: Union[List, Dict], file_short_name: str):
+        with gzip.open(
+            f"{self.log_dir}/{file_short_name}.{FILE_ENDING}", "wt", encoding="utf-8"
+        ) as logfile:
             json.dump(to_write, logfile, ensure_ascii=False)
 
-    def log_state(self, tick : int, state : Dict):
+    def log_state(self, tick: int, state: Dict):
         makedirs(self.log_dir, exist_ok=True)
 
         self._write_json(state, tick)

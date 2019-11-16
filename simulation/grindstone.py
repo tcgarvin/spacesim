@@ -51,4 +51,5 @@ class Grindstone:
         recipe_times_executed = effective_labor * planet_multiplier
         return recipe_times_executed
 
+
 grindstone = Grindstone()  # Singleton?  Unclear.

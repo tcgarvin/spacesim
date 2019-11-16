@@ -10,10 +10,12 @@ from grindstone import grindstone
 from person_need import NeedHierarchy
 
 from typing import TYPE_CHECKING, List
+
 if TYPE_CHECKING:
     from planet import Planet
 
 DAYS_WAGE = 10
+
 
 class Person:
     """
@@ -32,13 +34,11 @@ class Person:
         self.planet = None
         self._has_executed_recipe = False
 
-    def set_planet(self, planet:"Planet"):
+    def set_planet(self, planet: "Planet"):
         self.planet = planet
 
     def estimate_production(self, recipe: Recipe):
-        return grindstone.calculate_effective_labor(
-            recipe, (self, ), self.planet
-        )
+        return grindstone.calculate_effective_labor(recipe, (self,), self.planet)
 
     def work_for_government(self):
         assert not self._has_executed_recipe
@@ -54,7 +54,7 @@ class Person:
         assert not self._has_executed_recipe
         good = recipe.output_good
         goods_generated = grindstone.calculate_effective_labor(
-            recipe, (self, ), self.planet
+            recipe, (self,), self.planet
         )
         goods_generated += self.partial_labor.get(recipe, 0)
         self.goods[good] += int(goods_generated)
@@ -68,5 +68,6 @@ class Person:
         self.needs.visit(self)
         self._has_executed_recipe = False
 
-def generate_person(planet:Planet):
+
+def generate_person(planet: Planet):
     return Person(uuid4())

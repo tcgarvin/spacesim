@@ -34,8 +34,10 @@ class Order:
     def fill(self, quantity_filled):
         self._quantity_filled += quantity_filled
 
+
 class BuyOrder(Order):
     pass
+
 
 class SellOrder(Order):
     pass

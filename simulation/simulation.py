@@ -21,10 +21,12 @@ class Simulation:
             else:
                 print(f"{title:>15}: {x0} {line} {x1}")
 
-
     def show_status(self):
         good_amounts = {kind: [0] * 41 for kind in (food, wood)}
-        need_scores = {need.__name__: [0] * (need.MAX_FULFILLMENT_SCORE + 1) for need in (FoodNeed, ShelterNeed)}
+        need_scores = {
+            need.__name__: [0] * (need.MAX_FULFILLMENT_SCORE + 1)
+            for need in (FoodNeed, ShelterNeed)
+        }
         for system in self.universe.systems:
             for planet in system.planets:
                 for person in planet.people.values():
