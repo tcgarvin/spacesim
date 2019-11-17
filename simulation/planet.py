@@ -1,4 +1,5 @@
 from typing import Iterable
+from random import shuffle
 from uuid import uuid4, UUID
 
 from good import GoodKind, Recipe, basic_food_recipe, basic_wood_recipe
@@ -57,7 +58,9 @@ class Planet:
 
     def tick(self):
         # TODO: Scramble turn order
-        for actor in self.people_actors.values():
+        actor_turn_order = list(self.people_actors.values())
+        shuffle(actor_turn_order)
+        for actor in actor_turn_order:
             actor.tick()
 
         for market in self.markets.values():
@@ -66,7 +69,7 @@ class Planet:
 
 def generate_planet():
     result = Planet(uuid4())
-    for i in range(100):
+    for _ in range(100):
         person = generate_person(result)
         person_actor = PersonActor(person)
         result.add_person(person, person_actor)
