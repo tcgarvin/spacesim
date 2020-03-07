@@ -5,7 +5,7 @@ from uuid import uuid4, UUID
 from good import GoodKind, Recipe, basic_food_recipe, basic_wood_recipe
 from order_matching_market import Market
 from person import Person, generate_person
-from person_actor import PersonActor
+from person_actor import PersonActor, Plebeian, MarketMaker
 
 
 class Planet:
@@ -62,6 +62,7 @@ class Planet:
         shuffle(actor_turn_order)
         for actor in actor_turn_order:
             actor.tick()
+            actor.person.tick()
 
         for market in self.markets.values():
             market.tick()
@@ -69,10 +70,11 @@ class Planet:
 
 def generate_planet():
     result = Planet(uuid4())
-    for _ in range(100):
+    result.add_recipe(basic_food_recipe)
+    result.add_recipe(basic_wood_recipe)
+    strategies = [Plebeian] * 2 + [MarketMaker] * 98
+    for Strategy in strategies:
         person = generate_person(result)
-        person_actor = PersonActor(person)
+        person_actor = Strategy(person)
         result.add_person(person, person_actor)
-        result.add_recipe(basic_food_recipe)
-        result.add_recipe(basic_wood_recipe)
     return result

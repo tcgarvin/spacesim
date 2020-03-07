@@ -1,6 +1,7 @@
 from __future__ import annotations
-from collections import namedtuple
+from collections import namedtuple, deque
 from dataclasses import dataclass, field
+from statistics import mean
 from typing import Any, Callable, List
 
 from sortedcontainers import SortedKeyList
@@ -58,6 +59,16 @@ class Market:
             key=lambda order: (-order.offer_price, order.order_number)
         )
         self.order_number = 1
+
+        self._todays_volume = 0
+        self._daily_volumes = deque(maxlen=30)
+        self._last_price = 0
+        self._daily_closing_price = deque(maxlen=30)
+
+    def get_avg_price(self):
+        if len(self._daily_closing_price) == 0:
+            return 0
+        return mean(self._daily_closing_price)
 
     def best_buy_orders(self):
         """
@@ -172,6 +183,9 @@ class Market:
             quantity_resolved = min(buy_quantity, sell_quantity)
             assert quantity_resolved > 0
 
+            self._todays_volume += quantity_resolved
+            self._last_price = best_buy_offers[0].offer_price
+
             executed_buy_orders = self._resolve_orders(
                 best_buy_offers, quantity_resolved
             )
@@ -195,3 +209,8 @@ class Market:
 
             for order, num_filled in executed_sell_orders:
                 order.callback(order, num_filled)
+
+    def tick(self):
+        self._daily_closing_price.append(self._last_price)
+        self._daily_volumes.append(self._todays_volume)
+        self._todays_volume = 0
