@@ -64,11 +64,27 @@ class Market:
         self._daily_volumes = deque(maxlen=30)
         self._last_price = 0
         self._daily_closing_price = deque(maxlen=30)
+    
+    def has_buy_orders(self):
+        return len(self.buy_orders) > 0
 
-    def get_avg_price(self):
+    def has_sell_orders(self):
+        return len(self.sell_orders) > 0
+
+    def get_30d_avg_volume(self):
+        if len(self._daily_volumes) == 0:
+            return 0
+        return mean(self._daily_volumes)
+
+    def get_30d_avg_price(self):
         if len(self._daily_closing_price) == 0:
             return 0
         return mean(self._daily_closing_price)
+
+    def get_30d_sigma_price(self):
+        if len(self._daily_closing_price) == 0:
+            return 0
+        return mean(self._daily_closing_price) 
 
     def best_buy_orders(self):
         """
@@ -112,6 +128,8 @@ class Market:
         and it is assumed that the person has kept the needed money in hand to 
         be removed now in exchange for goods.
         """
+        assert quantity > 0
+        assert offer_price > 0
         order = BuyOrder(self.order_number, offer_price, quantity, callback)
         self.order_number += 1
         self.buy_orders.add(order)
@@ -127,6 +145,8 @@ class Market:
         and it is assumed that the person has kept the needed goods in hand to 
         be removed now in exchange for money.
         """
+        assert quantity > 0
+        assert offer_price > 0
         order = SellOrder(self.order_number, offer_price, quantity, callback)
         self.order_number += 1
         self.sell_orders.add(order)

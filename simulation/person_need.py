@@ -54,6 +54,7 @@ class PhysicalNeed(Need):
     """
 
     MAX_FULFILLMENT_SCORE = 0
+    GOOD = None 
 
     def __init__(self):
         self.fulfillment_score = self.MAX_FULFILLMENT_SCORE // 2
@@ -82,9 +83,13 @@ class PhysicalNeed(Need):
     def get_next_tier_impediment(self, person):
         return self.fulfillment_score / self.MAX_FULFILLMENT_SCORE
 
+    def get_good(self):
+        return self.GOOD
+
 
 class FoodNeed(PhysicalNeed):
     MAX_FULFILLMENT_SCORE = 30
+    GOOD = food
 
     def visit(self, person: Person):
         if person.goods[food] > 0:
@@ -100,6 +105,7 @@ class FoodNeed(PhysicalNeed):
 
 class ShelterNeed(PhysicalNeed):
     MAX_FULFILLMENT_SCORE = 30
+    GOOD = wood
 
     def visit(self, person: Person):
         if randrange(14) == 0:
@@ -132,7 +138,7 @@ class WealthNeed(Need):
         for need in self.preliminary_needs:
             modifier *= need.get_next_tier_impediment(person)
 
-        return log10(person.money + 10) * modifier
+        return log10(person.money + tweak_money + 10) * modifier
 
     def get_marginal_utility(self, person: Person, **kwargs):
         return self.get_score(person, tweak_money=1) - self.get_score(person)
@@ -142,14 +148,20 @@ class WealthNeed(Need):
 
     @property
     def name(self):
-        raise NotImplementedError()
+        raise "WealthNeed"
 
 
 class NeedHierarchy:
     def __init__(self):
         self.food = FoodNeed()
         self.shelter = ShelterNeed()
+        self.wealth = WealthNeed((self.food, self.shelter))
+        self._needs = (self.food, self.shelter, self.wealth)
 
     def visit(self, person: Person):
         self.food.visit(person)
         self.shelter.visit(person)
+        self.wealth.visit(person)
+
+    def get_needs(self):
+        return self._needs

@@ -45,10 +45,10 @@ class Planet:
     def add_recipe(self, recipe: Recipe):
         self.recipes.add(recipe)
 
-    def knows_recipe(self, recipe: Recipe):
+    def knows_recipe(self, recipe: Recipe) -> bool:
         return recipe in self.recipes
 
-    def get_market(self, good: GoodKind):
+    def get_market(self, good: GoodKind) -> Market:
         market = self.markets.get(good, None)
         if market is None:
             market = Market()
@@ -72,7 +72,7 @@ def generate_planet():
     result = Planet(uuid4())
     result.add_recipe(basic_food_recipe)
     result.add_recipe(basic_wood_recipe)
-    strategies = [Plebeian] * 2 + [MarketMaker] * 98
+    strategies = [Plebeian] * 98 + [MarketMaker] * 2
     for Strategy in strategies:
         person = generate_person(result)
         person_actor = Strategy(person)

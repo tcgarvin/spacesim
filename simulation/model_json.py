@@ -6,14 +6,14 @@ from universe import Universe
 
 
 def bag_of_goods_to_json(bag: BagOfGoods):
-    return {g.name: bag[g] for g in bag.keys() if bag[g] > 0}
+    return {g.name: int(bag[g]) for g in bag.keys() if bag[g] > 0}
 
 
 def person_to_json(person: Person):
     return {
         "id": str(person.uuid),
         "needs": {
-            need.name: need.get_fulfillment_score()
+            need.name: float(need.get_fulfillment_score())
             for need in (person.needs.food, person.needs.shelter)
         },
         "goods": bag_of_goods_to_json(person.goods),
