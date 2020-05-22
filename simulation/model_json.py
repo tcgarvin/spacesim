@@ -13,10 +13,11 @@ def person_to_json(person: Person):
     return {
         "id": str(person.uuid),
         "needs": {
-            need.name: float(need.get_fulfillment_score())
-            for need in (person.needs.food, person.needs.shelter)
+            need.name: round(float(need.get_score(person)),2)
+            for need in person.needs.get_needs()
         },
         "goods": bag_of_goods_to_json(person.goods),
+        "money": person.money
     }
 
 

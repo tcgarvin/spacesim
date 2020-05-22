@@ -148,7 +148,7 @@ class WealthNeed(Need):
 
     @property
     def name(self):
-        raise "WealthNeed"
+        return "WealthNeed"
 
 
 class NeedHierarchy:
