@@ -20,11 +20,22 @@ def person_to_json(person: Person):
         "money": person.money
     }
 
+def market_to_json(name, market):
+    return {
+        "good": name,
+        "open": market.last_session_open(),
+        "close": market.last_session_close(),
+        "volume": market.last_session_volume(),
+        "high": market.last_session_high(),
+        "low": market.last_session_low()
+    }
+
 
 def planet_to_json(planet: Planet):
     return {
         "id": str(planet.uuid),
         "population": list(map(person_to_json, planet.people.values())),
+        "markets": list(map(market_to_json, planet.markets.items()))
     }
 
 

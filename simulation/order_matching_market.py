@@ -62,6 +62,10 @@ class Market:
 
         self._todays_volume = 0
         self._daily_volumes = deque(maxlen=30)
+        self._todays_high = None
+        self._daily_highs = deque(maxlen=30)
+        self._todays_low = None
+        self._daily_lows = deque(maxlen=30)
         self._last_price = 0
         self._daily_closing_price = deque(maxlen=30)
     
@@ -85,6 +89,31 @@ class Market:
         if len(self._daily_closing_price) == 0:
             return 0
         return mean(self._daily_closing_price) 
+
+    def last_session_open(self):
+        if len(self._daily_closing_price) < 2:
+            return 0
+        return self._daily_closing_price[-2]
+
+    def last_session_close(self):
+        if len(self._daily_closing_price) < 1:
+            return 0
+        return self._daily_closing_price[-1]
+
+    def last_session_volume(self):
+        if len(self._daily_volumes) < 1:
+            return 0
+        return self._daily_volumes[-1]
+
+    def last_session_high(self):
+        if len(self._daily_highs) < 1:
+            return 0
+        return self._daily_highs[-1]
+        
+    def last_session_low(self):
+        if len(self._daily_lows) < 1:
+            return 0
+        return self._daily_lows[-1]
 
     def best_buy_orders(self):
         """
@@ -204,7 +233,18 @@ class Market:
             assert quantity_resolved > 0
 
             self._todays_volume += quantity_resolved
-            self._last_price = best_buy_offers[0].offer_price
+
+            strike_price = best_buy_offers[0].offer_price
+            self._last_price = strike_price
+            if self._todays_high == None:
+                self._todays_high = strike_price
+            else:
+                self._todays_high = max(self._todays_high, strike_price)
+
+            if self._todays_low == None:
+                self._todays_low = strike_price
+            else:
+                self._todays_low = min(self._todays_low, strike_price)
 
             executed_buy_orders = self._resolve_orders(
                 best_buy_offers, quantity_resolved
@@ -234,3 +274,7 @@ class Market:
         self._daily_closing_price.append(self._last_price)
         self._daily_volumes.append(self._todays_volume)
         self._todays_volume = 0
+        self._daily_highs.append(self._todays_high)
+        self._todays_high = None
+        self._daily_lows.append(self._todays_low)
+        self._todays_low = None

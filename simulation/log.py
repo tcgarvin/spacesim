@@ -7,8 +7,8 @@ from typing import Dict, List, Union
 import ujson as json
 
 
-BASE_LOG_DIR = "log"
-FILE_ENDING = "json.gz"
+BASE_LOG_DIR = "runlog"
+FILE_ENDING = "json"
 LISTING_PATH = f"{BASE_LOG_DIR}/listing.{FILE_ENDING}"
 
 class SimulationLogger:
