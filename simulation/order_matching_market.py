@@ -32,7 +32,7 @@ class Order:
     def quantity_unfilled(self):
         return self.quantity - self._quantity_filled
 
-    def fill(self, quantity_filled):
+    def _fill(self, quantity_filled):
         self._quantity_filled += quantity_filled
 
 
@@ -209,7 +209,7 @@ class Market:
 
             if to_fill > 0:
                 remaining -= to_fill
-                order.fill(to_fill)
+                order._fill(to_fill)
                 modified_orders.append((order, to_fill))
 
                 if remaining == 0:

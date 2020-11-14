@@ -1,27 +1,45 @@
-from location import Location
-from ship import Ship
-from random import randint
-from star_system import StarSystem, generate_starsystem
-from good import GoodKind, Recipe, BagOfGoods
 import math
+from random import randint, shuffle
+
+from good import GoodKind, Recipe, BagOfGoods
+from ship import Ship, generate_ship
+from ship_actor import ShipActor
+from star_system import StarSystem, generate_starsystem
 
 
 class Universe:
     def __init__(self):
         self.systems = []
         self.ships = []
+        self.ship_actors = []
         self.generate()
 
     def tick(self):
+        actor_turn_order = list(self.ship_actors)
+        shuffle(actor_turn_order)
+        for actor in actor_turn_order:
+            actor.tick()
+            actor.ship.tick()
+
         for starsystem in self.systems:
             starsystem.tick()
 
     def generate(self):
         new_systems = []
+        new_ships = []
+        new_ship_actors = []
         for i in range(100):
             x = randint(0, 1000)
             y = randint(0, 1000)
-            new_systems.append(generate_starsystem(x, y))
+            system = generate_starsystem(x, y)
+            new_systems.append(system)
+
+            starting_ship = generate_ship()
+            starting_ship.set_initial_position(system, system.planets[0])
+            new_ships.append(starting_ship)
+
+            ship_actor = ShipActor(starting_ship)
+            new_ship_actors.append(ship_actor)
 
         for system in new_systems:
             # Find the nearest system in 4 directions and link to them
@@ -47,13 +65,8 @@ class Universe:
                 system.add_neighbor(near_system)
                 near_system.add_neighbor(system)
 
-        new_ships = []
-        for i in range(100):
-            location = Location(new_systems[i])
-            ship = Ship(location)
-            new_ships.append(ship)
-
         self.systems = new_systems
         self.ships = new_ships
+        self.ship_actors = new_ship_actors
 
     print("completed generation")

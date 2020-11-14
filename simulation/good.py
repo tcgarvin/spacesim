@@ -51,6 +51,16 @@ class BagOfGoods(Counter):
 
         return quotient, remainder
 
+    def equals(self, other: BagOfGoods):
+        if self.keys() != other.keys():
+            return False
+
+        for good in self | other:
+            if self[good] != other[good]:
+                return False
+
+        return True
+
 
 class Recipe:
     """
@@ -139,7 +149,7 @@ def generate_basic_recipe(
 
 
 basic_food_recipe = generate_basic_recipe(
-    1, food, Normal(0.5, 0.5), Normal(1, 0.2), Normal(1, 0.05)
+    1, food, Normal(0.75, 0.5), Normal(1, 0.3), Normal(1, 0.05)
 )
 basic_wood_recipe = generate_basic_recipe(
     1, wood, Normal(1, 0.5), Normal(1, 0.2), Normal(1, 0.05)

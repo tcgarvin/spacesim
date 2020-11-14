@@ -32,7 +32,6 @@ class Plebeian(PersonActor):
         self.person = person
         self.partial_labor = {}
         self.marginal_utilities = {}
-        self.best_at = None
 
     def _estimate_wealth_gain(self, wealth_need : Need):
         best_gain = self.marginal_utilities[wealth_need] * 10
@@ -40,7 +39,7 @@ class Plebeian(PersonActor):
             market = self.person.planet.get_market(need.get_good())
             if market.has_sell_orders():
                 buy_price = market.lowest_sell_offer()
-                potential_gain = 10 / buy_price * self.marginal_utilities[need]
+                potential_gain = (10 / buy_price) * self.marginal_utilities[need]
                 if potential_gain > best_gain:
                     best_gain = potential_gain
 
@@ -49,7 +48,7 @@ class Plebeian(PersonActor):
     def _estimate_gain(self, need: Need, recipe: Recipe):
         estimated_fulfillment = self.person.estimate_production(recipe)
         marginal_utility = self.marginal_utilities[need]
-        best_gain = estimated_fulfillment * marginal_utility
+        best_gain = estimated_fulfillment * marginal_utility / max(1, self.person.goods[need.get_good()])
         market = self.person.planet.get_market(need.get_good())
         if market.has_buy_orders():
             sell_price = market.highest_buy_offer()
@@ -221,7 +220,7 @@ class MarketMaker(PersonActor):
 
             if amount_allocated > 0:
                 curve_percentile_step = curve_percentile / max(amount_held, 1)
-                buy_percentiles = [curve_percentile - (x * curve_percentile_step) for x in range(amount_held)]
+                buy_percentiles = [curve_percentile - (x * curve_percentile_step) for x in range(max(amount_held, 1))]
                 order_sizes, order_prices = histogram(price_dist.ppf(buy_percentiles), NUM_BUY_ORDERS)
 
                 if avg_volume == 0:

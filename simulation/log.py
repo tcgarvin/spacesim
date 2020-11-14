@@ -8,7 +8,7 @@ import ujson as json
 
 
 BASE_LOG_DIR = "runlog"
-FILE_ENDING = "json"
+FILE_ENDING = "json.gz"
 LISTING_PATH = f"{BASE_LOG_DIR}/listing.{FILE_ENDING}"
 
 class SimulationLogger:
@@ -54,9 +54,12 @@ class SimulationLogger:
 
         self._write_json(state, tick)
 
-        if self._previous_state is not None:
-            patch = make_patch(self._previous_state, state)
-            self._write_json(patch, f"{tick-1}-{tick}.patch")
+        # Have not been using the patch data, and it adds some runtime, so 
+        # disabling for now.
+
+        #if self._previous_state is not None:
+        #    patch = make_patch(self._previous_state, state)
+        #    self._write_json(patch, f"{tick-1}-{tick}.patch")
 
         self._simulation_metadata["tickCount"] += 1
         self._write_json(self._simulation_metadata, "index")

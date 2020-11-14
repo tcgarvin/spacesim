@@ -8,7 +8,7 @@ from planet import Planet, generate_planet
 
 class StarSystem:
     def __init__(self, system_id: UUID, x: int, y: int):
-        self.id = system_id
+        self.uuid = system_id
         self.x = x
         self.y = y
         self._neighbors = {}
@@ -21,7 +21,10 @@ class StarSystem:
         return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
 
     def add_neighbor(self, neighbor: StarSystem):
-        self._neighbors[neighbor.id] = neighbor
+        self._neighbors[neighbor.uuid] = neighbor
+
+    def is_neighbor_to(self, neighbor: StarSystem):
+        return neighbor.uuid in self._neighbors
 
     def add_planet(self, planet: Planet):
         self.planets.append(planet)
