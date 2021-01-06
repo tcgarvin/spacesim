@@ -13,7 +13,7 @@ class BagOfGoods private constructor(private val goodCounts: MutableMap<GoodKind
      */
     fun several(multiple: Int): BagOfGoods {
         val result = BagOfGoods()
-        goodCounts.mapValuesTo(result.goodCounts, { it.value * 3 })
+        goodCounts.mapValuesTo(result.goodCounts, { it.value * multiple })
         return result
     }
 
@@ -40,8 +40,8 @@ class BagOfGoods private constructor(private val goodCounts: MutableMap<GoodKind
         return Pair(quotient, remainder)
     }
 
-    override operator fun get(kind: GoodKind): Int {
-        return goodCounts.getOrDefault(kind, 0)
+    override operator fun get(key: GoodKind): Int {
+        return goodCounts.getOrDefault(key, 0)
     }
 
     operator fun set(kind: GoodKind, number: Int) {

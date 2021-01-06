@@ -1,3 +1,4 @@
+import org.apache.commons.math3.random.Well19937c
 import kotlin.random.Random
 
 class Universe(val starSystems: List<StarSystem>) : Tickable {
@@ -10,7 +11,8 @@ fun generateUniverse(): Universe {
     val starSystems = (1..100).map {
         val x = Random.nextInt(0, 1000)
         val y = Random.nextInt(0, 1000)
-        generateStarSystem(x, y)
+        // Give each starsystem it's own rng, since that's where each coroutine will live
+        generateStarSystem(x, y, Well19937c())
     }
 
     return Universe(starSystems)

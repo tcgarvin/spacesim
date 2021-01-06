@@ -1,3 +1,5 @@
+import org.apache.commons.math3.random.RandomGenerator
+
 class Planet() : Tickable {
     val people: MutableList<Person> = mutableListOf()
 
@@ -10,8 +12,8 @@ class Planet() : Tickable {
     }
 }
 
-fun generatePlanet(): Planet {
+fun generatePlanet(rng: RandomGenerator): Planet {
     val result = Planet()
-    (1..100).forEach { result.addPerson(generatePerson(result)) }
+    (1..100).forEach { result.addPerson(generatePerson(result, rng)) }
     return result
 }
