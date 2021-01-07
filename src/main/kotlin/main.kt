@@ -1,3 +1,5 @@
+import kotlin.system.measureTimeMillis
+
 fun main(args: Array<String>) {
 
     println("Generating Universe")
@@ -7,8 +9,10 @@ fun main(args: Array<String>) {
     val simulation = Simulation(universe)
 
     for (day in 1..100) {
-        println("Day $day")
-        simulation.tick()
+        val tickDuration = measureTimeMillis {
+            simulation.tick()
+        }
+        println("Day $day ( $tickDuration ms )")
     }
 
     val allPeople = universe.starSystems.flatMap { it.planets.flatMap { it.people }}
