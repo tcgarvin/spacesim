@@ -6,6 +6,6 @@ import actions.PersonAction
 
 class Plebeian : PersonStrategy {
     override fun pickNextAction(person: Person) : PersonAction  {
-        return MakeGood.FOOD
+        return listOf(MakeGood.FOOD, MakeGood.WOOD).random();
     }
 }

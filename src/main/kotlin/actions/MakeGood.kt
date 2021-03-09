@@ -5,10 +5,16 @@ import GoodKind
 import Person
 import org.apache.commons.math3.distribution.NormalDistribution
 
-private fun normal(mean: Double, sigma: Double) : DistributionGenerator =
-    { rng ->  NormalDistribution(rng, mean, sigma) }
+private fun normal(mean: Double, sigma: Double): DistributionGenerator =
+    { rng -> NormalDistribution(rng, mean, sigma) }
 
-enum class MakeGood(val kind: GoodKind, val planetDistributionGenerator: DistributionGenerator, val personDistributionGenerator: DistributionGenerator, val applicationDistributionGenerator: DistributionGenerator) : PersonAction {
+enum class MakeGood(
+    val kind: GoodKind,
+    val planetDistributionGenerator: DistributionGenerator,
+    val personDistributionGenerator: DistributionGenerator,
+    val applicationDistributionGenerator: DistributionGenerator
+) : PersonAction {
+    
     FOOD(GoodKind.FOOD, normal(1.0, 0.05), normal(1.0, 0.05), normal(1.0, 0.05)),
     WOOD(GoodKind.WOOD, normal(1.0, 0.05), normal(1.0, 0.05), normal(1.0, 0.05));
 

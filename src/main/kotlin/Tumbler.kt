@@ -1,5 +1,4 @@
 import org.apache.commons.math3.distribution.AbstractRealDistribution
-import org.apache.commons.math3.distribution.NormalDistribution
 import org.apache.commons.math3.random.RandomGenerator
 
 typealias DistributionGenerator = (RandomGenerator) -> AbstractRealDistribution
@@ -12,7 +11,7 @@ typealias DistributionGenerator = (RandomGenerator) -> AbstractRealDistribution
  * class is not intended to be thread-safe, as each Tumbler should exist within a single model object, such that no
  * two threads will be looking at the same tumbler.
  */
-class Tumbler(private val rng: RandomGenerator) {
+class Tumbler(val rng: RandomGenerator) {
     private val biasMapping: MutableMap<Any, Double> = mutableMapOf()
     private val distributionMapping: MutableMap<Any, AbstractRealDistribution> = mutableMapOf()
 
