@@ -5,7 +5,7 @@ import Person
 private const val FOOD_TIME = 30
 
 class FoodNeed : PhysicalNeed() {
-    private val recentDays = MutableList(FOOD_TIME) { 1 }
+    private val recentDays = MutableList<Int>(FOOD_TIME) { 0 }
 
     override fun visit(person: Person) {
         val wasFed: Int
