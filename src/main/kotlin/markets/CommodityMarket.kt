@@ -9,7 +9,7 @@ abstract class Order {
 
     var unitsFilled = 0
 
-    open fun fill(numUnits: Int) {
+    open fun fill(numUnits: Int, strikePrice: Int) {
         unitsFilled += numUnits
     }
 
@@ -22,11 +22,11 @@ class BuyOrder(
     override val id: Int,
     override val units: Int,
     override val price: Int,
-    val callback: (BuyOrder) -> Unit
+    val callback: (BuyOrder, Int, Int) -> Unit
 ) : Order() {
-    override fun fill(numUnits: Int) {
-        super.fill(numUnits)
-        callback(this)
+    override fun fill(numUnits: Int, strikePrice: Int) {
+        super.fill(numUnits, strikePrice)
+        callback(this, numUnits, strikePrice)
     }
 }
 
@@ -34,11 +34,11 @@ class SellOrder(
     override val id: Int,
     override val units: Int,
     override val price: Int,
-    val callback: (SellOrder) -> Unit
+    val callback: (SellOrder, Int, Int) -> Unit
 ) : Order() {
-    override fun fill(numUnits: Int) {
-        super.fill(numUnits)
-        callback(this)
+    override fun fill(numUnits: Int, strikePrice: Int) {
+        super.fill(numUnits, strikePrice)
+        callback(this, numUnits, strikePrice)
     }
 }
 
@@ -52,7 +52,7 @@ private val sellOrderComparator: Comparator<SellOrder> = compareBy(
     { it.id }
 )
 
-class CommodityMarket() {
+class CommodityMarket {
     private val buyOrders = sortedSetOf(buyOrderComparator)
     private val sellOrders = sortedSetOf(sellOrderComparator)
     private var lastOrderId = 0
@@ -65,15 +65,15 @@ class CommodityMarket() {
         return sellOrders.size > 0
     }
 
-    fun getBestBuyOrder(): Order {
+    fun getBestBuyOrder(): BuyOrder {
         return buyOrders.first() ?: throw NoOrders()
     }
 
-    fun getBestSellOrder(): Order {
+    fun getBestSellOrder(): SellOrder {
         return sellOrders.first() ?: throw NoOrders()
     }
 
-    fun hasMatchingOrders(): Boolean {
+    private fun hasMatchingOrders(): Boolean {
         if (!hasBuyOrders() || !hasSellOrders()) {
             return false
         }
@@ -81,12 +81,19 @@ class CommodityMarket() {
         return getBestBuyOrder().price >= getBestSellOrder().price
     }
 
-    private fun getNextOrderID() : Int {
+    fun cancelOrder(order : Order) {
+        when (order) {
+            is BuyOrder -> buyOrders.remove(order)
+            is SellOrder -> sellOrders.remove(order)
+        }
+    }
+
+    private fun getNextOrderID(): Int {
         lastOrderId += 1
         return lastOrderId
     }
 
-    fun issueBuyOrder(units : Int, price : Int, callback: (BuyOrder) -> Unit = {}) : BuyOrder {
+    fun issueBuyOrder(units: Int, price: Int, callback: (BuyOrder, Int, Int) -> Unit = { _, _, _ -> }): BuyOrder {
         if (hasSellOrders() && getBestSellOrder().price < price) {
             throw NoNegativeMargin()
         }
@@ -95,7 +102,7 @@ class CommodityMarket() {
         return order
     }
 
-    fun issueSellOrder(units : Int, price : Int, callback : (SellOrder) -> Unit = {}) : SellOrder {
+    fun issueSellOrder(units: Int, price: Int, callback: (SellOrder, Int, Int) -> Unit = { _, _, _ -> }): SellOrder {
         if (hasBuyOrders() && getBestBuyOrder().price > price) {
             throw NoNegativeMargin()
         }
@@ -110,9 +117,10 @@ class CommodityMarket() {
             val bestSellOrder = getBestSellOrder()
 
             val unitsTransacted = min(bestBuyOrder.units, bestSellOrder.units)
+            val strikePrice = if (bestBuyOrder.id > bestSellOrder.id) bestSellOrder.price else bestBuyOrder.price
 
-            bestBuyOrder.fill(unitsTransacted)
-            bestSellOrder.fill(unitsTransacted)
+            bestBuyOrder.fill(unitsTransacted, strikePrice)
+            bestSellOrder.fill(unitsTransacted, strikePrice)
 
             if (bestBuyOrder.isFilled()) {
                 buyOrders.remove(bestBuyOrder)
@@ -124,6 +132,6 @@ class CommodityMarket() {
         }
     }
 
-    class NoOrders() : Exception()
-    class NoNegativeMargin() : Exception()
+    class NoOrders : Exception()
+    class NoNegativeMargin : Exception()
 }

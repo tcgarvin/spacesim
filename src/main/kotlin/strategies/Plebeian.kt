@@ -1,11 +1,58 @@
 package strategies
 
 import Person
-import actions.MakeGood
-import actions.PersonAction
+import actions.*
+
+val randomGoodList = listOf(GoodKind.FOOD, GoodKind.WOOD);
 
 class Plebeian : PersonStrategy {
-    override fun pickNextAction(person: Person) : PersonAction  {
-        return listOf(MakeGood.FOOD, MakeGood.WOOD).random();
+    private fun makeRandomBuyAction(person: Person) : MarketAction {
+        val targetGood = randomGoodList.random();
+        val targetMarket = person.planet.getMarket(targetGood);
+        if (!targetMarket.hasSellOrders()) {
+            return NoOpMarketAction
+        }
+        val targetPrice = targetMarket.getBestSellOrder().price;
+        val maxPossibleUnits = person.money / targetPrice
+        if (maxPossibleUnits == 0) {
+            return NoOpMarketAction;
+        }
+
+        val targetUnits = person.biases.rng.nextInt(maxPossibleUnits) + 1
+        return BuyGood(targetGood, targetUnits, targetPrice)
+    }
+
+    private fun makeRandomSellAction(person: Person) : MarketAction {
+        val targetGood = randomGoodList.random();
+        val targetMarket = person.planet.getMarket(targetGood);
+        if (! targetMarket.hasBuyOrders()) {
+            return NoOpMarketAction;
+        }
+        val targetPrice = targetMarket.getBestBuyOrder().price;
+        val maxPossibleUnits = person.goods[targetGood]
+        if (maxPossibleUnits == 0) {
+            return NoOpMarketAction;
+        }
+
+        val targetUnits = person.biases.rng.nextInt(maxPossibleUnits) + 1
+        return SellGood(targetGood, targetUnits, targetPrice)
+    }
+
+    override fun pickNextActions(person: Person) : PersonStrategyOutput  {
+        val rng = person.biases.rng;
+
+        val marketAction = when (rng.nextInt(3)) {
+            1 -> makeRandomBuyAction(person);
+            2 -> makeRandomSellAction(person);
+            else -> NoOpMarketAction
+        }
+
+        val personAction = when (rng.nextInt(3)) {
+            1 -> MakeGood.WOOD;
+            2 -> MakeGood.FOOD;
+            else -> WorkForGovernment
+        }
+
+        return PersonStrategyOutput(personAction, listOf(marketAction))
     }
 }

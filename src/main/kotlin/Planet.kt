@@ -1,7 +1,9 @@
+import markets.CommodityMarket
 import org.apache.commons.math3.random.RandomGenerator
 
 class Planet(val biases: Tumbler) : Tickable {
     val people: MutableList<Person> = mutableListOf()
+    private val markets: MutableMap<GoodKind, CommodityMarket> = mutableMapOf()
 
     override fun tick() {
         people.forEach { it.tick() }
@@ -9,6 +11,10 @@ class Planet(val biases: Tumbler) : Tickable {
 
     fun addPerson(person: Person) {
         people.add(person)
+    }
+
+    fun getMarket(commodity: GoodKind) : CommodityMarket{
+        return markets.getOrPut(commodity) { CommodityMarket() }
     }
 }
 
