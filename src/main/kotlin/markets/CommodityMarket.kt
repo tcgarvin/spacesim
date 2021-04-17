@@ -1,5 +1,9 @@
 package markets
 
+import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation
+import org.apache.commons.math3.util.DoubleArray
+import java.util.*
+import kotlin.Comparator
 import kotlin.math.min
 
 abstract class Order {
@@ -57,6 +61,11 @@ class CommodityMarket {
     private val sellOrders = sortedSetOf(sellOrderComparator)
     private var lastOrderId = 0
 
+    private var todaysVolume = 0;
+    private val volumeHistory = LinkedList<Int>();
+    private var lastPrice = 0;
+    private val lastPriceHistory = LinkedList<Int>();
+
     fun hasBuyOrders(): Boolean {
         return buyOrders.size > 0
     }
@@ -71,6 +80,26 @@ class CommodityMarket {
 
     fun getBestSellOrder(): SellOrder {
         return sellOrders.first() ?: throw NoOrders()
+    }
+
+    fun hasHistory(): Boolean {
+        return lastPriceHistory.size > 0
+    }
+
+    fun get30DayAveragePrice(): Double {
+        return lastPriceHistory.average();
+    }
+
+    fun get30DayAverageVolume(): Double {
+        return volumeHistory.average();
+    }
+
+    fun get30DayStandardDeviation(): Double {
+        val sigma = StandardDeviation();
+        for (price in lastPriceHistory) {
+            sigma.increment(price.toDouble());
+        }
+        return sigma.result;
     }
 
     private fun hasMatchingOrders(): Boolean {
@@ -129,7 +158,23 @@ class CommodityMarket {
             if (bestSellOrder.isFilled()) {
                 sellOrders.remove(bestSellOrder)
             }
+
+            lastPrice = strikePrice
+            todaysVolume += unitsTransacted
         }
+    }
+
+    fun tick() {
+        lastPriceHistory.addLast(lastPrice)
+        while (lastPriceHistory.size > 30) {
+            lastPriceHistory.removeFirst();
+        }
+
+        volumeHistory.addLast(todaysVolume)
+        while (volumeHistory.size > 30) {
+            volumeHistory.removeFirst();
+        }
+        todaysVolume = 0;
     }
 
     class NoOrders : Exception()

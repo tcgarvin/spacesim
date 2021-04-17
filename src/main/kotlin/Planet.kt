@@ -7,6 +7,7 @@ class Planet(val biases: Tumbler) : Tickable {
 
     override fun tick() {
         people.forEach { it.tick() }
+        markets.values.forEach { it.tick() }
     }
 
     fun addPerson(person: Person) {
