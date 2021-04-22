@@ -4,6 +4,6 @@ import Person
 
 object WorkForGovernment : PersonAction {
     override fun apply(person: Person) {
-        person.money += 10;
+        person.addMoney(10)
     }
 }

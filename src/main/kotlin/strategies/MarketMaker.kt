@@ -13,7 +13,7 @@ const val MAX_SELL_ORDERS = 10
 const val MAX_BUY_ORDERS = 10
 
 class MarketMaker : PersonStrategy {
-    private val allocations = mapOf<GoodKind, Int>()
+    private val allocations = mutableMapOf<GoodKind, Int>().withDefault { 0 }
 
     private fun ordersViaMarketConditions(person: Person, good: GoodKind): Collection<MarketAction> {
         val market = person.planet.getMarket(good)
@@ -60,7 +60,7 @@ class MarketMaker : PersonStrategy {
         if (amountHeld > 0) {
             val curvePercentileStep = (1 - curvePercentile) / MAX_SELL_ORDERS
             val sellPercentiles = (0 until MAX_SELL_ORDERS).map { curvePercentile + (it * curvePercentileStep) }
-            val orderPrices = sellPercentiles.map { priceDist.inverseCumulativeProbability(it).toInt() + 1 }
+            val orderPrices = sellPercentiles.map { max(priceDist.inverseCumulativeProbability(it).toInt() + 1, 2) }
             val targetOrderSize = ceil(amountHeld / MAX_SELL_ORDERS.toDouble()).toInt()
 
             // Combine orders that are of the same price
@@ -81,7 +81,7 @@ class MarketMaker : PersonStrategy {
         if (amountAllocated > 0) {
             val curvePercentileStep = curvePercentile / MAX_BUY_ORDERS
             val buyPercentiles = (0 until MAX_BUY_ORDERS).map { curvePercentile - (it * curvePercentileStep) }
-            val orderPrices = buyPercentiles.map { priceDist.inverseCumulativeProbability(it).toInt() }
+            val orderPrices = buyPercentiles.map { max(priceDist.inverseCumulativeProbability(it).toInt(), 1) }
             val targetOrderSize = ceil((amountAllocated / targetBuyPrice.toDouble())).toInt()
 
             // Combine orders that are of the same price
@@ -94,8 +94,10 @@ class MarketMaker : PersonStrategy {
                 }
 
                 val orderSize = min(amountRemaining / price, targetOrderSize * orderCount)
-                amountRemaining -= orderSize * price
-                marketActions.add(BuyGood(good, orderSize, price))
+                if (orderSize > 0) {
+                    amountRemaining -= orderSize * price
+                    marketActions.add(BuyGood(good, orderSize, price))
+                }
             }
         }
 
@@ -106,7 +108,7 @@ class MarketMaker : PersonStrategy {
         val amountAllocated = allocations.getOrDefault(good, 0)
         val marketActions = mutableListOf<MarketAction>()
         for (i in mutableListOf(1,2,4)) {
-            if (amountAllocated / i == 0) {
+            if (amountAllocated / i > 0) {
                 marketActions.add(BuyGood(good, 1, amountAllocated / i))
             }
         }
@@ -122,9 +124,21 @@ class MarketMaker : PersonStrategy {
         }
     }
 
+    private fun allocateFunds(person: Person) {
+        val fundsToAllocate = (person.money - allocations.values.sum()) / getGoodsOfConcern().size
+        for (good in getGoodsOfConcern()) {
+            allocations[good] = allocations.getValue(good) + fundsToAllocate
+        }
+    }
+
+    private fun getGoodsOfConcern() : Array<GoodKind> {
+        return GoodKind.values()
+    }
+
     override fun pickNextActions(person: Person) : PersonStrategyOutput  {
+        allocateFunds(person)
         val marketActions = mutableListOf<MarketAction>();
-        for (good in GoodKind.values()) {
+        for (good in getGoodsOfConcern()) {
             marketActions.addAll(affectMarket(person, good))
         }
 

@@ -8,9 +8,9 @@ class Universe(val starSystems: List<StarSystem>) : Tickable {
 }
 
 fun generateUniverse(): Universe {
-    val starSystems = (1..100).map {
-        val x = Random.nextInt(0, 1000)
-        val y = Random.nextInt(0, 1000)
+    val starSystems = (1..50).map {
+        val x = Random.nextInt(0, 600)
+        val y = Random.nextInt(0, 600)
         // Give each starsystem it's own rng, since that's where each coroutine will live
         generateStarSystem(x, y, Well19937c())
     }

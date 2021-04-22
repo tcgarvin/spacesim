@@ -17,6 +17,10 @@ abstract class Order {
         unitsFilled += numUnits
     }
 
+    fun unfilledUnits() : Int {
+        return units - unitsFilled
+    }
+
     fun isFilled(): Boolean {
         return units == unitsFilled
     }
@@ -123,20 +127,16 @@ class CommodityMarket {
     }
 
     fun issueBuyOrder(units: Int, price: Int, callback: (BuyOrder, Int, Int) -> Unit = { _, _, _ -> }): BuyOrder {
-        if (hasSellOrders() && getBestSellOrder().price < price) {
-            throw NoNegativeMargin()
-        }
         val order = BuyOrder(getNextOrderID(), units, price, callback)
         buyOrders.add(order)
+        run()
         return order
     }
 
     fun issueSellOrder(units: Int, price: Int, callback: (SellOrder, Int, Int) -> Unit = { _, _, _ -> }): SellOrder {
-        if (hasBuyOrders() && getBestBuyOrder().price > price) {
-            throw NoNegativeMargin()
-        }
         val order = SellOrder(getNextOrderID(), units, price, callback)
         sellOrders.add(order)
+        run()
         return order
     }
 
@@ -145,7 +145,7 @@ class CommodityMarket {
             val bestBuyOrder = getBestBuyOrder()
             val bestSellOrder = getBestSellOrder()
 
-            val unitsTransacted = min(bestBuyOrder.units, bestSellOrder.units)
+            val unitsTransacted = min(bestBuyOrder.unfilledUnits(), bestSellOrder.unfilledUnits())
             val strikePrice = if (bestBuyOrder.id > bestSellOrder.id) bestSellOrder.price else bestBuyOrder.price
 
             bestBuyOrder.fill(unitsTransacted, strikePrice)
@@ -178,5 +178,4 @@ class CommodityMarket {
     }
 
     class NoOrders : Exception()
-    class NoNegativeMargin : Exception()
 }

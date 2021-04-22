@@ -21,6 +21,7 @@ class Planet(val biases: Tumbler) : Tickable {
 
 fun generatePlanet(rng: RandomGenerator): Planet {
     val result = Planet(Tumbler(rng))
-    (1..100).forEach { result.addPerson(generatePerson(result, rng)) }
+    repeat(98) { result.addPerson(generatePerson(result, rng)) }
+    repeat(2) { result.addPerson(generateMarketMaker(result, rng)) }
     return result
 }
