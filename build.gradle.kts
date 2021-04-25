@@ -12,6 +12,8 @@ repositories {
 }
 dependencies {
     implementation("org.apache.commons:commons-math3:3.6.1")
+    implementation("org.tinfour:TinfourCore:2.1.5")
+    implementation("org.jgrapht:jgrapht-core:1.5.1")
     testImplementation(kotlin("test"))
     testImplementation(kotlin("test-junit"))
 }
