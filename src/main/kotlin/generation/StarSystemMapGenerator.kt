@@ -77,7 +77,11 @@ class StarSystemMapGenerator() {
         val inspector = ConnectivityInspector(graph)
         val components = inspector.connectedSets().sortedByDescending { it.size }
         val componentsToRemove = components.drop(1)
-        val pointsToRemove = componentsToRemove.reduce { a,b -> a.addAll(b); a }
+
+        val pointsToRemove = mutableListOf<Vertex>()
+        for (component in componentsToRemove) {
+            pointsToRemove.addAll(component)
+        }
 
         val trimmedPoints = points.filterNot { pointsToRemove.contains(it) }
         val trimmedEdges = edges.filterNot { pointsToRemove.contains(it.a) }
@@ -94,7 +98,7 @@ class StarSystemMapGenerator() {
         percentEdgesToRemove: Double
     ) {
         val originalStarLocations = generatePoints(mapSideLength, sigma, numStars, coreRadius, starMargin)
-        val originalStarLanes = generateEdges(starLocations, maxLaneLength, percentEdgesToRemove)
+        val originalStarLanes = generateEdges(originalStarLocations, maxLaneLength, percentEdgesToRemove)
         val (trimmedStarLocations, trimmedStarLanes) = trimExtraneous(originalStarLocations, originalStarLanes)
 
         starLocations = trimmedStarLocations

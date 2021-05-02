@@ -1,12 +1,19 @@
 import org.apache.commons.math3.random.RandomGenerator
 
-class StarSystem(val x: Int, val y: Int, val planets: List<Planet>) : Tickable {
+class StarSystem(val x: Double, val y: Double, val planets: List<Planet>) : Tickable {
+    var neighbors = listOf<StarSystem>()
+        private set
+
     override fun tick() {
         planets.forEach { it.tick() }
     }
+
+    fun addNeighbor(neighbor:StarSystem) {
+        neighbors = neighbors + neighbor
+    }
 }
 
-fun generateStarSystem(x: Int, y: Int, rng: RandomGenerator): StarSystem {
+fun generateStarSystem(x: Double, y: Double, rng: RandomGenerator): StarSystem {
     val planets = listOf(generatePlanet(rng))
     return StarSystem(x, y, planets)
 }
