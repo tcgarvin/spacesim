@@ -1,7 +1,26 @@
 import kotlin.math.abs
 
-open class Location(val x : Double, val y : Double) {
+class NoPlanetAtThisLocation : Exception()
+class NoStarSystemAtThisLocation : Exception()
+
+abstract class Location(val x : Double, val y : Double) {
     var neighbors = listOf<Location>()
+
+    open fun isInStarSystem() : Boolean {
+        return false
+    }
+
+    open fun getStarSystem() : StarSystem {
+        throw NoStarSystemAtThisLocation()
+    }
+
+    open fun isOnPlanet() : Boolean {
+        return false
+    }
+
+    open fun getPlanet() : Planet {
+        throw NoPlanetAtThisLocation()
+    }
 }
 
 
@@ -35,7 +54,16 @@ class LocationFactory() {
 }
 
 
-class PlanetLocation(x : Double, y : Double, val planet: Planet) : Location(x,y)
+class PlanetLocation(x : Double, y : Double, private val planet: Planet) : Location(x,y) {
+    override fun isInStarSystem()
+    override fun isOnPlanet() : Boolean {
+        return true
+    }
+
+    override fun getPlanet() : Planet {
+        return planet
+    }
+}
 class StarSystemLocation(x : Double, y : Double, val starSystem: StarSystem) : Location(x,y)
 class StarLaneLocation(x : Double, y : Double, val source : StarSystem, val dest : StarSystem)
 

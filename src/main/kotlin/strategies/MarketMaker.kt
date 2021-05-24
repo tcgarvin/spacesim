@@ -3,6 +3,8 @@ package strategies
 import GoodKind
 import Person
 import actions.*
+import markets.BuyGood
+import markets.SellGood
 import org.apache.commons.math3.distribution.NormalDistribution
 import kotlin.math.ceil
 import kotlin.math.floor
