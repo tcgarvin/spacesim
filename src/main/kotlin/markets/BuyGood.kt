@@ -1,9 +1,10 @@
-package actions
+package markets
 
 import GoodKind
-import Person
-import markets.Order
 
+/**
+ * This is the action a market participant takes to issue a buy order
+ */
 class BuyGood(val good : GoodKind, val units : Int, val price : Int) : MarketAction {
     var order : Order? = null
     var escrow = 0
@@ -17,34 +18,34 @@ class BuyGood(val good : GoodKind, val units : Int, val price : Int) : MarketAct
         }
     }
 
-    private fun returnEscrow(person : Person) {
-        person.addMoney(escrow)
+    private fun returnEscrow(participant: MarketParticipant) {
+        participant.addMoney(escrow)
         escrow = 0
     }
 
-    override fun apply(person: Person) {
-        val market = person.planet.getMarket(good)
+    override fun apply(participant: MarketParticipant) {
+        val market = participant.location.getPlanet().getMarket(good)
 
         escrow = price * units
-        person.removeMoney(price * units)
+        participant.removeMoney(price * units)
 
         order = market.issueBuyOrder(units, price) { callbackOrder, unitsFilled, strikePrice ->
             if (strikePrice * unitsFilled > escrow) {
                 throw EscrowExhausted()
             }
             escrow -= strikePrice * unitsFilled
-            person.goods[good] += unitsFilled
+            participant.goods[good] += unitsFilled
 
             if (callbackOrder.isFilled()) {
-                returnEscrow(person)
+                returnEscrow(participant)
             }
         }
     }
 
-    override fun cancel(person: Person) {
+    override fun cancel(participant: MarketParticipant) {
         if (order != null) {
-            person.planet.getMarket(good).cancelOrder(order!!)
-            returnEscrow(person)
+            participant.location.getPlanet().getMarket(good).cancelOrder(order!!)
+            returnEscrow(participant)
         }
     }
 

@@ -2,6 +2,8 @@ package strategies
 
 import Person
 import actions.*
+import markets.BuyGood
+import markets.SellGood
 
 val randomGoodList = listOf(GoodKind.FOOD, GoodKind.WOOD);
 
