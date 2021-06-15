@@ -1,12 +1,17 @@
 package ships.actions
 
 import Planet
+import getLocationFactory
 import ships.Ship
 
-class LandOnPlanet(planet: Planet) : ShipAction {
+class LandOnPlanet(private val planet: Planet) : ShipAction {
     override fun apply(ship: Ship) {
-        if (!ship.location.isInStarSystem()) {
+        val planetLocation = getLocationFactory().getPlanetLocation(planet)
 
+        if (!ship.location.neighbors.contains(planetLocation)) {
+            throw ImproperAction("Planet is not a neighbor of the ship's location")
         }
+
+        ship.location = planetLocation
     }
 }

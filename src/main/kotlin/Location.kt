@@ -1,4 +1,6 @@
 import kotlin.math.abs
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 class NoPlanetAtThisLocation : Exception()
 class NoStarSystemAtThisLocation : Exception()
@@ -6,7 +8,11 @@ class NoStarSystemAtThisLocation : Exception()
 abstract class Location(val x : Double, val y : Double) {
     var neighbors = listOf<Location>()
 
-    open fun isInStarSystem() : Boolean {
+    open fun isInStarLane() : Boolean {
+        return false
+    }
+
+    open fun isInSystemSpace() : Boolean {
         return false
     }
 
@@ -44,18 +50,17 @@ class LocationFactory() {
             throw IllegalArgumentException("Travel can be between 0 and 100% complete, not outside those bounds")
         }
 
-        val xDistance = abs(dest.x - source.x)
-        val yDistance = abs(dest.y - source.y)
+        val xDistance = dest.x - source.x
+        val yDistance = dest.y - source.y
         val x = source.x + xDistance * percent
         val y = source.y + yDistance * percent
 
-        return StarLaneLocation(x, y, source, dest)
+        return StarLaneLocation(x, y, getStarSystemLocation(source), getStarSystemLocation(dest))
     }
 }
 
 
 class PlanetLocation(x : Double, y : Double, private val planet: Planet) : Location(x,y) {
-    override fun isInStarSystem()
     override fun isOnPlanet() : Boolean {
         return true
     }
@@ -63,29 +68,38 @@ class PlanetLocation(x : Double, y : Double, private val planet: Planet) : Locat
     override fun getPlanet() : Planet {
         return planet
     }
+
+    override fun getStarSystem(): StarSystem {
+        assert(neighbors.size == 1) // The only way left to go is up
+        return neighbors[0].getStarSystem()
+    }
 }
-class StarSystemLocation(x : Double, y : Double, val starSystem: StarSystem) : Location(x,y)
-class StarLaneLocation(x : Double, y : Double, val source : StarSystem, val dest : StarSystem)
-
-fun startLocationFactory(starSystems: Collection<StarSystem>) : LocationFactory {
-    val locationFactory = LocationFactory()
-
-    for (starSystem in starSystems) {
-        val starSystemLocation = locationFactory.getStarSystemLocation(starSystem)
-        for (planet in starSystem.planets) {
-            val planetLocation = locationFactory.getOrPutPlanetLocation(planet, starSystem)
-            starSystemLocation.neighbors = starSystemLocation.neighbors + planetLocation
-            planetLocation.neighbors = planetLocation.neighbors + starSystemLocation
-        }
-
-        for (neighborSystem in starSystem.neighbors) {
-            val neighborLocation = locationFactory.getStarSystemLocation(neighborSystem)
-            if (!starSystemLocation.neighbors.contains(neighborLocation)) {
-                starSystemLocation.neighbors = starSystemLocation.neighbors + neighborLocation
-                neighborLocation.neighbors = neighborLocation.neighbors + starSystemLocation
-            }
-        }
+class StarSystemLocation(x : Double, y : Double, private val starSystem: StarSystem) : Location(x,y) {
+    override fun isInSystemSpace(): Boolean {
+        return true
     }
 
-    return locationFactory
+    override fun getStarSystem(): StarSystem {
+        return starSystem
+    }
+}
+
+class StarLaneLocation(x : Double, y : Double, val source : StarSystemLocation, val dest : StarSystemLocation) : Location(x,y) {
+    override fun isInStarLane(): Boolean {
+        return true
+    }
+
+    fun advance(travelDistance : Double) : Location {
+        val xDistanceRemaining = dest.x - x
+        val yDistanceRemaining = dest.y - y
+        val distanceRemaining = sqrt(xDistanceRemaining.pow(2) + yDistanceRemaining.pow(2))
+        if (distanceRemaining < travelDistance) {
+            return dest
+        }
+
+        val percentRemainingTraveled = travelDistance / distanceRemaining
+        val nextX = x + xDistanceRemaining * percentRemainingTraveled
+        val nextY = y + yDistanceRemaining * percentRemainingTraveled
+        return StarLaneLocation(nextX, nextY, source, dest)
+    }
 }

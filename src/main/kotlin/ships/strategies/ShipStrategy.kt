@@ -6,7 +6,7 @@ import ships.actions.ShipAction
 
 data class ShipStrategyOutput(val shipAction: ShipAction, val marketActions: Collection<MarketAction>)
 
-interface PersonStrategy {
+interface ShipStrategy {
     fun pickNextActions(ship: Ship) : ShipStrategyOutput
 }
 

@@ -3,6 +3,8 @@ package markets
 import BagOfGoods
 import Location
 
+class NoNegativeMoney : Exception()
+
 interface MarketParticipant {
     val goods : BagOfGoods
     val location : Location

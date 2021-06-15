@@ -5,6 +5,8 @@ import java.util.*
 import kotlin.Comparator
 import kotlin.math.min
 
+class InvalidOrder(message:String) : Exception(message)
+
 abstract class Order {
     abstract val id: Int
     abstract val units: Int
@@ -78,11 +80,17 @@ class CommodityMarket {
     }
 
     fun getBestBuyOrder(): BuyOrder {
-        return buyOrders.first() ?: throw NoOrders()
+        if (!hasBuyOrders()) {
+            throw NoOrders()
+        }
+        return buyOrders.first()
     }
 
     fun getBestSellOrder(): SellOrder {
-        return sellOrders.first() ?: throw NoOrders()
+        if (!hasSellOrders()) {
+            throw NoOrders()
+        }
+        return sellOrders.first()
     }
 
     fun hasHistory(): Boolean {

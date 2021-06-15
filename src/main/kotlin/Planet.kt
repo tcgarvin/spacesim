@@ -17,6 +17,10 @@ class Planet(val biases: Tumbler) : Tickable {
     fun getMarket(commodity: GoodKind) : CommodityMarket{
         return markets.getOrPut(commodity) { CommodityMarket() }
     }
+
+    fun getActiveMarkets() : Map<GoodKind, CommodityMarket> {
+        return markets.filterValues { it.hasBuyOrders() || it.hasSellOrders() }
+    }
 }
 
 fun generatePlanet(rng: RandomGenerator): Planet {

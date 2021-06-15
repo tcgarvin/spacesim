@@ -1,5 +1,7 @@
-import actions.MarketAction
-import actions.NoOpMarketAction
+import markets.MarketAction
+import markets.MarketParticipant
+import markets.NoNegativeMoney
+import markets.NoOpMarketAction
 import needs.NeedsHierarchy
 import org.apache.commons.math3.random.RandomGenerator
 import strategies.MarketMaker
@@ -7,8 +9,11 @@ import strategies.PersonStrategy
 import strategies.Plebeian
 
 
-class Person(val needs: NeedsHierarchy, val strategy: PersonStrategy, val planet: Planet, val biases: Tumbler) : Tickable {
-    val goods = BagOfGoods()
+class Person(val needs: NeedsHierarchy, val strategy: PersonStrategy, val planet: Planet, val biases: Tumbler) : Tickable, MarketParticipant {
+    override val goods: BagOfGoods = BagOfGoods()
+    override val location: Location
+        get() = getLocationFactory().getPlanetLocation( planet )
+
     var money = 0
         private set
 
@@ -31,7 +36,7 @@ class Person(val needs: NeedsHierarchy, val strategy: PersonStrategy, val planet
         needs.visit(this)
     }
 
-    fun addMoney(amount: Int) {
+    override fun addMoney(amount: Int) {
         if (money + amount < 0) {
             throw NoNegativeMoney()
         }
@@ -39,13 +44,11 @@ class Person(val needs: NeedsHierarchy, val strategy: PersonStrategy, val planet
         money += amount
     }
 
-    fun removeMoney(amount: Int) {
+    override fun removeMoney(amount: Int) {
         addMoney(-amount)
     }
 
     fun getScore(): Double = needs.getScore(this)
-
-    class NoNegativeMoney : Exception()
 }
 
 fun generatePerson(planet:Planet, rng: RandomGenerator): Person {
