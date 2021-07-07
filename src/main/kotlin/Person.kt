@@ -7,9 +7,10 @@ import org.apache.commons.math3.random.RandomGenerator
 import strategies.MarketMaker
 import strategies.PersonStrategy
 import strategies.Plebeian
-
+import java.util.UUID
 
 class Person(val needs: NeedsHierarchy, val strategy: PersonStrategy, val planet: Planet, val biases: Tumbler) : Tickable, MarketParticipant {
+    val id = UUID.randomUUID()
     override val goods: BagOfGoods = BagOfGoods()
     override val location: Location
         get() = getLocationFactory().getPlanetLocation( planet )
@@ -26,6 +27,7 @@ class Person(val needs: NeedsHierarchy, val strategy: PersonStrategy, val planet
         pendingActions.clear()
 
         val strategyOutput = strategy.pickNextActions(this)
+        getLogger().logPersonTurn(this, strategyOutput)
         strategyOutput.personAction.apply(this)
         for (action in strategyOutput.marketActions) {
             action.apply(this)

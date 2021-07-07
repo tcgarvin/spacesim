@@ -6,16 +6,19 @@ import LocationFactory
 import StarLaneLocation
 import StarSystem
 import Tickable
+import getLogger
 import markets.MarketAction
 import markets.MarketParticipant
 import markets.NoNegativeMoney
 import markets.NoOpMarketAction
 import ships.strategies.AimlessTrader
 import ships.strategies.ShipStrategy
+import java.util.*
 
 const val TRAVEL_SPEED = 5.0
 
 class Ship(override var location: Location, val strategy: ShipStrategy) : Tickable, MarketParticipant {
+    val id = UUID.randomUUID()
     var money = 0
         private set
     override val goods = BagOfGoods()
@@ -33,6 +36,7 @@ class Ship(override var location: Location, val strategy: ShipStrategy) : Tickab
 
     fun invokeStrategy() {
         val strategyOutput = strategy.pickNextActions(this)
+        getLogger().logShipTurn(this, strategyOutput)
         strategyOutput.shipAction.apply(this)
         for (action in strategyOutput.marketActions) {
             action.apply(this)

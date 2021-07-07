@@ -2,10 +2,13 @@ import kotlin.system.measureTimeMillis
 
 fun main(args: Array<String>) {
 
-    println("Generating Universe")
+    println("Starting Data Logger..")
+    startLogger()
+
+    println("Generating Universe..")
     val universe = generateUniverse()
 
-    println("Starting simulation")
+    println("Starting simulation..")
     val simulation = Simulation(universe)
 
     for (day in 1..100) {
