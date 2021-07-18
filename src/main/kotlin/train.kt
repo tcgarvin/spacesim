@@ -1,9 +1,13 @@
+import burlap.mdp.singleagent.SADomain
 import kotlin.system.measureTimeMillis
 
 fun main(args: Array<String>) {
 
     println("Starting Data Logger..")
-    setLogger(RandomSingleDataLogger())
+    setLogger(NoDataLogger())
+
+    val domain = SADomain()
+    domain.addActionType()
 
     println("Generating Universe..")
     val universe = generateUniverse()
