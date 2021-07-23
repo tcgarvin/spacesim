@@ -6,7 +6,8 @@ fun main(args: Array<String>) {
     startLogger()
 
     println("Generating Universe..")
-    val universe = generateUniverse()
+    val universeConfig = UniverseGenerationConfig(600.0, 100.0, 75, 60.0, 12.0, 90.0, 0.25, null)
+    val universe = generateUniverse(universeConfig)
 
     println("Starting simulation..")
     val simulation = Simulation(universe)

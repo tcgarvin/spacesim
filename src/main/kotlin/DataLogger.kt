@@ -1,5 +1,4 @@
 import ships.Ship
-import ships.strategies.ShipStrategy
 import ships.strategies.ShipStrategyOutput
 import strategies.PersonStrategyOutput
 import java.util.*
@@ -15,7 +14,25 @@ fun getLogger() : DataLogger {
 }
 
 fun startLogger() {
-    dataLoggerSingleton = DataLogger()
+    dataLoggerSingleton = SingleRandomDataLogger()
+}
+
+fun setLogger(logger : DataLogger) {
+    dataLoggerSingleton = logger
+}
+
+interface DataLogger {
+    fun isFollowed(person: Person) : Boolean
+    fun isFollowed(ship: Ship) : Boolean
+    fun logPersonTurn(person: Person, actions: PersonStrategyOutput)
+    fun logShipTurn(ship: Ship, actions: ShipStrategyOutput)
+}
+
+class NoDataLogger : DataLogger {
+    override fun isFollowed(person: Person): Boolean = false
+    override fun isFollowed(ship: Ship): Boolean = false
+    override fun logPersonTurn(person: Person, actions: PersonStrategyOutput) {}
+    override fun logShipTurn(ship: Ship, actions: ShipStrategyOutput) {}
 }
 
 class DataLogConsumer() : Runnable{
@@ -28,7 +45,7 @@ class DataLogConsumer() : Runnable{
     }
 }
 
-class DataLogger {
+class SingleRandomDataLogger : DataLogger {
     private val followedPersons = mutableListOf<Person>()
     private val followedShips = mutableListOf<Ship>()
     private val followLock = ReentrantLock()
@@ -40,7 +57,7 @@ class DataLogger {
         consumer.start()
     }
 
-    fun isFollowed(person:Person) : Boolean {
+    override fun isFollowed(person:Person) : Boolean {
         // We do want to find a person if we're not following anyone today.  Not very robust
         if (followedPersons.size == 0) {
             followLock.withLock {
@@ -54,7 +71,7 @@ class DataLogger {
         return followedPersons.contains(person)
     }
 
-    fun isFollowed(ship:Ship) : Boolean {
+    override fun isFollowed(ship:Ship) : Boolean {
         if (followedShips.size == 0) {
             followLock.withLock {
                 if (Math.random() > 0.9) {
@@ -67,7 +84,7 @@ class DataLogger {
         return followedShips.contains(ship)
     }
 
-    fun logPersonTurn(person: Person, actions: PersonStrategyOutput) {
+    override fun logPersonTurn(person: Person, actions: PersonStrategyOutput) {
         isFollowed(person) || return
 
         var logLine = "Person ${person.id.toString().slice(0 until 8)}: {"
@@ -83,7 +100,7 @@ class DataLogger {
         logConsumer.loggingQueue.add(logLine)
     }
 
-    fun logShipTurn(ship: Ship, actions: ShipStrategyOutput) {
+    override fun logShipTurn(ship: Ship, actions: ShipStrategyOutput) {
         isFollowed(ship) || return
 
         var logLine = "Ship ${shortUUID(ship.id)}: {"

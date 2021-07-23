@@ -14,6 +14,9 @@ dependencies {
     implementation("org.apache.commons:commons-math3:3.6.1")
     implementation("org.tinfour:TinfourCore:2.1.5")
     implementation("org.jgrapht:jgrapht-core:1.5.1")
+    implementation("org.deeplearning4j:rl4j:1.0.0-beta6")
+    implementation("org.deeplearning4j:rl4j-api:1.0.0-beta6")
+    implementation("org.deeplearning4j:rl4j-core:1.0.0-beta6")
     testImplementation(kotlin("test"))
     testImplementation(kotlin("test-junit"))
 }

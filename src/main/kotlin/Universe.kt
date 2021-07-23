@@ -3,6 +3,18 @@ import org.apache.commons.math3.random.Well19937c
 import org.tinfour.common.Vertex
 import ships.ShipTracker
 import ships.generateShip
+import strategies.PersonStrategy
+
+data class UniverseGenerationConfig(
+    val mapSideLength: Double,
+    val starDistributionSigma: Double,
+    val numStars: Int,
+    val coreRadius: Double,
+    val starMargin: Double,
+    val maxLaneLength: Double,
+    val percentEdgesToRemove: Double,
+    val trainingStrategy: PersonStrategy?
+)
 
 class Universe(val starSystems: Collection<StarSystem>, val shipTracker : ShipTracker) : Tickable {
     override fun tick() {
@@ -11,7 +23,7 @@ class Universe(val starSystems: Collection<StarSystem>, val shipTracker : ShipTr
     }
 }
 
-fun generateUniverse(): Universe {
+fun generateUniverse(config: UniverseGenerationConfig): Universe {
     val mapGenerator = StarSystemMapGenerator()
     mapGenerator.generate(600.0, 100.0, 75, 60.0, 12.0, 90.0, 0.25)
 
