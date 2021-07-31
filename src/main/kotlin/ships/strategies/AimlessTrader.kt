@@ -9,6 +9,7 @@ import ships.actions.EnterStarLane
 import ships.actions.LandOnPlanet
 import ships.actions.TakeOff
 import ships.actions.WorkForGovernment
+import kotlin.math.max
 
 
 class AimlessTrader : ShipStrategy {
@@ -94,7 +95,7 @@ class AimlessTrader : ShipStrategy {
                 bestBuyPrice
             }
 
-            SellGood(it, ship.goods[it], targetPrice)
+            SellGood(it, ship.goods[it], max(1, targetPrice))
         }
 
         return ShipStrategyOutput(WorkForGovernment, marketActions)

@@ -2,6 +2,7 @@ package ml.person
 
 import Simulation
 import UniverseGenerationConfig
+import actions.NoError
 import actions.WorkForGovernment
 import generateUniverse
 import org.deeplearning4j.gym.StepReply
@@ -20,11 +21,12 @@ class PersonControlProcess : MDP<PersonMLState, Int, DiscreteSpace> {
     private val observationSpace = ArrayObservationSpace<PersonMLState>(intArrayOf(INPUT_LAYER_SIZE))
     private val actionSpace = DiscreteSpace(PERSON_ML_ACTIONS.size)
 
-    private var reward = 0.0
+    private var lastReward = 0.0
     private var simulation : Thread? = null
     private var simulationHook : MLHookStrategy<PersonMLState>? = null
     private var simLive = AtomicBoolean(false)
     private var tick = AtomicInteger(0)
+    private var episode = 0
 
     init {
         reset()
@@ -43,10 +45,16 @@ class PersonControlProcess : MDP<PersonMLState, Int, DiscreteSpace> {
      */
     override fun reset(): PersonMLState {
         close()
-        simulationHook = MLHookStrategy(stateGenerator = { Pair(PersonMLState(it), it.getScore()) })
+        simulationHook = MLHookStrategy { person, lastError ->
+            Pair(
+                PersonMLState(person),
+                person.getScore() - if (lastError == NoError) 0 else 7
+            )
+        }
         val universeConfig = UniverseGenerationConfig(600.0, 100.0, 75, 60.0, 12.0, 90.0, 0.25, simulationHook)
 
-        reward = 0.0
+        episode++
+        lastReward = 0.0
         tick.set(0)
         simLive.set(true)
         simulation = thread(start = true, isDaemon = false, name = "Training Simulation") {
@@ -54,9 +62,11 @@ class PersonControlProcess : MDP<PersonMLState, Int, DiscreteSpace> {
             val sim = Simulation(universe)
             for (turn in 0 until 300) {
                 sim.tick()
-                tick.incrementAndGet()
+                val tickValue = tick.getAndIncrement()
+                //println("Finished episode ${episode} turn ${tickValue}")
             }
             simLive.set(false)
+            println("Episode ${episode}:")
         }
 
         return simulationHook!!.actionRequestQueue.take().first
@@ -67,7 +77,8 @@ class PersonControlProcess : MDP<PersonMLState, Int, DiscreteSpace> {
      * restart
      */
     override fun close() {
-        reward = 0.0
+        println("Closing with last turn score ${lastReward}")
+        lastReward = 0.0
         while (simulation?.isAlive == true) {
             // A little hacky. Rather than interrupt the simulation, we'll feed it some back actions, see if we can get
             // it to end
@@ -95,7 +106,7 @@ class PersonControlProcess : MDP<PersonMLState, Int, DiscreteSpace> {
         simulationHook!!.actionDecisionQueue.put(PERSON_ML_ACTIONS[action])
 
         val simResponse = simulationHook!!.actionRequestQueue.take()
+        lastReward = simResponse.second
         return StepReply(simResponse.first, simResponse.second, isDone, null)
     }
-
 }

@@ -42,7 +42,7 @@ class Plebeian : PersonStrategy {
         return SellGood(targetGood, targetUnits, targetPrice)
     }
 
-    override fun pickNextActions(person: Person) : PersonStrategyOutput  {
+    override fun pickNextActions(person: Person, lastError: ActionError) : PersonStrategyOutput  {
         val rng = person.biases.rng;
 
         val marketAction = when (rng.nextInt(3)) {

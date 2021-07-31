@@ -1,11 +1,12 @@
 package ml.person
 
 import Person
+import actions.MakeGood
 import org.deeplearning4j.rl4j.space.Encodable
 import kotlin.math.pow
 
 // XXX: This needs to match up precisely with the actual array init below
-const val INPUT_LAYER_SIZE = 8 + (4 + 8 * 4) * 2 + 2
+const val INPUT_LAYER_SIZE = 8 + (4 + 8 * 4) * 2 + 2 + 4
 
 /**
  * Truth be told, I have no idea how to encode large integers while keeping sensitivity to small numbers, but this
@@ -40,8 +41,10 @@ class PersonMLState(person:Person) : Encodable {
                 val market = markets.getValue(good)
                 offset = addInt(value, offset, market.get30DayAveragePrice().toInt(), 8)
                 offset = addInt(value, offset, market.get30DayAverageVolume().toInt(), 8)
-                offset = addInt(value, offset, market.getBestSellOrder().price, 8)
-                offset = addInt(value, offset, market.getBestBuyOrder().price, 8)
+                val bestSellPrice = if (market.hasSellOrders()) market.getBestSellOrder().price else 0
+                val bestBuyPrice = if (market.hasBuyOrders()) market.getBestBuyOrder().price else Int.MAX_VALUE
+                offset = addInt(value, offset, bestSellPrice, 8)
+                offset = addInt(value, offset, bestBuyPrice, 8)
             }  else {
                 offset = addInt(value, offset, 0, 8)
                 offset = addInt(value, offset, 0, 8)
@@ -52,6 +55,11 @@ class PersonMLState(person:Person) : Encodable {
 
         offset = addNeuron(value, offset, person.needs.foodNeed.getScore(person))
         offset = addNeuron(value, offset, person.needs.shelterNeed.getScore(person))
+
+        offset = addNeuron(value, offset, MakeGood.WOOD.getPersonBias(person))
+        offset = addNeuron(value, offset, MakeGood.WOOD.getPlanetBias(person.planet))
+        offset = addNeuron(value, offset, MakeGood.FOOD.getPersonBias(person))
+        offset = addNeuron(value, offset, MakeGood.FOOD.getPlanetBias(person.planet))
 
         assert(offset == INPUT_LAYER_SIZE)
     }

@@ -1,5 +1,6 @@
 import markets.CommodityMarket
 import org.apache.commons.math3.random.RandomGenerator
+import strategies.PersonStrategy
 
 class Planet(val biases: Tumbler) : Tickable {
     val people: MutableList<Person> = mutableListOf()
@@ -23,9 +24,14 @@ class Planet(val biases: Tumbler) : Tickable {
     }
 }
 
-fun generatePlanet(rng: RandomGenerator): Planet {
+fun generatePlanet(rng: RandomGenerator, trainingStrategy: PersonStrategy? = null): Planet {
     val result = Planet(Tumbler(rng))
-    repeat(98) { result.addPerson(generatePerson(result, rng)) }
+    if (trainingStrategy != null) {
+        result.addPerson(generatePerson(result, rng, trainingStrategy))
+    } else {
+        result.addPerson(generatePerson(result, rng))
+    }
+    repeat(97) { result.addPerson(generatePerson(result, rng)) }
     repeat(2) { result.addPerson(generateMarketMaker(result, rng)) }
     return result
 }

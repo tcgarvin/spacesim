@@ -1,3 +1,5 @@
+import actions.ActionError
+import actions.NoError
 import markets.MarketAction
 import markets.MarketParticipant
 import markets.NoNegativeMoney
@@ -21,19 +23,24 @@ class Person(val needs: NeedsHierarchy, val strategy: PersonStrategy, val planet
     val partialGoods = mutableMapOf<GoodKind, Double>().withDefault { 0.0 }
 
     private val pendingActions = mutableSetOf<MarketAction>()
+    private var lastError : ActionError = NoError
 
     override fun tick() {
         pendingActions.forEach {it.cancel(this)}
         pendingActions.clear()
-
-        val strategyOutput = strategy.pickNextActions(this)
+        val strategyOutput = strategy.pickNextActions(this, lastError)
+        lastError = NoError
         getLogger().logPersonTurn(this, strategyOutput)
-        strategyOutput.personAction.apply(this)
-        for (action in strategyOutput.marketActions) {
-            action.apply(this)
-            if (action != NoOpMarketAction) {
-                pendingActions.add(action)
+        try {
+            strategyOutput.personAction.apply(this)
+            for (action in strategyOutput.marketActions) {
+                action.apply(this)
+                if (action != NoOpMarketAction) {
+                    pendingActions.add(action)
+                }
             }
+        } catch (e: ActionError) {
+            lastError = e
         }
         needs.visit(this)
     }
@@ -54,7 +61,11 @@ class Person(val needs: NeedsHierarchy, val strategy: PersonStrategy, val planet
 }
 
 fun generatePerson(planet:Planet, rng: RandomGenerator): Person {
-    return Person(NeedsHierarchy(), Plebeian(), planet, Tumbler(rng))
+    return generatePerson(planet, rng, Plebeian())
+}
+
+fun generatePerson(planet: Planet, rng: RandomGenerator, personStrategy: PersonStrategy): Person {
+    return Person(NeedsHierarchy(), personStrategy, planet, Tumbler(rng))
 }
 
 fun generateMarketMaker(planet: Planet, rng: RandomGenerator): Person {

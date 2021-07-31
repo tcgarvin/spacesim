@@ -1,6 +1,7 @@
 package markets
 
 import GoodKind
+import actions.ActionError
 
 /**
  * This is the action a market participant takes to issue a sell order
@@ -27,7 +28,11 @@ class SellGood(val good : GoodKind, val units : Int, val price : Int) : MarketAc
         val market = participant.location.getPlanet().getMarket(good)
 
         goodsInEscrow = units
-        participant.goods[good] -= units
+        try {
+            participant.goods[good] -= units
+        } catch (e:BagOfGoods.ValueException) {
+            throw ActionError("You don't have enough of the relevant good to issue the given sell order")
+        }
 
         order = market.issueSellOrder(units, price) { callbackOrder, unitsFilled, strikePrice ->
             if (goodsInEscrow < unitsFilled) {

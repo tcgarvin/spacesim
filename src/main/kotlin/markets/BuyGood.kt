@@ -1,6 +1,7 @@
 package markets
 
 import GoodKind
+import actions.ActionError
 
 /**
  * This is the action a market participant takes to issue a buy order
@@ -27,7 +28,11 @@ class BuyGood(val good : GoodKind, val units : Int, val price : Int) : MarketAct
         val market = participant.location.getPlanet().getMarket(good)
 
         escrow = price * units
-        participant.removeMoney(price * units)
+        try {
+            participant.removeMoney(price * units)
+        } catch (e: NoNegativeMoney) {
+            throw ActionError("Not enough money available to place the given buy order")
+        }
 
         order = market.issueBuyOrder(units, price) { callbackOrder, unitsFilled, strikePrice ->
             if (strikePrice * unitsFilled > escrow) {

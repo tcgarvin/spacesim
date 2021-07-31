@@ -8,13 +8,9 @@ import kotlin.concurrent.withLock
 
 const val QUEUE_CAP = 10000
 
-private var dataLoggerSingleton : DataLogger? = null;
+private var dataLoggerSingleton : DataLogger = NoDataLogger()
 fun getLogger() : DataLogger {
     return dataLoggerSingleton!!
-}
-
-fun startLogger() {
-    dataLoggerSingleton = SingleRandomDataLogger()
 }
 
 fun setLogger(logger : DataLogger) {

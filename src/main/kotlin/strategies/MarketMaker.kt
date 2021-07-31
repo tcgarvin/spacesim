@@ -138,7 +138,7 @@ class MarketMaker : PersonStrategy {
         return GoodKind.values()
     }
 
-    override fun pickNextActions(person: Person) : PersonStrategyOutput  {
+    override fun pickNextActions(person: Person, lastError: ActionError) : PersonStrategyOutput  {
         allocateFunds(person)
         val marketActions = mutableListOf<MarketAction>();
         for (good in getGoodsOfConcern()) {

@@ -3,9 +3,12 @@ package actions
 import Person
 import Planet
 
-object WorkForGovernment : PersonAction {
+/**
+ * Represents an action that will fail, causing an ActionError
+ */
+class InvalidAction(private val message:String) : PersonAction {
     override fun apply(person: Person) {
-        person.addMoney(10)
+        throw ActionError(message)
     }
 
     override fun getPersonBias(person: Person): Double {
@@ -15,4 +18,6 @@ object WorkForGovernment : PersonAction {
     override fun getPlanetBias(planet: Planet): Double {
         return 1.0
     }
+
+
 }

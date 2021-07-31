@@ -17,6 +17,8 @@ dependencies {
     implementation("org.deeplearning4j:rl4j:1.0.0-beta6")
     implementation("org.deeplearning4j:rl4j-api:1.0.0-beta6")
     implementation("org.deeplearning4j:rl4j-core:1.0.0-beta6")
+    implementation("org.nd4j:nd4j-native-platform:1.0.0-beta6")
+    implementation("org.datavec:datavec-api:1.0.0-beta6")
     testImplementation(kotlin("test"))
     testImplementation(kotlin("test-junit"))
 }

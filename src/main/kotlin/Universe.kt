@@ -25,11 +25,24 @@ class Universe(val starSystems: Collection<StarSystem>, val shipTracker : ShipTr
 
 fun generateUniverse(config: UniverseGenerationConfig): Universe {
     val mapGenerator = StarSystemMapGenerator()
-    mapGenerator.generate(600.0, 100.0, 75, 60.0, 12.0, 90.0, 0.25)
+    mapGenerator.generate(
+        config.mapSideLength,
+        config.starDistributionSigma,
+        config.numStars,
+        config.coreRadius,
+        config.starMargin,
+        config.maxLaneLength,
+        config.percentEdgesToRemove
+    )
 
     val index = mutableMapOf<Vertex, StarSystem>()
     for (vertex in mapGenerator.starLocations) {
-        val starSystem = generateStarSystem(vertex.x, vertex.y, Well19937c())
+        val starSystem : StarSystem
+        if (vertex == mapGenerator.starLocations.first()) {
+            starSystem = generateStarSystem(vertex.x, vertex.y, Well19937c(), config.trainingStrategy)
+        } else {
+            starSystem = generateStarSystem(vertex.x, vertex.y, Well19937c())
+        }
         index[vertex] = starSystem
     }
 
