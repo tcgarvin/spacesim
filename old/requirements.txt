@@ -1,5 +1,5 @@
 jsonpatch==1.24
-scipy==1.4.1
+scipy==1.10.0
 sortedcontainers==2.1.0
 sparklines==0.4.2
 ujson==1.35
