@@ -16,8 +16,8 @@ ordinary prices, not spikes.
 |---|---|---|
 | `DISTANCE_PER_FUEL_UNIT` | 20 | 200 |
 | `BASE_FUEL_CAPACITY` | 60 units | 6 units (`6 * FUEL_MILLI`) |
-| Fleet fuel spend / gross trading profit | 2.34x | (pending A/B) |
-| Ships spending more on fuel than they earn gross | 91 / 100 | (pending A/B) |
+| Fleet fuel spend / gross trading profit | 2.34x | 0.39x (0.17x in turns 201-400) |
+| Ships spending more on fuel than they earn gross | 91 / 100 | 31 / 100 (19 / 100 in turns 201-400) |
 
 `Ship.fuel` and `Ship.fuel_capacity` are now integer millifuel, thousandths
 of a market unit of `nova_fuel` (`FUEL_MILLI` = 1000); `Ship.fuel_units` and
@@ -44,7 +44,20 @@ size, both derived from mean round-trip fuel, shrink about tenfold with the
 burn rather than being held at their old floors, so the `SHIP_CAPITAL_FLOOR`
 (1000) still applies but binds more often at small galaxies.
 
-Effect: (pending A/B)
+Effect, 100 planets x 400 turns, one run each side (same ledger script):
+
+| metric | before | after |
+|---|---|---|
+| fuel spend / gross trade profit, all turns | 2.34 | 0.39 |
+| fuel spend / gross trade profit, turns 201-400 | 1.81 | 0.17 |
+| ships spending more on fuel than gross profit, turns 201-400 | 81/99 | 19/100 |
+| fleet net market flow, all turns | -529k | +141k |
+| ships solvent at t400 | 0.10 | 0.85 |
+| cargo revenue, all turns | 1.25M | 0.81M |
+
+Cargo revenue fell because starting capital shrank with the burn and now
+sits on the 1000-credit floor at every galaxy size; the fleet is smaller in
+money and profitable rather than large and insolvent.
 
 ## 2026-09-12 - Upper-tier demand: netback valuation, stock discount, durables as capital
 
