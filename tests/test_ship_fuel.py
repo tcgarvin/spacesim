@@ -227,23 +227,26 @@ def test_decide_travel_avoids_fuel_dead_end():
     assert ship.brain.decide_travel() is b
 
 
-def test_docked_ship_tops_up_toward_full_tank():
+def test_docked_ship_tops_up_toward_the_bunker_target():
+    """Cheap fuel fills to the bunker target, not to the much larger tank."""
     sim, fuel, _, (a, _) = _make_world([("A", 0, 0), ("B", 100, 0)])
     supplier = _make_ship(sim, a, hold_fuel=200, name="Supplier")
     a.market.place_sell_order(supplier, fuel, 100, 10)
 
-    # At half a tank the ship still tops up toward a full one.
-    half = BASE_FUEL_CAPACITY // 2
-    ship = _make_ship(sim, a, fuel_milli=half, name="Trader")
+    # Below the target the ship tops up toward it.
+    ship = _make_ship(sim, a, fuel_milli=0, name="Trader")
+    target = ship.brain._fuel_bunker_target()
+    assert target < ship.fuel_capacity
+    ship.fuel = target // 2
     ship.brain.decide_trade_actions()
 
     buys = [o for o in a.market.buy_orders[fuel] if o.actor is ship]
     assert len(buys) == 1
-    assert buys[0].quantity == milli_to_units_ceil(ship.fuel_capacity - half)
+    assert buys[0].quantity == milli_to_units_ceil(target - ship.fuel)
 
     a.market.match_orders()
     ship.pump_fuel()
-    assert ship.fuel == ship.fuel_capacity
+    assert ship.fuel == target
 
 
 def test_tank_fuel_is_not_trade_cargo_at_ordinary_prices():
@@ -513,7 +516,7 @@ def test_topup_rations_fuel_at_spike_prices():
     buys = [o for o in a.market.buy_orders[fuel] if o.actor is ship]
     assert len(buys) == 1
     assert buys[0].quantity == milli_to_units_ceil(escape_target)
-    assert buys[0].quantity < milli_to_units_ceil(ship.fuel_capacity) // 2
+    assert buys[0].quantity < milli_to_units_ceil(ship.brain._fuel_bunker_target())
 
     # The rationed tank still clears the departure gate for the escape hop.
     a.market.match_orders()
@@ -595,7 +598,7 @@ def test_committed_destination_fuel_is_still_bought_at_a_spike():
 
 
 def test_topup_bunkers_at_cheap_prices():
-    """Near the galaxy reference price, the ship fills its tank."""
+    """Near the galaxy reference price, the ship fills to the bunker target."""
     sim, fuel, _, (a, _) = _make_world([("A", 0, 0), ("B", 100, 0)])
     supplier = _make_ship(sim, a, hold_fuel=200, name="Supplier")
     a.market.place_sell_order(supplier, fuel, 100, 10)
@@ -605,15 +608,15 @@ def test_topup_bunkers_at_cheap_prices():
 
     buys = [o for o in a.market.buy_orders[fuel] if o.actor is ship]
     assert len(buys) == 1
-    assert buys[0].quantity == milli_to_units_ceil(ship.fuel_capacity)
+    assert buys[0].quantity == milli_to_units_ceil(ship.brain._fuel_bunker_target())
 
 
 def test_topup_bunkers_near_the_median_despite_a_cheap_outlier():
     """One cheap planet elsewhere no longer blocks bunkering everywhere.
 
     The reference is the median believable valuation, so a local ask close
-    to what fuel typically costs still buys a full tank even when some
-    distant planet sells far cheaper.
+    to what fuel typically costs still buys the whole bunker target even when
+    some distant planet sells far cheaper.
     """
     specs = [(f"P{i}", 100 * i, 0) for i in range(5)]
     sim, fuel, _, planets = _make_world(specs)
@@ -632,7 +635,7 @@ def test_topup_bunkers_near_the_median_despite_a_cheap_outlier():
 
     buys = [o for o in home.market.buy_orders[fuel] if o.actor is ship]
     assert len(buys) == 1
-    assert buys[0].quantity == milli_to_units_ceil(ship.fuel_capacity)
+    assert buys[0].quantity == milli_to_units_ceil(ship.brain._fuel_bunker_target())
 
     # An ask far above the median only buys the escape target.
     home.market.cancel_order(buys[0].order_id)

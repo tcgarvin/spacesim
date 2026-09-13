@@ -44,9 +44,9 @@ from spacesim2.core.planet import Planet
 from spacesim2.core.planet_attributes import PlanetAttributes
 from spacesim2.core.process import ProcessRegistry
 from spacesim2.core.ship import (
-    INITIAL_FUEL_FRACTION,
     Ship,
     fuel_capacity_for,
+    initial_fuel_for,
     starting_capital,
 )
 from spacesim2.core.skill import SkillsRegistry
@@ -582,7 +582,7 @@ class Simulation:
                 initial_money=starting_capital(mean_distance, efficiency),
             )
 
-            ship.fuel = int(fuel_capacity * INITIAL_FUEL_FRACTION)
+            ship.fuel = initial_fuel_for(mean_distance, efficiency)
 
             self.ships.append(ship)
             planet.add_ship(ship)

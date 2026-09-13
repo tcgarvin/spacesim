@@ -115,8 +115,9 @@ ceiling again after dividing by efficiency.
 | Constant | Value | Notes |
 |----------|-------|-------|
 | Base consumption | `ceil(distance * 1000 / 200)` millifuel | 1 market unit of `nova_fuel` per 200 distance at efficiency 1.0 (`DISTANCE_PER_FUEL_UNIT`) |
-| Fuel capacity | `BASE_FUEL_CAPACITY` (6 units, `6 * FUEL_MILLI`) or more | Tank, separate from the hold; scales with the galaxy, see below |
-| Starting fuel | `INITIAL_FUEL_FRACTION` (60%) of the tank | Initial fuel for new ships |
+| Fuel capacity | `BASE_FUEL_CAPACITY` (60 units, `60 * FUEL_MILLI`) or more | Tank, separate from the hold; scales with the galaxy, see below |
+| Bunker target | `bunker_fuel_target()`: `FUEL_BUNKER_ROUND_TRIPS` (3) mean round trips, floored at `FUEL_BUNKER_TARGET_FLOOR` (6 units), capped by the tank | What refuel logic buys up to; the tank is ten times larger |
+| Starting fuel | `initial_fuel_for()`: the bunker target | Initial fuel for new ships |
 | Fuel efficiency | 0.8-1.2 | Random multiplier per ship |
 | Maintenance cost | 500 millifuel (`MAINTENANCE_FUEL_MILLI`, 0.5 market units) | `MAINTENANCE_CHANCE` (10%) per departure; burns the tank, not the hold |
 | Travel time | `ceil(distance / 20)` turns (`DISTANCE_PER_TURN`) | Independent of fuel |
@@ -125,7 +126,8 @@ ceiling again after dividing by efficiency.
 
 `TraderBrain._opportunistic_fuel_topup` buys fuel price-aware:
 
-- Bunker (fill the tank) only when the local ask is within
+- Bunker (fill to the *bunker target*, not the tank) only when the local ask
+  is within
   `FUEL_BUNKER_PREMIUM` (30%) of the galaxy's *typical* believable fuel
   price (`_fuel_value_reference`): the median over planets of each planet's
   30-day average price, or its best non-dealer ask with more than one unit
@@ -135,6 +137,19 @@ ceiling again after dividing by efficiency.
 - Ration at scarcity prices: buy only up to `_fuel_survival_target()`, the
   larger of two shortest round trips and the escape leg. Filling a tank at
   spike prices bankrupts ships.
+
+Every quantity above the survival minimum is sized against
+`TraderBrain._fuel_bunker_target()`, never against tank room. The tank holds
+`FUEL_CAPACITY_ROUND_TRIP_HEADROOM` (30) mean round trips so that a long
+route, an arrival reserve and an en-route refund all fit; bunkering toward it
+would park the whole purse in a commodity the ship will not burn for hundreds
+of turns. The target is `FUEL_BUNKER_ROUND_TRIPS` (3) mean round trips at the
+ship's own efficiency (`Navigator.mean_pair_distance`), floored at
+`FUEL_BUNKER_TARGET_FLOOR` (6 units, the tank the fleet ran on before the burn
+rate fell tenfold) because three round trips come to under a whole market unit
+in a small galaxy, and never below `_fuel_survival_target()`. The tank caps
+it. `_bunker_fillable_units` measures room below the target, so the linger and
+refuel-stop gates that use it are trip-sized too.
 
 The bid is `max(local ask, _flow_value(market, nova_fuel))`, the same rule
 cargo bids use, for the required units and the bunker units alike. Matching
@@ -154,7 +169,7 @@ cash so fuel does not crowd out trading capital:
 
 Fuel bought at or under the typical galaxy price is not a loss to recover
 later and the tank takes no hold space, so more of the purse is worth parking
-there. Over the same 300 turns the fleet bought 3921 units through the bunker
+there, up to the bunker target. Over the same 300 turns the fleet bought 3921 units through the bunker
 path at 50 credits each and 1096 units through the survival ration at 243
 each, 195k above reference: buying more where fuel is cheap is what removes
 the expensive purchases.
@@ -243,8 +258,8 @@ remaining route.
 
 `TraderBrain.wants_refuel_stop` requires all of:
 
-- the tank *after the refund* is below `FUEL_STOP_TANK_FRACTION` (60%) of
-  capacity;
+- the tank *after the refund* is below `FUEL_STOP_TARGET_FRACTION` (60%) of
+  the bunker target;
 - a fuel ask rests at the planet, and the planet has a real price signal - one
   with no fuel history is passed by rather than guessed about;
 - the ask is at or below the planet's own 30-day average, inside
@@ -292,7 +307,8 @@ pickup stops in `Ship.pickup_stop_turns`, `Ship.pickup_stops` and
 `contracts.pickup_stops_window`. Fuel stops are
 uncommon: 11 and 9 stops over 397 and 363 departures in two 40-planet,
 150-turn runs, against 4 and 8 before the shortfall cap was raised to 2 and
-the tank fraction to 0.6. What now refuses a stop is almost entirely supply:
+the tank fraction to 0.6 (now a fraction of the bunker target). What now
+refuses a stop is almost entirely supply:
 86% and 87% of the intermediate nodes a ship passes have no resting fuel ask
 at all. Every other criterion together accounts for under 10%.
 
@@ -304,11 +320,11 @@ destination - a loaded plan's, or the best destination for a hold of cargo -
 `_linger_to_bunker` may return `None` instead and keep the ship docked one
 more turn so that bid matches. It does so only when all of these hold:
 
-- the tank is below `FUEL_LINGER_TANK_FRACTION` (50%) of capacity;
+- the tank is below `FUEL_LINGER_TARGET_FRACTION` (50%) of the bunker target;
 - the local ask is inside `FUEL_BUNKER_PREMIUM` and strictly below the
   reference;
-- `_bunker_fillable_units(bid, planet, tank)` is positive: the minimum of tank
-  room, what the cheap-tier budget affords at the bid, and one turn's supply,
+- `_bunker_fillable_units(bid, planet, tank)` is positive: the minimum of the
+  room below the bunker target, what the cheap-tier budget affords at the bid, and one turn's supply,
   taken as the larger of the resting ask depth and the recent traded units per
   turn;
 - fillable units times the price gap beats `_trip_turn_value`, the trip's
@@ -448,13 +464,19 @@ for the galaxy they will fly in, from `Navigator.mean_pair_distance()`:
   small-galaxy purse from falling below what a fixed floor is meant to
   guarantee.
 - `fuel_capacity_for(mean_distance, efficiency)`:
-  `FUEL_CAPACITY_ROUND_TRIP_HEADROOM` (3.0) average round trips, never below
-  `BASE_FUEL_CAPACITY` (6 units, `6 * FUEL_MILLI`, was 60 before the burn-rate
-  change). The tank costs no hold space, so it is sized for several trips: a
-  ship bunkers where fuel is cheap and can fly past spiked markets. Before the
-  split the tank was 1.5 round trips and shared the hold, and spiked survival
-  top-ups were 252k of the fleet's 266k fuel premium over 600 turns at 100
-  planets.
+  `FUEL_CAPACITY_ROUND_TRIP_HEADROOM` (30.0) average round trips, never below
+  `BASE_FUEL_CAPACITY` (60 units, `60 * FUEL_MILLI`). The tank kept its unit
+  count when the burn rate fell tenfold, so it now holds tens of round trips.
+  It costs no hold space, and it is a *ceiling*, not a target: a long route,
+  an arrival reserve and an en-route refund all have to fit. What a ship
+  actually buys up to is the bunker target above, a few round trips. Before
+  the split the tank was 1.5 round trips and shared the hold, and spiked
+  survival top-ups were 252k of the fleet's 266k fuel premium over 600 turns
+  at 100 planets.
+- `initial_fuel_for(mean_distance, efficiency)`: a new ship launches with the
+  bunker target in its tank, so it starts where its own refuel logic would
+  keep it. Launching with 60% of a 60-unit tank put more value in fuel than
+  the 1000-credit starting purse held in cash.
 
 A `Ship` built directly, as tests do, keeps the constant defaults.
 

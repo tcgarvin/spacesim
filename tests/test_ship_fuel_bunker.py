@@ -11,24 +11,28 @@
 
 from spacesim2.core.ship import (
     ACCUMULATION_PATIENCE,
-    BASE_FUEL_CAPACITY,
     FUEL_BUNKER_BUDGET_FRACTION,
     FUEL_BUNKER_BUDGET_FRACTION_CHEAP,
-    FUEL_LINGER_TANK_FRACTION,
+    FUEL_BUNKER_TARGET_FLOOR,
+    FUEL_LINGER_TARGET_FRACTION,
     TradePlan,
 )
 from tests.test_ship_fuel import _make_ship, _make_world
 
 THREE_PLANETS = [("A", 0, 0), ("B", 100, 0), ("C", 200, 0)]
-# A third of a tank: below FUEL_LINGER_TANK_FRACTION, so there is room worth
-# lingering for.
-LOW_TANK = BASE_FUEL_CAPACITY // 3
+# Bunkering is sized against the bunker target, not the tank. Three mean
+# round trips of this chain come to 4002 millifuel, under the floor, so the
+# target here is the floor: 6 market units.
+BUNKER_TARGET = FUEL_BUNKER_TARGET_FLOOR
+# A third of the target: below FUEL_LINGER_TARGET_FRACTION, so there is room
+# worth lingering for.
+LOW_TANK = BUNKER_TARGET // 3
 # Two thirds: above it.
-FULL_ENOUGH_TANK = 2 * BASE_FUEL_CAPACITY // 3
+FULL_ENOUGH_TANK = 2 * BUNKER_TARGET // 3
 # Purse for the budget-tier tests. A leg of 100 costs 500 millifuel, so the
-# survival target of two round trips is two market units and the rest of a
-# 6-unit tank is room the budget, not the tank, has to ration: at an ask of
-# 10 both tiers must afford fewer than the 4 units of room left.
+# survival target of two round trips is two market units and the rest of the
+# 6-unit target is room the budget, not the target, has to ration: at an ask
+# of 10 both tiers must afford fewer than the 4 units of room left.
 BUNKER_TEST_MONEY = 60
 
 
@@ -160,7 +164,7 @@ def _cargo_world(local_fuel_ask, tank):
 def test_ship_lingers_when_cheap_fuel_beats_a_turn_of_the_trip():
     """Cheap fuel and a low-value trip: stay docked one more turn."""
     _, _, _, a, b, ship = _cargo_world(local_fuel_ask=5, tank=LOW_TANK)
-    assert ship.fuel < FUEL_LINGER_TANK_FRACTION * ship.fuel_capacity
+    assert ship.fuel < FUEL_LINGER_TARGET_FRACTION * ship.brain._fuel_bunker_target()
 
     assert ship.brain.decide_travel() is None
     assert ship.brain._fuel_linger_pending is True
@@ -170,7 +174,7 @@ def test_ship_lingers_when_cheap_fuel_beats_a_turn_of_the_trip():
 def test_no_linger_with_a_full_enough_tank():
     """Above the fill threshold there is too little room left to be worth it."""
     _, _, _, _, b, ship = _cargo_world(local_fuel_ask=5, tank=FULL_ENOUGH_TANK)
-    assert ship.fuel >= FUEL_LINGER_TANK_FRACTION * ship.fuel_capacity
+    assert ship.fuel >= FUEL_LINGER_TARGET_FRACTION * ship.brain._fuel_bunker_target()
 
     assert ship.brain.decide_travel() is b
     assert ship.brain._fuel_linger_pending is False

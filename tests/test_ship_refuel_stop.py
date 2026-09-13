@@ -13,9 +13,9 @@ from spacesim2.core.galaxy import StarLaneNetwork
 from spacesim2.core.market import Market
 from spacesim2.core.planet import Planet
 from spacesim2.core.ship import (
-    BASE_FUEL_CAPACITY,
     DISTANCE_PER_TURN,
-    FUEL_STOP_TANK_FRACTION,
+    FUEL_BUNKER_TARGET_FLOOR,
+    FUEL_STOP_TARGET_FRACTION,
     REFUEL_STOP_MAX_SHORTFALL,
     REFUEL_STOP_MAX_TURNS,
     Ship,
@@ -34,10 +34,15 @@ CHAIN = [("A", 0, 0), ("B", 20, 0), ("C", 40, 0)]
 # at B costs the one millifuel of slack the guard allows. At the single
 # ceiling the burn now uses, no split can ever cost more than that.
 UNEVEN_CHAIN = [("A", 0, 0), ("B", 30.05, 0), ("C", 60.1, 0)]
-# A third of a tank: below FUEL_STOP_TANK_FRACTION, so a stop is worth taking.
-DEFAULT_TANK = BASE_FUEL_CAPACITY // 3
-# Two thirds of a tank: above it, so the room left is not worth a stop.
-FULL_ENOUGH_TANK = 2 * BASE_FUEL_CAPACITY // 3
+# A stop is sized against the bunker target, not the tank. Three mean round
+# trips of this chain are well under the floor, so the target here is the
+# floor: 6 market units.
+BUNKER_TARGET = FUEL_BUNKER_TARGET_FLOOR
+# A third of the target: below FUEL_STOP_TARGET_FRACTION, so a stop is worth
+# taking.
+DEFAULT_TANK = BUNKER_TARGET // 3
+# Two thirds of the target: above it, so the room left is not worth a stop.
+FULL_ENOUGH_TANK = 2 * BUNKER_TARGET // 3
 # Value of a docked turn used by the book-depth tests. A one-unit fill at B
 # saves 15 credits against the galaxy reference and a four-unit fill saves 60,
 # so this sits between them and the depth of the book decides the stop.
@@ -276,12 +281,15 @@ def _stop_taken(**kwargs):
 
 
 def test_no_stop_with_a_full_enough_tank():
-    """Above FUEL_STOP_TANK_FRACTION there is too little room to be worth it."""
+    """Above FUEL_STOP_TARGET_FRACTION there is too little room to be worth it."""
     sim, _, _, (a, b, c), ship = _world(tank=FULL_ENOUGH_TANK)
     refund = ship.fuel_required(20.0)
     _depart(ship, c)
     # After the refund the tank is back above the fraction.
-    assert ship.fuel + refund >= FUEL_STOP_TANK_FRACTION * ship.fuel_capacity
+    assert (
+        ship.fuel + refund
+        >= FUEL_STOP_TARGET_FRACTION * ship.brain._fuel_bunker_target()
+    )
     _advance(sim, ship)
     assert ship.stop_resume is None
     assert _stop_taken(tank=DEFAULT_TANK) is True

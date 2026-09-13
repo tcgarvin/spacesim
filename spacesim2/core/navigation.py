@@ -156,6 +156,8 @@ class Navigator:
         # from i to j, or -1 for j == i. Routes are rebuilt from it on demand.
         self._previous: List[List[int]] = []
         self._by_proximity: Dict["Planet", List["Planet"]] = {}
+        # (planet count, mean) for mean_pair_distance; see that method.
+        self._mean_pair_distance: Optional[Tuple[int, float]] = None
         self._lane_count = -1  # lane count the matrix was built from
         # Static commodity facts.
         self._tradeable: Optional[List["CommodityDefinition"]] = None
@@ -256,11 +258,19 @@ class Navigator:
         count = len(planets)
         if count < 2:
             return 0.0
+        # Summing the pair matrix is O(n^2) and every ship asks for this
+        # number every turn, so cache it. Planet geometry is fixed after
+        # setup; the count guards the one case that changes it.
+        cached = self._mean_pair_distance
+        if cached is not None and cached[0] == count:
+            return cached[1]
         self._indices(planets[0], planets[0])  # ensure the matrix is built
         total = sum(
             self._distances[i][j] for i in range(count) for j in range(i + 1, count)
         )
-        return total / (count * (count - 1) / 2)
+        mean = total / (count * (count - 1) / 2)
+        self._mean_pair_distance = (count, mean)
+        return mean
 
     def planets_by_proximity(self, planet: "Planet") -> List["Planet"]:
         """All other planets sorted nearest-first from ``planet``."""
@@ -327,6 +337,7 @@ class Navigator:
         self._previous = previous
         self._lane_count = len(lanes)
         self._by_proximity.clear()
+        self._mean_pair_distance = None
 
     # ------------------------------------------------------------------
     # Commodity facts (static after setup)

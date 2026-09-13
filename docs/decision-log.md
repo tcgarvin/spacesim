@@ -59,6 +59,41 @@ Cargo revenue fell because starting capital shrank with the burn and now
 sits on the 1000-credit floor at every galaxy size; the fleet is smaller in
 money and profitable rather than large and insolvent.
 
+Follow-up the same day: the tank was restored to its old 60-unit count
+(`BASE_FUEL_CAPACITY` `60 * FUEL_MILLI`, `FUEL_CAPACITY_ROUND_TRIP_HEADROOM`
+30.0), so it now holds about 30 mean round trips. A tank that large must be a
+ceiling, not a target: at 12 planets the fleet parked 560 units in tanks and
+ran its purse down doing it. Refuel logic is therefore sized by trips. A new
+`bunker_fuel_target()` is `FUEL_BUNKER_ROUND_TRIPS` (3) mean round trips,
+floored at `FUEL_BUNKER_TARGET_FLOOR` (6 units, the tank of the previous
+paragraph) and capped by the tank; opportunistic top-ups, the cheap-fuel
+bunker budget, `_bunker_fillable_units`, the linger gate
+(`FUEL_LINGER_TARGET_FRACTION`) and the en-route stop gate
+(`FUEL_STOP_TARGET_FRACTION`) all measure against it instead of tank
+capacity, and `initial_fuel_for()` launches a ship with exactly that much in
+place of 60% of the tank. Survival target, arrival requirement, plan fuel and
+`nova_fuel` cargo were already trip- or plan-sized and are unchanged.
+
+Effect, 12 planets x 200 turns, 4 replicates each side, means:
+
+| metric | 60-unit tank, fractions of capacity | trip-sized refuel |
+|---|---|---|
+| `ship_fuel_in_tanks` (units, 12 ships) | 600 | 43 |
+| `ship_fuel_bought_window` (units) | 64 | 8 |
+| `ship_money_median` | 1379 | 1514 |
+| `ships_solvent_share` | 0.60 | 0.70 |
+| `departures_window` | 44.5 | 39.8 |
+| `stranded_ships` / `idle_ships` | 0 / 0 | 0 / 0 |
+| `service_fuel_stock` | 136 | 217 |
+| `ship_fuel_price` | 44.5 | 49.4 |
+
+The departure gap is inside the replicate spread (52-39 against 44-34) and no
+run on either side stranded or idled a ship. The spaceport stock floor
+(`_stock_target`, one ship tank per port) was left alone: it is 60 units per
+port, the same as before the burn change, and measured fleet-wide stock rose
+to 217 of a possible 720, so the ports are not over-stocked, they are holding
+the fuel the fleet stopped hoarding.
+
 ## 2026-09-12 - Upper-tier demand: netback valuation, stock discount, durables as capital
 
 Three landings, 46056a3, 9541d3c (with f9c3a03) and d557047, from the

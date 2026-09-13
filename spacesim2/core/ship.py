@@ -56,20 +56,18 @@ FUEL_BUNKER_BUDGET_FRACTION = 0.5
 FUEL_BUNKER_BUDGET_FRACTION_CHEAP = 0.8
 
 # A ship that is ready to depart stays docked one more turn to keep bunkering
-# only while its tank is below this fraction of capacity. With a fuller tank
-# there is too little room left for the price saving to beat a turn of the
-# trip it is delaying.
-FUEL_LINGER_TANK_FRACTION = 0.5
+# only while its tank is below this fraction of the bunker target. With a
+# fuller tank there is too little room left below the target for the price
+# saving to beat a turn of the trip it is delaying.
+FUEL_LINGER_TARGET_FRACTION = 0.5
 
 # En-route refuel stops. A ship flying a multi-lane route may dock at an
 # intermediate planet to buy cheap fuel and then resume to its original
 # destination. It stops only while the tank, once the unburned route fuel is
-# refunded, is below this fraction of capacity: with a fuller tank there is
-# too little room left for the saving to beat the turns the stop costs.
-# Measured at 40 planets over 150 turns, the nodes this gate refused sat just
-# above the old 0.5 line, at a median tank of 0.533 and a p75 of 0.56, so the
-# gate was mostly turning away ships with two thirds of a tank of room.
-FUEL_STOP_TANK_FRACTION = 0.6
+# refunded, is below this fraction of the bunker target: with a fuller tank
+# there is too little room left below the target for the saving to beat the
+# turns the stop costs.
+FUEL_STOP_TARGET_FRACTION = 0.6
 # Millifuel the per-leg rounding may cost before a stop is refused outright.
 # ``fuel_required`` ceils once, to the thousandth, so splitting a route at a
 # node costs ceil(a) + ceil(b) - ceil(a + b) millifuel, which is 0 or 1 for
@@ -203,10 +201,26 @@ DISTANCE_PER_FUEL_UNIT = 200.0
 # Distance a ship covers in one turn. Travel time is independent of fuel
 # efficiency and of the millifuel resolution.
 DISTANCE_PER_TURN = 20.0
-BASE_FUEL_CAPACITY = 6 * FUEL_MILLI
-FUEL_CAPACITY_ROUND_TRIP_HEADROOM = 3.0
-# Share of the tank a new ship is launched with.
-INITIAL_FUEL_FRACTION = 0.6
+# The tank keeps the unit count it had before the burn fell tenfold: 60
+# units at the floor, and 30 mean round trips above it (3 round trips at the
+# old burn). A tank is therefore hundreds of legs of fuel, and refuel logic
+# sizes purchases by trips (FUEL_BUNKER_ROUND_TRIPS), not by tank fraction.
+BASE_FUEL_CAPACITY = 60 * FUEL_MILLI
+FUEL_CAPACITY_ROUND_TRIP_HEADROOM = 30.0
+
+# Mean round trips of fuel a ship bunkers toward. The tank holds tens of
+# round trips, so filling it is money parked in a commodity the ship will not
+# burn for hundreds of turns; bunkering targets a few trips of reach instead
+# and leaves the rest of the purse for cargo. Every bunker purchase, linger
+# decision and en-route refuel stop is sized against this target, never
+# against a fraction of the tank.
+FUEL_BUNKER_ROUND_TRIPS = 3.0
+# Floor on that target, in millifuel. Three mean round trips come to under a
+# market unit in a small galaxy, and the market sells whole units, so without
+# a floor a ship there can never lift anything out of a cheap book. Six units
+# is the tank the fleet ran on before the burn fell tenfold, which is a known
+# workable bunker size.
+FUEL_BUNKER_TARGET_FLOOR = 6 * FUEL_MILLI
 
 
 @dataclass
@@ -916,6 +930,25 @@ class TraderBrain(ShipBrain):
             max(2 * self._fuel_reserve_need(), self._fuel_mobility_reserve()),
         )
 
+    def _fuel_bunker_target(self) -> int:
+        """Tank millifuel worth buying up to when fuel is cheap.
+
+        FUEL_BUNKER_ROUND_TRIPS mean round trips, never below the survival
+        target and never above the tank. The tank holds ten times this, so
+        every bunker purchase, linger decision and en-route refuel stop is
+        sized against this number rather than against tank room: fuel beyond
+        it is working capital the ship will not burn for hundreds of turns.
+        """
+        ship = self.ship
+        return max(
+            self._fuel_survival_target(),
+            bunker_fuel_target(
+                self._nav.mean_pair_distance(),
+                ship.fuel_efficiency,
+                ship.fuel_capacity,
+            ),
+        )
+
     def _fuel_escape_target(self) -> Optional[int]:
         """Tank level that buys a way off this planet and no more, or None.
 
@@ -1337,7 +1370,8 @@ class TraderBrain(ShipBrain):
 
         When the local ask is within FUEL_BUNKER_PREMIUM of the galaxy's
         typical believable fuel price, the median over planets, bunker
-        toward a full tank. When it is priced well above that median, buy
+        toward :meth:`_fuel_bunker_target`, a few mean round trips of reach.
+        When it is priced well above that median, buy
         only up to the survival target, raised to cover the destination the
         ship has committed its cargo to; filling tanks at spike prices
         bankrupts ships.
@@ -1461,8 +1495,12 @@ class TraderBrain(ShipBrain):
             bunker_budget = (
                 int(ship.money * budget_fraction) - required_units * fuel_bid
             )
+            # Room below the bunker target, not below the tank: the tank holds
+            # tens of round trips and filling it parks the purse in fuel.
             room_after_required = (
-                ship.fuel_capacity - current_milli - units_to_milli(required_units)
+                self._fuel_bunker_target()
+                - current_milli
+                - units_to_milli(required_units)
             )
             bunker_units = min(
                 milli_to_units_floor(room_after_required),
@@ -1590,7 +1628,8 @@ class TraderBrain(ShipBrain):
     ) -> int:
         """Market units of fuel the ship could buy at ``planet`` in one turn.
 
-        The smallest of tank room above ``tank_milli``, what the cheap-tier
+        The smallest of room below the bunker target above ``tank_milli``,
+        what the cheap-tier
         bunker budget affords at ``bid_price``, and the supply a single turn
         offers: the resting ask depth or the recent traded units per turn,
         whichever is larger. The depth resting now and the flow arriving next
@@ -1605,7 +1644,7 @@ class TraderBrain(ShipBrain):
         fuel_commodity = self._fuel_commodity()
         if fuel_commodity is None or bid_price <= 0:
             return 0
-        room_units = milli_to_units_floor(ship.fuel_capacity - tank_milli)
+        room_units = milli_to_units_floor(self._fuel_bunker_target() - tank_milli)
         affordable = int(ship.money * FUEL_BUNKER_BUDGET_FRACTION_CHEAP) // bid_price
         supply = max(
             self._nav.fuel_ask_depth_at(planet),
@@ -1636,8 +1675,8 @@ class TraderBrain(ShipBrain):
         galaxy reference and the ship can take enough of it that the saving,
         fillable units times the price gap, beats one turn of the trip.
 
-        Conditions, all required: the tank is below FUEL_LINGER_TANK_FRACTION
-        of capacity, the local ask is inside FUEL_BUNKER_PREMIUM and strictly
+        Conditions, all required: the tank is below FUEL_LINGER_TARGET_FRACTION
+        of the bunker target, the local ask is inside FUEL_BUNKER_PREMIUM and strictly
         below the reference, a meaningful quantity is fillable, and this stop
         has not already spent its one linger turn.
         """
@@ -1650,7 +1689,7 @@ class TraderBrain(ShipBrain):
         fuel_commodity = self._fuel_commodity()
         if fuel_commodity is None:
             return False
-        if ship.fuel >= FUEL_LINGER_TANK_FRACTION * ship.fuel_capacity:
+        if ship.fuel >= FUEL_LINGER_TARGET_FRACTION * self._fuel_bunker_target():
             return False
         reference = self._fuel_value_reference()
         if reference is None:
@@ -1691,7 +1730,7 @@ class TraderBrain(ShipBrain):
         held until it lands (:meth:`_route_stop_travel`).
 
         Conditions, all required: the tank after the refund is below
-        FUEL_STOP_TANK_FRACTION of capacity; a fuel ask rests here; the planet
+        FUEL_STOP_TARGET_FRACTION of the bunker target; a fuel ask rests here; the planet
         has a real price signal and the ask is at or below its 30-day average,
         so a planet with no price history is passed by rather than guessed
         about; the ask is inside FUEL_BUNKER_PREMIUM of the galaxy reference
@@ -1705,7 +1744,7 @@ class TraderBrain(ShipBrain):
         if fuel_commodity is None:
             return False
         tank_after_refund = ship.fuel + fuel_refund
-        if tank_after_refund >= FUEL_STOP_TANK_FRACTION * ship.fuel_capacity:
+        if tank_after_refund >= FUEL_STOP_TARGET_FRACTION * self._fuel_bunker_target():
             return False
         market = planet.market
         _, ask = market.get_bid_ask_spread(fuel_commodity)
@@ -4780,4 +4819,42 @@ def fuel_capacity_for(mean_pair_distance: float, fuel_efficiency: float) -> int:
             FUEL_CAPACITY_ROUND_TRIP_HEADROOM
             * mean_round_trip_fuel(mean_pair_distance, fuel_efficiency)
         ),
+    )
+
+
+def bunker_fuel_target(
+    mean_pair_distance: float, fuel_efficiency: float, fuel_capacity: int
+) -> int:
+    """Millifuel a ship bunkers toward.
+
+    FUEL_BUNKER_ROUND_TRIPS mean round trips, never below
+    FUEL_BUNKER_TARGET_FLOOR.
+
+    The tank holds FUEL_CAPACITY_ROUND_TRIP_HEADROOM round trips, ten times
+    what a ship needs between markets, so filling it parks the purse in fuel.
+    This is the level worth buying up to when fuel is cheap; the tank caps it
+    in a galaxy small enough that a few round trips exceed the baseline tank.
+    """
+    return min(
+        fuel_capacity,
+        max(
+            FUEL_BUNKER_TARGET_FLOOR,
+            math.ceil(
+                FUEL_BUNKER_ROUND_TRIPS
+                * mean_round_trip_fuel(mean_pair_distance, fuel_efficiency)
+            ),
+        ),
+    )
+
+
+def initial_fuel_for(mean_pair_distance: float, fuel_efficiency: float) -> int:
+    """Tank millifuel a newly built ship launches with.
+
+    The bunker target, so a ship starts where its own refuel logic would keep
+    it: a few round trips of reach, not a tank the fleet would never burn.
+    """
+    return bunker_fuel_target(
+        mean_pair_distance,
+        fuel_efficiency,
+        fuel_capacity_for(mean_pair_distance, fuel_efficiency),
     )
