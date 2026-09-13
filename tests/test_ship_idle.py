@@ -23,8 +23,10 @@ from spacesim2.core.ship import (
     ShipStatus,
     TradePlan,
     _RepositionIntent,
+    milli_to_units_ceil,
+    units_to_milli,
 )
-from tests.test_ship_fuel import _make_ship, _make_world
+from tests.test_ship_fuel import _give_repair_kit, _make_ship, _make_world
 
 
 def _add_commodity(sim, commodity_id, name):
@@ -71,9 +73,9 @@ def test_local_sale_veto_returns_after_a_fill():
     sim, _fuel, food, (a, b) = _make_world([("A", 0, 0), ("B", 50, 0)])
     buyer = _make_ship(sim, a, money=2000, name="LocalBuyer")
     a.market.place_buy_order(buyer, food, 4, 10)  # takes part of the load
-    # B pays too little to be worth the fuel, so the load is sold here.
+    # B pays too little to be worth the trip, so the load is sold here.
     remote_buyer = _make_ship(sim, b, money=5000, name="RemoteBuyer")
-    b.market.place_buy_order(remote_buyer, food, 20, 5)
+    b.market.place_buy_order(remote_buyer, food, 20, 3)
 
     ship = _make_ship(sim, a, fuel_units=10, name="Seller")
     ship.cargo.add_commodity(food, 10)
@@ -160,13 +162,14 @@ def test_committed_destination_fuel_is_bought_at_spike_prices():
     a.market.place_sell_order(local_supplier, fuel, 100, 60)
 
     ship = _make_ship(sim, a, fuel_units=0, money=5000, name="Trader")
-    committed = ship.brain._fuel_survival_target() + 3
+    committed = ship.brain._fuel_survival_target() + units_to_milli(3)
     ship.brain._committed_fuel_need = committed
 
     assert ship.brain._opportunistic_fuel_topup() is not None
     buys = [o for o in a.market.buy_orders[fuel] if o.actor is ship]
     assert len(buys) == 1
-    assert buys[0].quantity == committed
+    # The commitment is millifuel; the bid is for the whole units covering it.
+    assert buys[0].quantity == milli_to_units_ceil(committed)
 
 
 def test_committed_fuel_need_covers_the_departure_gate_and_the_ship_leaves():
@@ -328,7 +331,7 @@ def test_accumulating_plan_still_lists_unrelated_cargo():
 
 
 def test_reposition_counts_fuel_the_ship_can_buy_here():
-    """A 1-fuel ship with cash repositions, and funds the trip's fuel.
+    """A ship with a millifuel of tank and cash repositions, and funds the fuel.
 
     Reach used to be the tank alone, so a ship sitting on a fuel ask with
     hundreds of credits could neither plan (the round-trip cash gate) nor
@@ -340,7 +343,7 @@ def test_reposition_counts_fuel_the_ship_can_buy_here():
     a.market.place_sell_order(supplier_a, fuel, 200, 10)
     b.market.place_sell_order(supplier_b, fuel, 200, 10)
 
-    ship = _make_ship(sim, a, fuel_units=1, money=2000, name="Trader")
+    ship = _make_ship(sim, a, fuel_milli=1, money=2000, name="Trader")
     ship.brain._nav.refresh_market_facts()
     # A warm galaxy where every origin backs a lucrative plan, so fuel is the
     # only thing that can hold the ship here.
@@ -351,7 +354,7 @@ def test_reposition_counts_fuel_the_ship_can_buy_here():
     # ...except right here, so the ship has a reason to leave.
     ship.brain._find_best_trade_plan = lambda: None
 
-    assert ship.brain._find_reposition_target(1, fuel) is b
+    assert ship.brain._find_reposition_target(ship.fuel, fuel) is b
 
     # It cannot fly yet, so it commits to the trip and stays this turn.
     assert ship.brain.decide_travel() is None
@@ -363,7 +366,8 @@ def test_reposition_counts_fuel_the_ship_can_buy_here():
     assert ship.brain._committed_fuel_need == ship.brain._departure_fuel_requirement(b)
     fuel_buys = [o for o in a.market.buy_orders[fuel] if o.actor is ship]
     assert fuel_buys
-    assert sum(o.quantity for o in fuel_buys) + 1 >= ship.brain._committed_fuel_need
+    bought = units_to_milli(sum(o.quantity for o in fuel_buys))
+    assert ship.fuel + bought >= ship.brain._committed_fuel_need
 
     # With the fuel aboard the reposition departs.
     a.market.match_orders()
@@ -376,7 +380,7 @@ def test_reposition_intent_is_dropped_when_the_ship_moves_on():
     sim, fuel, _food, (a, b) = _make_world([("A", 0, 0), ("B", 100, 0)])
     supplier = _make_ship(sim, a, hold_fuel=500, name="SupplierA")
     a.market.place_sell_order(supplier, fuel, 200, 10)
-    ship = _make_ship(sim, a, fuel_units=1, money=2000, name="Trader")
+    ship = _make_ship(sim, a, fuel_milli=1, money=2000, name="Trader")
     ship.brain._reposition_intent = _RepositionIntent(origin=b, target=b)
 
     ship.brain.decide_trade_actions()
@@ -461,7 +465,9 @@ def test_distressed_ship_refuses_a_haul_that_cannot_buy_its_return_leg():
     assert ship.brain.is_distressed
 
     plan = _thin_margin_plan(ship, a, b, food)
-    plan.fuel_price_at_origin = 3
+    # 24 a unit over the quarter-unit leg puts 6 credits of fuel on each leg,
+    # so the 10-credit gross of the haul cannot buy the way home.
+    plan.fuel_price_at_origin = 24
     assert plan.expected_profit > 0
     assert plan.expected_profit < plan.return_leg_fuel_cost
     assert not ship.brain._plan_acceptable(plan)
@@ -499,7 +505,11 @@ def test_reposition_intent_is_sticky_while_it_stays_viable():
     )
     supplier = _make_ship(sim, a, hold_fuel=500, name="Supplier")
     a.market.place_sell_order(supplier, fuel, 200, 10)
-    ship = _make_ship(sim, a, fuel_units=2, money=2000, name="Trader")
+    # A dry tank and the cash to fill it: the trip is fundable but not yet
+    # flyable. The kit keeps the maintenance fuel buffer out of the arrival
+    # requirement, which a six-unit tank could not cover on top of the legs.
+    ship = _make_ship(sim, a, money=2000, name="Trader")
+    _give_repair_kit(ship)
     ship.brain._nav.refresh_market_facts()
     ship.brain._nav.has_any_trade_signal = lambda: True
     ship.brain._find_best_trade_plan = lambda: None
@@ -507,7 +517,7 @@ def test_reposition_intent_is_sticky_while_it_stays_viable():
     # The survey would pick a different origin this turn.
     ship.brain._find_reposition_target = lambda *_args: b
 
-    assert ship.brain._reposition_intent_target(2) is c
+    assert ship.brain._reposition_intent_target(ship.fuel) is c
     assert ship.brain.decide_travel() is None  # still short of the fuel
     assert ship.brain._reposition_intent is not None
     assert ship.brain._reposition_intent.target is c
@@ -515,8 +525,7 @@ def test_reposition_intent_is_sticky_while_it_stays_viable():
     # Once the standing target is out of reach, the survey runs again.
     ship.brain._reposition_intent = _RepositionIntent(origin=a, target=c)
     ship.money = 0
-    ship.fuel -= 2
-    assert ship.brain._reposition_intent_target(0) is None
+    assert ship.brain._reposition_intent_target(ship.fuel) is None
     ship.brain.decide_travel()
     assert ship.brain._reposition_intent is not None
     assert ship.brain._reposition_intent.target is b

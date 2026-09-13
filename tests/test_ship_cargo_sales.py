@@ -21,6 +21,7 @@ from spacesim2.core.ship import (
     UNSOLD_DECAY,
     Ship,
     TradePlan,
+    units_to_milli,
 )
 
 
@@ -55,7 +56,7 @@ def _make_world(planet_specs):
 def _make_ship(sim, planet, fuel_units=0, money=1000, name="TestShip", hold_fuel=0):
     ship = Ship(name, sim, planet, initial_money=money, fuel_efficiency=1.0)
     planet.add_ship(ship)
-    ship.fuel = fuel_units
+    ship.fuel = units_to_milli(fuel_units)
     if hold_fuel:
         ship.cargo.add_commodity(
             sim.commodity_registry.get_commodity("nova_fuel"), hold_fuel
@@ -275,7 +276,7 @@ def test_cargo_that_already_hopped_once_is_sold_where_it_is():
     remote_buyer = _make_ship(sim, b, money=20000, name="RemoteBuyer")
     b.market.place_buy_order(remote_buyer, food, 20, 100)
 
-    ship = _make_ship(sim, a, fuel_units=40, money=2000, name="Hopper")
+    ship = _make_ship(sim, a, fuel_units=6, money=2000, name="Hopper")
     ship.cargo.add_commodity(food, 10)
     ship.brain._nav.refresh_market_facts()
 
@@ -297,7 +298,7 @@ def test_a_cargo_hop_departure_counts_against_the_hop_limit():
     remote_buyer = _make_ship(sim, b, money=20000, name="RemoteBuyer")
     b.market.place_buy_order(remote_buyer, food, 20, 100)
 
-    ship = _make_ship(sim, a, fuel_units=40, money=2000, name="Hopper")
+    ship = _make_ship(sim, a, fuel_units=6, money=2000, name="Hopper")
     ship.cargo.add_commodity(food, 10)
     ship.brain._nav.refresh_market_facts()
 

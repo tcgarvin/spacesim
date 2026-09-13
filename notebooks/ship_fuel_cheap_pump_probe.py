@@ -51,7 +51,12 @@ from spacesim2.cli.common import create_and_setup_simulation
 from spacesim2.core.market import Market
 from spacesim2.core.navigation import Navigator
 from spacesim2.core.planet import Planet
-from spacesim2.core.ship import FUEL_BUNKER_PREMIUM, Ship, TraderBrain
+from spacesim2.core.ship import (
+    FUEL_BUNKER_PREMIUM,
+    Ship,
+    TraderBrain,
+    milli_to_units_ceil,
+)
 
 # Ask depth, in units, that counts as real supply at a candidate pump. Below
 # this a resting ask is a probe, not something a ship could actually fill up
@@ -132,18 +137,19 @@ def pump_facts(
             "reachable_now": False,
         }
     distance = nav.distance(origin, pump)
-    fuel_to_pump = brain.ship.fuel_required(distance)
-    arrival_req = brain._arrival_fuel_requirement(pump, origin)
+    fuel_to_pump_milli = brain.ship.fuel_required(distance)
+    arrival_req_milli = brain._arrival_fuel_requirement(pump, origin)
     _, ask = pump.market.get_bid_ask_spread(fuel_commodity)
     hops = len(nav.route(origin, pump)) - 1
     return {
         "found": True,
         "distance": distance,
         "hops": hops,
-        "fuel_to_pump": fuel_to_pump,
-        "arrival_req": arrival_req,
+        # Market units, so these compare directly with order quantities/asks.
+        "fuel_to_pump": milli_to_units_ceil(fuel_to_pump_milli),
+        "arrival_req": milli_to_units_ceil(arrival_req_milli),
         "ask": ask,
-        "reachable_now": current_fuel >= fuel_to_pump + arrival_req,
+        "reachable_now": current_fuel >= fuel_to_pump_milli + arrival_req_milli,
     }
 
 
@@ -250,15 +256,24 @@ def topup(self: TraderBrain, *args: Any, **kwargs: Any) -> Optional[str]:
                 "fuel_traded_recently": self._nav.fuel_traded_recently(planet),
                 "thirty_day_avg": planet.market.get_30_day_average_price(fuel),
                 "component": component,
-                "survival_target": survival_target,
-                "escape_target": escape_target,
-                "committed_fuel_need": committed,
+                # Market units, so these compare with ask/ref/money above.
+                "survival_target": milli_to_units_ceil(survival_target),
+                "escape_target": (
+                    milli_to_units_ceil(escape_target)
+                    if escape_target is not None
+                    else None
+                ),
+                "committed_fuel_need": milli_to_units_ceil(committed),
                 "stuck": stuck,
-                "tank": current_fuel,
-                "tank_capacity": ship.fuel_capacity,
+                "tank": milli_to_units_ceil(current_fuel),
+                "tank_capacity": milli_to_units_ceil(ship.fuel_capacity),
                 "has_committed_destination": dest is not None,
                 "committed_destination": dest_name,
-                "committed_fuel_one_way": dest_fuel_needed,
+                "committed_fuel_one_way": (
+                    milli_to_units_ceil(dest_fuel_needed)
+                    if dest_fuel_needed is not None
+                    else None
+                ),
                 "reachable_from_committed_destination": reachable_from_dest,
                 "pump_now": pump_facts(self, planet, fuel, ceiling, True, current_fuel),
                 "pump_now_weak": pump_facts(

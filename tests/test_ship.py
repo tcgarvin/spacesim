@@ -38,13 +38,14 @@ class TestShip(unittest.TestCase):
         self.ship = Ship("TestShip", self.mock_sim, self.earth)
         self.earth.add_ship(self.ship)
 
-        self.ship.fuel = 50
+        # The tank is millifuel; fill it so only the leg burn is under test.
+        self.ship.fuel = self.ship.fuel_capacity
 
     def test_ship_initialization(self):
         self.assertEqual(self.ship.name, "TestShip")
         self.assertEqual(self.ship.planet, self.earth)
         self.assertEqual(self.ship.status, ShipStatus.DOCKED)
-        self.assertEqual(self.ship.fuel, 50)
+        self.assertEqual(self.ship.fuel, self.ship.fuel_capacity)
 
     def test_distance_calculation(self):
         distance = self.ship.route_distance(self.earth, self.mars)
@@ -53,7 +54,8 @@ class TestShip(unittest.TestCase):
     def test_fuel_calculation(self):
         distance = 50.0
         fuel_needed = Ship.calculate_fuel_needed(distance)
-        self.assertEqual(fuel_needed, 3)  # 50 / 20 = 2.5, rounded up to 3
+        # 50 / 200 = 0.25 market units, i.e. 250 millifuel.
+        self.assertEqual(fuel_needed, 250)
 
     def test_journey_start_and_progress(self):
         self.assertEqual(self.ship.last_departure_turn, 0)
@@ -64,8 +66,8 @@ class TestShip(unittest.TestCase):
         self.assertEqual(self.ship.last_departure_turn, 7)
         self.assertEqual(self.ship.departure_turns, [7])
 
-        fuel_consumed = 3  # 50 / 20 = 2.5, rounded up to 3
-        self.assertEqual(self.ship.fuel, 50 - fuel_consumed)
+        fuel_consumed = 250  # 50 / 200 = 0.25 market units of millifuel
+        self.assertEqual(self.ship.fuel, self.ship.fuel_capacity - fuel_consumed)
 
         self.assertEqual(self.ship.travel_time, 3)  # 50 / 20 = 2.5, rounded up to 3
 
@@ -81,7 +83,7 @@ class TestShip(unittest.TestCase):
     def test_insufficient_fuel(self):
         ship2 = Ship("FuellessShip", self.mock_sim, self.earth)
         self.earth.add_ship(ship2)
-        ship2.fuel = 2
+        ship2.fuel = ship2.fuel_required(50.0) - 1
 
         # Keep the random maintenance check out of this test.
         ship2.check_maintenance = lambda: False

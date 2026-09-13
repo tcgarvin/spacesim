@@ -662,7 +662,7 @@ class Navigator:
         # Imported here, not at module scope: ship.py imports this module, so
         # a top-level import would be circular. Only the shared burn formula
         # is wanted, and it is a staticmethod.
-        from spacesim2.core.ship import Ship
+        from spacesim2.core.ship import FUEL_MILLI, Ship
 
         if self.fuel_commodity() is None:
             return FUEL_BID_FALLBACK_FLOOR
@@ -671,10 +671,13 @@ class Navigator:
 
         def delivered_cost(source: "Planet", ask: int) -> float:
             distance = self.distance(source, planet)
-            leg_fuel = math.ceil(
+            # Millifuel for the leg, one ceiling, as Ship.fuel_required does
+            # it; divided by FUEL_MILLI so the result stays in credits.
+            leg_fuel_milli = math.ceil(
                 Ship.calculate_fuel_needed(distance) / DELIVERER_WORST_FUEL_EFFICIENCY
             )
-            return ask + (2 * leg_fuel * ask) / needed_depth
+            leg_fuel_units = leg_fuel_milli / FUEL_MILLI
+            return ask + (2 * leg_fuel_units * ask) / needed_depth
 
         producer_fillable: Optional[float] = None
         producer_any: Optional[float] = None
@@ -894,13 +897,14 @@ def leg_fuel_cost(
     paid to one: government freight in ``core/government.py`` and passage in
     ``core/migration.py`` each add their own margin to it.
     """
-    from spacesim2.core.ship import Ship
+    from spacesim2.core.ship import FUEL_MILLI, Ship
 
     reference = navigator.fuel_value_reference()
     if reference is None:
         reference = float(FUEL_BID_FALLBACK_FLOOR)
+    # calculate_fuel_needed is millifuel; the reference prices a market unit.
     fuel_needed = Ship.calculate_fuel_needed(navigator.distance(origin, destination))
-    return fuel_needed * reference
+    return fuel_needed * reference / FUEL_MILLI
 
 
 _navigators: "WeakKeyDictionary[Simulation, Navigator]" = WeakKeyDictionary()

@@ -24,7 +24,7 @@ from spacesim2.core.drives.prosperity_drive import (
 )
 from spacesim2.core.drives.shelter_drive import PREFAB_HOUSING_NAME
 from spacesim2.core.navigation import get_navigator
-from spacesim2.core.ship import Ship, ShipStatus
+from spacesim2.core.ship import FUEL_MILLI, Ship, ShipStatus
 from spacesim2.core.simulation import Simulation
 
 # Verdict thresholds are catastrophe floors, not targets: a healthy run sits
@@ -593,7 +593,7 @@ def _summarize_fleet_fuel(sim: Simulation) -> Dict[str, object]:
     # Fuel in tanks is capital too: a fleet that bunkers heavily shows low
     # cash and a large tank stock, which is a different condition from a
     # fleet that has lost its money.
-    ship_fuel_in_tanks = sum(ship.fuel for ship in sim.ships)
+    ship_fuel_in_tanks = round(sum(ship.fuel for ship in sim.ships) / FUEL_MILLI, 3)
     ship_money_median = float(statistics.median(ship_money)) if ship_money else 0.0
     ships_solvent_share = (
         round(sum(1 for m in ship_money if m >= _SOLVENT_MONEY) / ship_count, 3)

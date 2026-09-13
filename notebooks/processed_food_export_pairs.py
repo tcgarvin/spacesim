@@ -50,6 +50,8 @@ from spacesim2.core.ship import (
     ShipStatus,
     TradePlan,
     TraderBrain,
+    milli_to_units_ceil,
+    units_to_milli,
 )
 from spacesim2.core.simulation import Simulation
 
@@ -148,16 +150,17 @@ def trace_pair_economics(
     out.update(
         {
             "distance": round(distance, 3),
-            "fuel_one_way": fuel_one_way,
-            "fuel_round_trip": fuel_round_trip,
+            # Market units, so these compare with fuel_price/money below.
+            "fuel_one_way": milli_to_units_ceil(fuel_one_way),
+            "fuel_round_trip": milli_to_units_ceil(fuel_round_trip),
             "fuel_price_at_origin": fuel_price,
             "fuel_ask_at_origin": fuel_ask,
             "fuel_reference_price": fuel_reference_price,
             "ship_money": ship.money,
-            "ship_fuel": current_fuel,
-            "ship_fuel_capacity": ship.fuel_capacity,
+            "ship_fuel": milli_to_units_ceil(current_fuel),
+            "ship_fuel_capacity": milli_to_units_ceil(ship.fuel_capacity),
             "cargo_space": cargo_space,
-            "round_trip_shortfall": round_trip_shortfall,
+            "round_trip_shortfall": milli_to_units_ceil(round_trip_shortfall),
             "fuel_purchasable_at_origin": fuel_purchasable,
             "ship_is_distressed": brain.is_distressed,
         }
@@ -167,16 +170,18 @@ def trace_pair_economics(
         out["exit"] = "fuel_not_buyable_at_origin"
         return out
 
-    fuel_to_buy = round_trip_shortfall
+    # fuel_to_buy is market units (what the ship actually orders); the rest
+    # of this function's arithmetic stays in millifuel to match core.
+    fuel_to_buy = milli_to_units_ceil(round_trip_shortfall)
     fuel_cost = fuel_to_buy * fuel_price
-    fuel_after_arrival = current_fuel + fuel_to_buy - fuel_one_way
+    fuel_after_arrival = current_fuel + units_to_milli(fuel_to_buy) - fuel_one_way
     arrival_requirement = brain._arrival_fuel_requirement(destination, origin)
     out.update(
         {
             "fuel_to_buy": fuel_to_buy,
             "fuel_cost": fuel_cost,
-            "fuel_after_arrival": fuel_after_arrival,
-            "arrival_fuel_requirement": arrival_requirement,
+            "fuel_after_arrival": milli_to_units_ceil(fuel_after_arrival),
+            "arrival_fuel_requirement": milli_to_units_ceil(arrival_requirement),
             "fuel_purchasable_at_destination": brain._fuel_purchasable_at(destination),
         }
     )
@@ -190,16 +195,17 @@ def trace_pair_economics(
     fuel_left_after_trip = max(current_fuel, fuel_round_trip) - fuel_round_trip
     reserve_need = brain._fuel_reserve_need()
     refuel_shortfall = max(0, reserve_need - fuel_left_after_trip)
-    refuel_floor = refuel_shortfall * fuel_price
+    refuel_shortfall_units = milli_to_units_ceil(refuel_shortfall)
+    refuel_floor = refuel_shortfall_units * fuel_price
     money_for_trading = int(
         (ship.money - fuel_cost - refuel_floor - maintenance_cost) * 0.9
     )
     out.update(
         {
             "maintenance_cost": maintenance_cost,
-            "fuel_reserve_need": reserve_need,
-            "fuel_left_after_trip": fuel_left_after_trip,
-            "refuel_shortfall": refuel_shortfall,
+            "fuel_reserve_need": milli_to_units_ceil(reserve_need),
+            "fuel_left_after_trip": milli_to_units_ceil(fuel_left_after_trip),
+            "refuel_shortfall": refuel_shortfall_units,
             "refuel_floor": refuel_floor,
             "money_for_trading": money_for_trading,
             "max_by_cargo": cargo_space,
@@ -436,7 +442,7 @@ def sample(
                 "ships_docked": len(planet.ships),
                 "evaluator_is_local": local is not None,
                 "evaluator_money": evaluator.ship.money,
-                "evaluator_fuel": evaluator.ship.fuel,
+                "evaluator_fuel": milli_to_units_ceil(evaluator.ship.fuel),
                 "evaluator_cargo_fuel": (
                     evaluator.ship.cargo.get_quantity(fuel)
                     if fuel is not None

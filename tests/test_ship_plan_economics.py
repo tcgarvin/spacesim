@@ -15,7 +15,14 @@ from spacesim2.core.commodity import CommodityDefinition, CommodityRegistry
 from spacesim2.core.galaxy import StarLaneNetwork
 from spacesim2.core.market import Market
 from spacesim2.core.planet import Planet
-from spacesim2.core.ship import ACCUMULATION_PATIENCE, Ship
+from spacesim2.core.ship import (
+    ACCUMULATION_PATIENCE,
+    FUEL_MILLI,
+    Ship,
+    milli_to_units_ceil,
+    milli_to_units_floor,
+    units_to_milli,
+)
 
 
 def _make_world(planet_specs):
@@ -58,7 +65,7 @@ def _make_ship(
 ):
     ship = Ship(name, sim, planet, fuel_efficiency=efficiency, initial_money=money)
     planet.add_ship(ship)
-    ship.fuel = fuel_units
+    ship.fuel = units_to_milli(fuel_units)
     if hold_fuel:
         fuel = sim.commodity_registry.get_commodity("nova_fuel")
         ship.cargo.add_commodity(fuel, hold_fuel)
@@ -90,7 +97,9 @@ def test_margin_charges_only_the_outbound_leg_of_fuel():
     seller = _make_ship(sim, a, hold_fuel=200, name="Seller")
     seller.cargo.add_commodity(food, 50)
     a.market.place_sell_order(seller, food, 50, 10)
-    a.market.place_sell_order(seller, fuel, 100, 5)
+    # 10 a unit over a half-unit leg costs a whole number of credits, so the
+    # doubling below is not a rounding artifact.
+    a.market.place_sell_order(seller, fuel, 100, 10)
     buyer = _make_ship(sim, b, money=5000, name="Buyer")
     b.market.place_buy_order(buyer, food, 50, 30)
 
@@ -101,9 +110,12 @@ def test_margin_charges_only_the_outbound_leg_of_fuel():
     assert plan is not None
     # Nothing in the tank, so every unit of the outbound burn is bought here.
     assert plan.fuel_units_from_tank == 0
-    assert plan.total_fuel_cost == plan.fuel_needed_one_way * plan.fuel_price_at_origin
-    assert plan.total_fuel_cost * 2 == plan.fuel_needed_round_trip * (
-        plan.fuel_price_at_origin
+    # The burn is millifuel and the price is per market unit.
+    assert plan.total_fuel_cost == round(
+        plan.fuel_needed_one_way * plan.fuel_price_at_origin / FUEL_MILLI
+    )
+    assert plan.total_fuel_cost * 2 == round(
+        plan.fuel_needed_round_trip * plan.fuel_price_at_origin / FUEL_MILLI
     )
 
 
@@ -121,7 +133,7 @@ def test_fuel_already_aboard_is_charged_at_the_reference_not_the_local_spike():
     b.market.place_buy_order(buyer, food, 50, 40)
 
     # A full tank: the outbound leg costs the ship nothing at the local ask.
-    trader = _make_ship(sim, a, fuel_units=60, money=20000, name="Trader")
+    trader = _make_ship(sim, a, fuel_units=6, money=20000, name="Trader")
     trader.brain._nav.refresh_market_facts()
     plan = trader.brain._evaluate_trade_opportunity(a, b, food)
 
@@ -129,13 +141,15 @@ def test_fuel_already_aboard_is_charged_at_the_reference_not_the_local_spike():
     assert plan.fuel_units_from_tank == plan.fuel_needed_one_way
     assert plan.fuel_price_at_origin == 200
     assert plan.fuel_price_from_tank < plan.fuel_price_at_origin
-    assert plan.total_fuel_cost == (
-        plan.fuel_needed_one_way * plan.fuel_price_from_tank
+    assert plan.total_fuel_cost == round(
+        plan.fuel_needed_one_way * plan.fuel_price_from_tank / FUEL_MILLI
     )
 
 
 def test_cash_gate_still_withholds_the_whole_round_trip():
-    sim, fuel, food, (a, b) = _make_world([("A", 0, 0), ("B", 100, 0)])
+    # 400 lane units is 2 market units of fuel each way, so the outbound and
+    # the round trip are distinguishable whole-unit purchases.
+    sim, fuel, food, (a, b) = _make_world([("A", 0, 0), ("B", 400, 0)])
     seller = _make_ship(sim, a, hold_fuel=200, name="Seller")
     seller.cargo.add_commodity(food, 50)
     a.market.place_sell_order(seller, food, 50, 10)
@@ -148,11 +162,12 @@ def test_cash_gate_still_withholds_the_whole_round_trip():
     pair = rich.brain._pair_economics(a, b)
     assert pair is not None
     fuel_one_way = rich.fuel_required(rich.route_distance(a, b))
-    assert pair.fuel_to_buy == fuel_one_way * 2
+    # The tank is millifuel; the market sells whole units.
+    assert pair.fuel_to_buy == milli_to_units_ceil(fuel_one_way * 2)
 
     # Enough cash for the outbound leg's fuel but not the return leg's: the
     # gate must refuse, or the ship strands at B with no way home.
-    one_way_only = fuel_one_way * 40 + 10
+    one_way_only = milli_to_units_ceil(fuel_one_way) * 40 + 10
     poor = _make_ship(sim, a, money=one_way_only, name="Poor")
     _give_repair_kit(poor)
     assert poor.brain._pair_economics(a, b) is None
@@ -262,7 +277,7 @@ def test_hold_fuel_without_a_plan_is_pumped_into_the_tank_first():
     a.market.place_sell_order(seller, fuel, 200, 10)
 
     trader = _make_ship(sim, a, money=5000, name="Trader")
-    trader.cargo.add_commodity(fuel, trader.fuel_capacity + 5)
+    trader.cargo.add_commodity(fuel, milli_to_units_floor(trader.fuel_capacity) + 5)
     trader.brain._nav.refresh_market_facts()
     assert trader.brain._current_plan is None
 

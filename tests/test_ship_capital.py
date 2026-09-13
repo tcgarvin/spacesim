@@ -26,6 +26,12 @@ from tests.test_ship_fuel import _make_ship, _make_world
 # a hundred.
 SMALL_GALAXY_DISTANCE = 35.0
 LARGE_GALAXY_DISTANCE = 300.0
+# A market unit of fuel now carries a ship 200 map units, so the capital
+# formula only clears SHIP_CAPITAL_FLOOR past a mean lane route of about
+# 750. These two are on either side of that line; no galaxy the setup builds
+# today reaches them.
+ABOVE_FLOOR_DISTANCE = 1000.0
+FAR_ABOVE_FLOOR_DISTANCE = 3000.0
 
 
 # ---------------------------------------------------------------------------
@@ -39,16 +45,22 @@ def test_starting_capital_floors_at_the_tuned_baseline_in_small_galaxies():
 
 
 def test_starting_capital_scales_with_galaxy_size():
-    small = starting_capital(SMALL_GALAXY_DISTANCE, 1.0)
-    large = starting_capital(LARGE_GALAXY_DISTANCE, 1.0)
-    # A hundred-planet galaxy burns roughly six times the fuel per trip, so
-    # the purse must grow by several multiples, not a few percent.
-    assert large > 3 * small
+    near = starting_capital(ABOVE_FLOOR_DISTANCE, 1.0)
+    far = starting_capital(FAR_ABOVE_FLOOR_DISTANCE, 1.0)
+    # Past the floor the purse is round trips of fuel, so tripling the mean
+    # lane route must grow it by multiples, not a few percent.
+    assert near > SHIP_CAPITAL_FLOOR
+    assert far > 2 * near
+
+
+def test_starting_capital_floors_at_a_hundred_planet_galaxy():
+    """Today's largest galaxy still sits on the floor, not on the formula."""
+    assert starting_capital(LARGE_GALAXY_DISTANCE, 1.0) == SHIP_CAPITAL_FLOOR
 
 
 def test_thirstier_ships_start_with_more_capital():
-    thirsty = starting_capital(LARGE_GALAXY_DISTANCE, 0.8)
-    frugal = starting_capital(LARGE_GALAXY_DISTANCE, 1.2)
+    thirsty = starting_capital(FAR_ABOVE_FLOOR_DISTANCE, 0.8)
+    frugal = starting_capital(FAR_ABOVE_FLOOR_DISTANCE, 1.2)
     assert thirsty > frugal
 
 
@@ -67,7 +79,14 @@ def test_directly_constructed_ship_keeps_the_constant_defaults():
     assert ship.fuel_capacity == BASE_FUEL_CAPACITY
 
 
-def test_setup_scales_capital_with_the_galaxy_it_builds():
+def test_setup_sizes_ships_from_the_galaxy_it_builds():
+    """Setup feeds each ship the galaxy's own mean lane route.
+
+    At the distances the setup actually builds, both sizing functions return
+    their floors, so this asserts the wiring rather than a magnitude: every
+    ship's purse and tank are exactly what the two functions return for the
+    measured mean and that ship's efficiency.
+    """
     small = Simulation()
     small.setup_simple(
         num_planets=3, num_regular_actors=2, num_market_makers=1, num_ships=1
@@ -77,21 +96,14 @@ def test_setup_scales_capital_with_the_galaxy_it_builds():
         num_planets=40, num_regular_actors=2, num_market_makers=1, num_ships=1
     )
 
-    assert (
-        get_navigator(large).mean_pair_distance()
-        > get_navigator(small).mean_pair_distance()
-    )
-    small_money = max(s.money for s in small.ships)
-    large_money = min(s.money for s in large.ships)
-    # A three-planet galaxy sits at or just above the tuned baseline; a
-    # forty-planet one needs a clear multiple of it. Layouts are random, so
-    # compare against the floor rather than the small galaxy's draw.
-    assert SHIP_CAPITAL_FLOOR <= small_money < 1.5 * SHIP_CAPITAL_FLOOR
-    assert large_money > 1.5 * SHIP_CAPITAL_FLOOR
-    # Ships launch with a tankful proportional to the tank they were given.
+    large_mean = get_navigator(large).mean_pair_distance()
+    assert large_mean > get_navigator(small).mean_pair_distance()
+
     for ship in large.ships:
-        held = ship.fuel
-        assert 0 < held <= ship.fuel_capacity
+        assert ship.money == starting_capital(large_mean, ship.fuel_efficiency)
+        assert ship.fuel_capacity == fuel_capacity_for(large_mean, ship.fuel_efficiency)
+        # Ships launch with a tankful proportional to the tank they were given.
+        assert 0 < ship.fuel <= ship.fuel_capacity
 
 
 # ---------------------------------------------------------------------------
@@ -107,7 +119,7 @@ def test_pair_economics_credits_fuel_already_in_the_tank():
     a.market.place_sell_order(seller, fuel, 20, 200)
 
     # Poor ship, but its tank already covers the round trip and the reserve.
-    ship = _make_ship(sim, a, fuel_units=40, money=300, name="Trader")
+    ship = _make_ship(sim, a, fuel_milli=BASE_FUEL_CAPACITY, money=300, name="Trader")
     pair = ship.brain._pair_economics(a, b)
 
     assert pair is not None
@@ -130,15 +142,15 @@ def test_pair_economics_still_charges_fuel_it_must_buy():
 # ---------------------------------------------------------------------------
 
 
-def _idle_broke_ship(sim, planet, fuel_units=40):
+def _idle_broke_ship(sim, planet, fuel_milli=BASE_FUEL_CAPACITY):
     """A docked ship with a tank, no cargo, no plan and no money."""
-    return _make_ship(sim, planet, fuel_units=fuel_units, money=0, name="Broke")
+    return _make_ship(sim, planet, fuel_milli=fuel_milli, money=0, name="Broke")
 
 
 def test_solvent_ship_never_enters_distress():
     sim, fuel, _, (a, b) = _make_world([("A", 0, 0), ("B", 60, 0)])
     a.market.place_sell_order(_make_ship(sim, a, name="Seller"), fuel, 10, 20)
-    ship = _make_ship(sim, a, fuel_units=40, money=5000, name="Rich")
+    ship = _make_ship(sim, a, fuel_milli=BASE_FUEL_CAPACITY, money=5000, name="Rich")
 
     for _ in range(DISTRESS_PATIENCE + 2):
         ship.brain.decide_trade_actions()
@@ -166,12 +178,14 @@ def test_broke_idle_ship_becomes_distressed_and_keeps_its_tank():
     assert ship.brain._sellable_quantity(fuel) == 0
     ship.brain.decide_trade_actions()
     assert not [o for o in a.market.sell_orders[fuel] if o.actor is ship]
-    assert ship.fuel == 40
+    assert ship.fuel == BASE_FUEL_CAPACITY
 
 
 def test_distress_never_sells_below_the_survival_target():
     sim, fuel, _, (a, b) = _make_world([("A", 0, 0), ("B", 60, 0)])
-    ship = _idle_broke_ship(sim, a, fuel_units=3)
+    # Half the round-trip reserve of 2 * fuel_required(60): below the
+    # survival target, so there is nothing spare to liquidate.
+    ship = _idle_broke_ship(sim, a, fuel_milli=300)
     for _ in range(DISTRESS_PATIENCE + 1):
         ship.brain.decide_trade_actions()
 

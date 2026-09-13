@@ -24,7 +24,7 @@ from spacesim2.core.galaxy import StarLaneNetwork
 from spacesim2.core.market import Market
 from spacesim2.core.navigation import get_navigator
 from spacesim2.core.planet import Planet
-from spacesim2.core.ship import Ship, fuel_capacity_for
+from spacesim2.core.ship import FUEL_MILLI, Ship, fuel_capacity_for, milli_to_units_ceil
 from spacesim2.core.simulation import Simulation
 
 _COMMODITIES = [
@@ -138,6 +138,20 @@ def _dealer_seller(sim, planet, commodity, quantity, price):
     return actor
 
 
+def _stock_target(sim, planet):
+    """The operator's fuel stock target: recent flow, floored at one tank.
+
+    ``fuel_capacity_for`` is millifuel; the stock floor is market units, so a
+    tank is about six units and the no-history neutral target dominates it.
+    """
+    navigator = get_navigator(sim)
+    one_tank = milli_to_units_ceil(
+        fuel_capacity_for(navigator.mean_pair_distance(), 1.0)
+    )
+    fuel = sim.commodity_registry.get_commodity("nova_fuel")
+    return dealer.flow_stock_target(planet.market, fuel, floor=one_tank)
+
+
 def _quote(sim, actor):
     """Refresh galaxy fuel facts, then ask the brain for this turn's orders."""
     get_navigator(sim).refresh_market_facts()
@@ -169,8 +183,7 @@ def test_lifts_a_cheap_local_ask_up_to_the_stock_target():
     bids = _orders(commands, PlaceBuyOrderCommand, "nova_fuel")
 
     assert len(bids) == 1
-    navigator = get_navigator(sim)
-    target = fuel_capacity_for(navigator.mean_pair_distance(), 1.0)
+    target = _stock_target(sim, planet)
     budget = int(5000 * SpaceportOperatorBrain.BUY_CAPITAL_FRACTION)
     assert bids[0].price == 20  # the ask is lifted at its own price
     assert bids[0].quantity == min(target, budget // 20)
@@ -190,7 +203,7 @@ def test_rests_a_delivery_priced_bid_when_the_local_ask_is_too_dear():
     bids = _orders(commands, PlaceBuyOrderCommand, "nova_fuel")
 
     navigator = get_navigator(sim)
-    target = fuel_capacity_for(navigator.mean_pair_distance(), 1.0)
+    target = _stock_target(sim, planet)
     delivered = navigator.fuel_delivery_bid_price(planet, target)
     assert delivered < 500
     assert len(bids) == 1
@@ -208,7 +221,7 @@ def test_lifts_a_local_ask_at_or_below_the_delivered_price():
     actor, _ = _make_operator(sim, planet, money=5000)
     navigator = get_navigator(sim)
     navigator.refresh_market_facts()
-    target = fuel_capacity_for(navigator.mean_pair_distance(), 1.0)
+    target = _stock_target(sim, planet)
     delivered = navigator.fuel_delivery_bid_price(planet, target)
 
     _seller(sim, planet, fuel, 500, delivered)
@@ -223,7 +236,7 @@ def test_rests_a_delivery_priced_bid_when_there_is_no_ask():
     sim, registry, (planet, _) = _make_world()
     actor, _ = _make_operator(sim, planet, money=5000)
     navigator = get_navigator(sim)
-    target = fuel_capacity_for(navigator.mean_pair_distance(), 1.0)
+    target = _stock_target(sim, planet)
 
     commands = _quote(sim, actor)
     bids = _orders(commands, PlaceBuyOrderCommand, "nova_fuel")
@@ -246,7 +259,7 @@ def test_bid_is_never_skewed_above_the_delivered_price():
     _seller(sim, other, fuel, 500, 30)
     actor, _ = _make_operator(sim, planet, money=100000)
     navigator = get_navigator(sim)
-    target = fuel_capacity_for(navigator.mean_pair_distance(), 1.0)
+    target = _stock_target(sim, planet)
 
     commands = _quote(sim, actor)
     bids = _orders(commands, PlaceBuyOrderCommand, "nova_fuel")
@@ -265,10 +278,11 @@ def test_bid_is_never_skewed_above_the_delivered_price():
 def test_ask_prices_off_restock_cost_and_scales_quantity_with_condition():
     sim, registry, (planet, other) = _make_world()
     fuel = registry.get_commodity("nova_fuel")
-    actor, drive = _make_operator(sim, planet, money=5000, fuel_units=40)
+    # Stock sits under the target, so no over-target skew walks the ask down.
+    actor, drive = _make_operator(sim, planet, money=5000, fuel_units=20)
     # Bought during a spike: the basis is 60, but restocking today is cheap.
-    actor.brain._fuel_units = 40
-    actor.brain._fuel_total_cost = 2400.0
+    actor.brain._fuel_units = 20
+    actor.brain._fuel_total_cost = 1200.0
     _seller(sim, other, fuel, 500, 10)
 
     drive.metrics.health = 0.5
@@ -276,7 +290,7 @@ def test_ask_prices_off_restock_cost_and_scales_quantity_with_condition():
     asks = _orders(commands, PlaceSellOrderCommand, "nova_fuel")
 
     navigator = get_navigator(sim)
-    target = fuel_capacity_for(navigator.mean_pair_distance(), 1.0)
+    target = _stock_target(sim, planet)
     restock = float(navigator.fuel_delivery_bid_price(planet, target))
     spread = actor.brain.spread
     assert len(asks) == 1
@@ -285,7 +299,7 @@ def test_ask_prices_off_restock_cost_and_scales_quantity_with_condition():
     )
     # The spike-priced stock is sold at a loss rather than frozen above market.
     assert asks[0].price < 60
-    assert asks[0].quantity == 20  # floor(40 * 0.5)
+    assert asks[0].quantity == 10  # floor(20 * 0.5)
 
 
 def test_ask_follows_a_cheaper_local_producer_ask_down():
@@ -446,11 +460,14 @@ def _legacy_fuel_bid_price(navigator, planet, quantity):
     for source, ask in navigator.fuel_ask_planets():
         if source is planet:
             continue
-        leg_fuel = math.ceil(
-            Ship.calculate_fuel_needed(navigator.distance(source, planet))
-            / DELIVERER_WORST_FUEL_EFFICIENCY
+        leg_fuel_units = (
+            math.ceil(
+                Ship.calculate_fuel_needed(navigator.distance(source, planet))
+                / DELIVERER_WORST_FUEL_EFFICIENCY
+            )
+            / FUEL_MILLI
         )
-        delivered = ask + (2 * leg_fuel * ask) / max(quantity, 1)
+        delivered = ask + (2 * leg_fuel_units * ask) / max(quantity, 1)
         if best is None or delivered < best:
             best = delivered
     if best is None:
@@ -572,9 +589,12 @@ def _legacy_fuel_bid_price_from(navigator, planet, source, ask, quantity):
         FUEL_BID_MARGIN,
     )
 
-    leg_fuel = math.ceil(
-        Ship.calculate_fuel_needed(navigator.distance(source, planet))
-        / DELIVERER_WORST_FUEL_EFFICIENCY
+    leg_fuel_units = (
+        math.ceil(
+            Ship.calculate_fuel_needed(navigator.distance(source, planet))
+            / DELIVERER_WORST_FUEL_EFFICIENCY
+        )
+        / FUEL_MILLI
     )
-    delivered = ask + (2 * leg_fuel * ask) / max(quantity, 1)
+    delivered = ask + (2 * leg_fuel_units * ask) / max(quantity, 1)
     return max(1, math.ceil(delivered * (1.0 + FUEL_BID_MARGIN)))

@@ -174,7 +174,7 @@ committing on the default branch" behavior.
 - **Deferred market matching**: orders are matched at the end of the turn, not when placed.
 - **Brain pattern**: actors and ships delegate decisions to pluggable `Brain` classes.
 - **Core files**: `core/simulation.py` (main loop), `core/actor.py`, `core/ship.py`, `core/market.py`.
-- **Star-lane galaxy**: `core/galaxy.py` builds a spiral layout and a connected planar lane graph. `core/navigation.py` routes along lanes, so distance is always the shortest lane route. Ships fuel a whole route at departure and fly past intermediate planets, except for an opportunistic refuel stop where fuel is cheap (`docs/dev-guide-ships.md`). Default is 100 planets (`--planets`, `--arms`, `--lane-density`).
+- **Star-lane galaxy**: `core/galaxy.py` builds a spiral layout and a connected planar lane graph. `core/navigation.py` routes along lanes, so distance is always the shortest lane route. Ships fuel a whole route at departure and fly past intermediate planets, except for an opportunistic refuel stop where fuel is cheap (`docs/dev-guide-ships.md`). Default is 100 planets (`--planets`, `--arms`, `--lane-density`). Ship fuel is tracked as integer millifuel, thousandths of a market unit of `nova_fuel` (`Ship.fuel`, `FUEL_MILLI` in `core/ship.py`); market purchases stay in whole units.
 
 ## Common Implementation Patterns
 

@@ -119,21 +119,21 @@ def _fare(distance: float, reference: Optional[float] = 40.0) -> int:
 
 class TestPassageFare:
     def test_fare_is_the_legs_fuel_plus_the_margin(self) -> None:
-        # 100 lane units burns 5 fuel at 1 per 20; at a 40-credit reference
+        # 1000 lane units burns 5 fuel at 1 per 200; at a 40-credit reference
         # that is 200 of fuel, and PASSAGE_FARE_MARGIN adds half.
-        assert _fare(100.0) == 300
+        assert _fare(1000.0) == 300
 
     def test_the_margin_is_double_a_government_jobs(self) -> None:
         assert PASSAGE_FARE_MARGIN == 2 * GOVERNMENT_JOB_MARGIN
 
     def test_a_cheap_short_leg_pays_the_minimum(self) -> None:
-        # 1 fuel unit at 10 credits, plus half, is 15: under the floor.
-        assert _fare(5.0, reference=10.0) == PASSAGE_FARE_MINIMUM
+        # A quarter of a fuel unit at 10 credits, plus half, is 4: under the floor.
+        assert _fare(50.0, reference=10.0) == PASSAGE_FARE_MINIMUM
 
     def test_no_fuel_reference_falls_back_to_the_bid_floor(self) -> None:
         # Before anything trades: 5 fuel at FUEL_BID_FALLBACK_FLOOR, plus half.
         expected = math.ceil(5 * FUEL_BID_FALLBACK_FLOOR * 1.5)
-        assert _fare(100.0, reference=None) == expected
+        assert _fare(1000.0, reference=None) == expected
 
 
 class TestPlanetLandPool:
@@ -228,11 +228,12 @@ class TestPlanetStats:
         assert entry.population == 2
 
 
-def _ship(sim: Simulation, planet: Planet, fuel: int = 50) -> Ship:
+def _ship(sim: Simulation, planet: Planet, fuel: int = -1) -> Ship:
+    """A hauler with a full tank unless ``fuel`` (millifuel) says otherwise."""
     ship = Ship("Hauler", sim, planet, initial_money=0)
     sim.ships.append(ship)
     planet.add_ship(ship)
-    ship.fuel = fuel
+    ship.fuel = ship.fuel_capacity if fuel < 0 else fuel
     return ship
 
 
@@ -521,7 +522,7 @@ class TestSimulationIntegration:
         run_migration_phase(sim)
         contract = actor.passage_contract
         assert contract is not None
-        ship = _ship(sim, origin, fuel=500)
+        ship = _ship(sim, origin)
         origin.contracts.accept(contract, ship)
         assert ship.start_journey(destination, resuming=True) is True
         assert contract.status is ContractStatus.LOADED

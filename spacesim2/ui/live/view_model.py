@@ -118,7 +118,8 @@ class ShipDetail:
     name: str
     status: str  # human label, e.g. "docked at Vesper"
     money: int
-    fuel: int
+    fuel_units: float  # market units, 0.001 resolution
+    fuel_capacity_units: float  # market units, 0.001 resolution
     cargo: Tuple[CargoRow, ...]
     cargo_used: int
     cargo_capacity: int
@@ -235,8 +236,6 @@ def planet_detail(
 
 def ship_detail(ship: Ship, sim: Simulation) -> ShipDetail:
     """Build the drill-down snapshot the ship overlay renders each frame."""
-    fuel = ship.fuel
-
     cargo_rows = tuple(
         CargoRow(commodity_id=c.id, commodity_name=c.name, quantity=q)
         for c, q in sorted(ship.cargo.commodities.items(), key=lambda cq: cq[0].name)
@@ -263,7 +262,8 @@ def ship_detail(ship: Ship, sim: Simulation) -> ShipDetail:
         name=ship.name,
         status=status,
         money=ship.money,
-        fuel=fuel,
+        fuel_units=ship.fuel_units,
+        fuel_capacity_units=ship.fuel_capacity_units,
         cargo=cargo_rows,
         cargo_used=ship.cargo.get_total_quantity(),
         cargo_capacity=ship.cargo_capacity,

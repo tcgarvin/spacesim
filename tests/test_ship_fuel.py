@@ -21,11 +21,14 @@ from spacesim2.core.navigation import FUEL_BID_MARGIN, get_navigator
 from spacesim2.core.planet import Planet
 from spacesim2.core.ship import (
     ACCUMULATION_PATIENCE,
+    BASE_FUEL_CAPACITY,
     DISTRESS_PATIENCE,
     FUEL_BID_FALLBACK_FLOOR,
     MAINTENANCE_FUEL_UNITS,
     Ship,
     TradePlan,
+    milli_to_units_ceil,
+    units_to_milli,
 )
 
 
@@ -65,11 +68,24 @@ def _make_world(planet_specs):
 
 
 def _make_ship(
-    sim, planet, fuel_units=0, efficiency=1.0, money=1000, name="TestShip", hold_fuel=0
+    sim,
+    planet,
+    fuel_units=0,
+    efficiency=1.0,
+    money=1000,
+    name="TestShip",
+    hold_fuel=0,
+    fuel_milli=0,
 ):
+    """Dock a ship at ``planet`` with a stocked tank.
+
+    ``fuel_units`` is whole market units of nova_fuel in the tank;
+    ``fuel_milli`` adds thousandths on top, for scenarios pitched against a
+    single leg's burn, which is a fraction of a unit at these distances.
+    """
     ship = Ship(name, sim, planet, fuel_efficiency=efficiency, initial_money=money)
     planet.add_ship(ship)
-    ship.fuel = fuel_units
+    ship.fuel = units_to_milli(fuel_units) + fuel_milli
     if hold_fuel:
         fuel = sim.commodity_registry.get_commodity("nova_fuel")
         ship.cargo.add_commodity(fuel, hold_fuel)
@@ -94,19 +110,20 @@ def test_fuel_required_applies_efficiency():
     inefficient = _make_ship(sim, a, efficiency=0.8)
     efficient = _make_ship(sim, a, efficiency=1.2)
 
-    assert Ship.calculate_fuel_needed(50.0) == 3
-    assert nominal.fuel_required(50.0) == 3
-    assert inefficient.fuel_required(50.0) == 4  # ceil(3 / 0.8)
-    assert efficient.fuel_required(50.0) == 3  # ceil(3 / 1.2) = ceil(2.5)
+    # Millifuel, one ceiling: ceil(distance * 1000 / (200 * efficiency)).
+    assert Ship.calculate_fuel_needed(50.0) == 250
+    assert nominal.fuel_required(50.0) == 250
+    assert inefficient.fuel_required(50.0) == 313  # ceil(50000 / 160)
+    assert efficient.fuel_required(50.0) == 209  # ceil(50000 / 240)
 
 
 def test_departure_consumes_exactly_the_planned_fuel():
     sim, fuel, _, (a, b) = _make_world([("A", 0, 0), ("B", 50, 0)])
-    ship = _make_ship(sim, a, fuel_units=10, efficiency=0.8)
+    ship = _make_ship(sim, a, fuel_units=1, efficiency=0.8)
     needed = ship.fuel_required(ship.route_distance(a, b))
 
     assert ship.start_journey(b)
-    assert ship.fuel == 10 - needed
+    assert ship.fuel == units_to_milli(1) - needed
 
 
 def test_trade_plan_reserves_efficiency_adjusted_fuel():
@@ -125,7 +142,7 @@ def test_trade_plan_reserves_efficiency_adjusted_fuel():
     assert plan is not None
     distance = trader.route_distance(a, b)
     assert plan.fuel_needed_one_way == trader.fuel_required(distance)
-    assert plan.fuel_needed_one_way == 7  # ceil(ceil(100/20) / 0.8)
+    assert plan.fuel_needed_one_way == 625  # ceil(100 * 1000 / (200 * 0.8))
 
 
 # ---------------------------------------------------------------------------
@@ -149,7 +166,7 @@ def test_plan_rejected_when_origin_cannot_sell_needed_fuel():
     assert trader.brain._evaluate_trade_opportunity(a, b, food) is None
 
     # With round-trip fuel already on board, the same trade is feasible.
-    trader.fuel += 20
+    trader.fuel += 4 * trader.fuel_required(trader.route_distance(a, b))
     assert trader.brain._evaluate_trade_opportunity(a, b, food) is not None
 
 
@@ -190,9 +207,10 @@ def test_fuel_safe_destination_requires_escape_route():
 
 def test_decide_travel_avoids_fuel_dead_end():
     sim, fuel, food, (a, b) = _make_world([("A", 0, 0), ("B", 100, 0)])
-    # 8 fuel covers the outbound leg of 5 but leaves 3, short of the 5 needed
-    # to return, so B is a dead end while no one sells fuel.
-    ship = _make_ship(sim, a, fuel_units=8, name="Trader")
+    # One and a half legs: enough to reach B, short of the return leg, so B
+    # is a dead end while no one sells fuel.
+    leg = Ship.calculate_fuel_needed(100.0)
+    ship = _make_ship(sim, a, fuel_milli=leg + leg // 2, name="Trader")
     ship.cargo.add_commodity(food, 20)
     buyer = _make_ship(sim, b, money=2000, name="Buyer")
     b.market.place_buy_order(buyer, food, 20, 30)
@@ -214,13 +232,14 @@ def test_docked_ship_tops_up_toward_full_tank():
     supplier = _make_ship(sim, a, hold_fuel=200, name="Supplier")
     a.market.place_sell_order(supplier, fuel, 100, 10)
 
-    # At 30/50 fuel the ship still tops up toward a full tank.
-    ship = _make_ship(sim, a, fuel_units=30, name="Trader")
+    # At half a tank the ship still tops up toward a full one.
+    half = BASE_FUEL_CAPACITY // 2
+    ship = _make_ship(sim, a, fuel_milli=half, name="Trader")
     ship.brain.decide_trade_actions()
 
     buys = [o for o in a.market.buy_orders[fuel] if o.actor is ship]
     assert len(buys) == 1
-    assert buys[0].quantity == ship.fuel_capacity - 30
+    assert buys[0].quantity == milli_to_units_ceil(ship.fuel_capacity - half)
 
     a.market.match_orders()
     ship.pump_fuel()
@@ -236,7 +255,7 @@ def test_tank_fuel_is_not_trade_cargo_at_ordinary_prices():
     # A well-fueled ship with no delivery plan must not dump its tank into
     # the local bid, which would bleed the spread on the later re-buy, and
     # must not post a standing bid either.
-    ship = _make_ship(sim, b, fuel_units=40, name="Trader")
+    ship = _make_ship(sim, b, fuel_milli=BASE_FUEL_CAPACITY, name="Trader")
     ship.brain.decide_trade_actions()
 
     assert not any(o.actor is ship for o in b.market.sell_orders[fuel])
@@ -266,7 +285,10 @@ def test_hold_fuel_is_trade_cargo_and_the_tank_is_not():
 
 
 def test_stranded_ship_posts_bid_profitable_for_deliverer():
-    sim, fuel, _, (a, b) = _make_world([("A", 0, 0), ("B", 60, 0)])
+    # A lane long enough that the survival target is several market units:
+    # a one-unit rescue run cannot amortize the deliverer's burn, which the
+    # bid pricing itself says.
+    sim, fuel, _, (a, b) = _make_world([("A", 0, 0), ("B", 300, 0)])
     supplier = _make_ship(sim, a, hold_fuel=200, name="Supplier")
     a.market.place_sell_order(supplier, fuel, 100, 10)
 
@@ -277,7 +299,7 @@ def test_stranded_ship_posts_bid_profitable_for_deliverer():
     assert len(bids) == 1
     bid = bids[0]
     assert bid.quantity > 0
-    assert bid.quantity <= stranded.fuel_capacity
+    assert bid.quantity <= milli_to_units_ceil(stranded.fuel_capacity)
     # Priced at least the source ask plus the delivery margin.
     assert bid.price >= math.ceil(10 * (1 + FUEL_BID_MARGIN))
     # Funds for the bid were reserved, not overspent.
@@ -287,7 +309,12 @@ def test_stranded_ship_posts_bid_profitable_for_deliverer():
     # A trader on the fuel-rich planet sees the resting bid and rates the
     # delivery run as its best, profitable plan. The stranded ship's decision
     # snapshotted the books before its bid was posted, so refresh to see it.
-    deliverer = _make_ship(sim, a, fuel_units=30, money=1000, name="Deliverer")
+    deliverer = _make_ship(
+        sim, a, fuel_milli=BASE_FUEL_CAPACITY, money=1000, name="Deliverer"
+    )
+    # A kit, so the arrival gate asks for the escape leg and not the five
+    # units a maintenance roll could burn on top of it.
+    _give_repair_kit(deliverer)
     deliverer.brain._nav.refresh_market_facts()
     plan = deliverer.brain._find_best_trade_plan()
     assert plan is not None
@@ -301,13 +328,16 @@ def test_standing_bid_fires_below_reserve_not_only_at_zero():
     supplier = _make_ship(sim, a, hold_fuel=200, name="Supplier")
     a.market.place_sell_order(supplier, fuel, 100, 10)
 
-    # Below the round-trip reserve of 2 * fuel_required(60) = 6, the bid fires.
-    low = _make_ship(sim, b, fuel_units=2, money=1000, name="Low")
+    # Below the round-trip reserve of 2 * fuel_required(60) = 600 millifuel,
+    # the bid fires.
+    low = _make_ship(sim, b, fuel_milli=200, money=1000, name="Low")
     low.brain.decide_trade_actions()
     assert any(o.actor is low for o in b.market.buy_orders[fuel])
 
     # Above the reserve: no bid.
-    healthy = _make_ship(sim, b, fuel_units=30, money=1000, name="Healthy")
+    healthy = _make_ship(
+        sim, b, fuel_milli=BASE_FUEL_CAPACITY, money=1000, name="Healthy"
+    )
     healthy.brain.decide_trade_actions()
     assert not any(o.actor is healthy for o in b.market.buy_orders[fuel])
 
@@ -344,7 +374,8 @@ def test_deliverer_sells_its_hold_load_and_keeps_the_tank():
     buyer = _make_ship(sim, b, money=2000, name="Buyer")
     b.market.place_buy_order(buyer, fuel, 40, 18)
 
-    deliverer = _make_ship(sim, b, fuel_units=6, hold_fuel=34, name="Deliverer")
+    leg = Ship.calculate_fuel_needed(60.0)
+    deliverer = _make_ship(sim, b, fuel_milli=2 * leg, hold_fuel=34, name="Deliverer")
     deliverer.brain._current_plan = TradePlan(
         origin=a,
         destination=b,
@@ -354,9 +385,9 @@ def test_deliverer_sells_its_hold_load_and_keeps_the_tank():
         purchase_price_per_unit=10,
         expected_sell_price_per_unit=18,
         distance=60.0,
-        fuel_needed_one_way=3,
+        fuel_needed_one_way=leg,
         fuel_price_at_origin=10,
-        fuel_units_from_tank=3,
+        fuel_units_from_tank=leg,
         fuel_price_from_tank=10,
     )
     deliverer.brain.decide_trade_actions()
@@ -365,7 +396,7 @@ def test_deliverer_sells_its_hold_load_and_keeps_the_tank():
     # sale does not touch the tank.
     sells = [o for o in b.market.sell_orders[fuel] if o.actor is deliverer]
     assert sum(o.quantity for o in sells) == 34
-    assert deliverer.fuel == 6
+    assert deliverer.fuel == 2 * leg
 
 
 # ---------------------------------------------------------------------------
@@ -382,15 +413,15 @@ def test_departure_cancels_resting_orders():
     otherwise deadlocks a ship in needs_maintenance.
     """
     sim, fuel, _, (a, b) = _make_world([("A", 0, 0), ("B", 50, 0)])
-    ship = _make_ship(sim, a, fuel_units=10, hold_fuel=10)
+    ship = _make_ship(sim, a, fuel_units=1, hold_fuel=10)
     a.market.place_sell_order(ship, fuel, 8, 99)
-    assert ship.cargo.get_available_quantity(fuel) == 2  # below the 3 needed
+    assert ship.cargo.get_available_quantity(fuel) == 2  # the rest is reserved
 
     assert ship.start_journey(b)
 
     assert not a.market.sell_orders[fuel]
     assert ship.cargo.get_reserved_quantity(fuel) == 0
-    assert ship.fuel == 10 - 3
+    assert ship.fuel == units_to_milli(1) - Ship.calculate_fuel_needed(50.0)
 
 
 def test_sells_locally_when_better_price_is_fuel_unsafe():
@@ -406,7 +437,9 @@ def test_sells_locally_when_better_price_is_fuel_unsafe():
     b.market.place_buy_order(remote_buyer, food, 20, 100)
 
     # Exactly one-way fuel: B is reachable but leaves no escape route.
-    ship = _make_ship(sim, a, fuel_units=3, name="Holder")
+    ship = _make_ship(
+        sim, a, fuel_milli=Ship.calculate_fuel_needed(50.0), name="Holder"
+    )
     ship.cargo.add_commodity(food, 10)
 
     ship.brain.decide_trade_actions()
@@ -479,8 +512,8 @@ def test_topup_rations_fuel_at_spike_prices():
 
     buys = [o for o in a.market.buy_orders[fuel] if o.actor is ship]
     assert len(buys) == 1
-    assert buys[0].quantity == escape_target
-    assert buys[0].quantity < ship.fuel_capacity // 2
+    assert buys[0].quantity == milli_to_units_ceil(escape_target)
+    assert buys[0].quantity < milli_to_units_ceil(ship.fuel_capacity) // 2
 
     # The rationed tank still clears the departure gate for the escape hop.
     a.market.match_orders()
@@ -510,7 +543,7 @@ def test_topup_buys_the_full_survival_target_within_the_premium():
 
     buys = [o for o in a.market.buy_orders[fuel] if o.actor is ship]
     assert len(buys) == 1
-    assert buys[0].quantity >= survival_target
+    assert buys[0].quantity >= milli_to_units_ceil(survival_target)
 
 
 def test_topup_falls_back_to_survival_target_without_a_safe_escape():
@@ -534,7 +567,7 @@ def test_topup_falls_back_to_survival_target_without_a_safe_escape():
 
     buys = [o for o in a.market.buy_orders[fuel] if o.actor is ship]
     assert len(buys) == 1
-    assert buys[0].quantity == ship.brain._fuel_survival_target()
+    assert buys[0].quantity == milli_to_units_ceil(ship.brain._fuel_survival_target())
 
 
 def test_committed_destination_fuel_is_still_bought_at_a_spike():
@@ -558,7 +591,7 @@ def test_committed_destination_fuel_is_still_bought_at_a_spike():
 
     buys = [o for o in a.market.buy_orders[fuel] if o.actor is ship]
     assert len(buys) == 1
-    assert buys[0].quantity == min(committed, 5000 * 9 // 10 // 60)
+    assert buys[0].quantity == min(milli_to_units_ceil(committed), 5000 * 9 // 10 // 60)
 
 
 def test_topup_bunkers_at_cheap_prices():
@@ -572,7 +605,7 @@ def test_topup_bunkers_at_cheap_prices():
 
     buys = [o for o in a.market.buy_orders[fuel] if o.actor is ship]
     assert len(buys) == 1
-    assert buys[0].quantity == ship.fuel_capacity
+    assert buys[0].quantity == milli_to_units_ceil(ship.fuel_capacity)
 
 
 def test_topup_bunkers_near_the_median_despite_a_cheap_outlier():
@@ -599,7 +632,7 @@ def test_topup_bunkers_near_the_median_despite_a_cheap_outlier():
 
     buys = [o for o in home.market.buy_orders[fuel] if o.actor is ship]
     assert len(buys) == 1
-    assert buys[0].quantity == ship.fuel_capacity
+    assert buys[0].quantity == milli_to_units_ceil(ship.fuel_capacity)
 
     # An ask far above the median only buys the escape target.
     home.market.cancel_order(buys[0].order_id)
@@ -612,7 +645,7 @@ def test_topup_bunkers_near_the_median_despite_a_cheap_outlier():
 
     buys = [o for o in home.market.buy_orders[fuel] if o.actor is ship]
     assert len(buys) == 1
-    assert buys[0].quantity == ship.brain._fuel_escape_target()
+    assert buys[0].quantity == milli_to_units_ceil(ship.brain._fuel_escape_target())
 
 
 def test_plan_quantity_capped_by_destination_bid_depth():
@@ -690,8 +723,10 @@ def test_standing_fuel_bid_capped_at_survival_target():
 
     bids = [o for o in b.market.buy_orders[fuel] if o.actor is stranded]
     assert len(bids) == 1
-    assert bids[0].quantity == stranded.brain._fuel_survival_target()
-    assert bids[0].quantity < stranded.fuel_capacity
+    assert bids[0].quantity == milli_to_units_ceil(
+        stranded.brain._fuel_survival_target()
+    )
+    assert bids[0].quantity < milli_to_units_ceil(stranded.fuel_capacity)
 
 
 def test_maintenance_bids_prefer_produced_tiers_and_cover_all():
@@ -800,7 +835,7 @@ def test_arrival_requirement_holds_the_escape_leg_against_a_trickle_ask():
     supplier_b = _make_ship(sim, b, hold_fuel=500, name="SupplierB")
     ship = _make_ship(sim, a, name="Trader")
     escape_cost = ship.fuel_required(ship.route_distance(a, b))
-    assert escape_cost == 5
+    assert escape_cost == 500
 
     # A is a station, so the escape leg out of B is escape_cost.
     a.market.place_sell_order(supplier_a, fuel, 50, 10)
@@ -811,9 +846,8 @@ def test_arrival_requirement_holds_the_escape_leg_against_a_trickle_ask():
 
     # No kit: a maintenance roll could burn MAINTENANCE_FUEL_UNITS of the
     # reserve after landing, so the requirement carries it.
-    assert (
-        ship.brain._arrival_fuel_requirement(b, a)
-        == escape_cost + MAINTENANCE_FUEL_UNITS
+    assert ship.brain._arrival_fuel_requirement(b, a) == escape_cost + units_to_milli(
+        MAINTENANCE_FUEL_UNITS
     )
 
     _give_repair_kit(ship)
@@ -852,7 +886,7 @@ def test_departure_requirement_funds_the_escape_leg_to_the_nearest_station():
 
     # One unit short of the escape floor and the trip is out of reach, so
     # the cargo is sold here instead of held for a departure that is refused.
-    dry = _make_ship(sim, a, fuel_units=leg + leg - 1, money=0, name="DryTrader")
+    dry = _make_ship(sim, a, fuel_milli=leg + leg - 1, money=0, name="DryTrader")
     _give_repair_kit(dry)
     dry.cargo.add_commodity(food, 10)
     ship.brain._nav.refresh_market_facts()
@@ -924,7 +958,7 @@ def test_accumulating_plan_still_posts_a_standing_fuel_bid():
     seller.cargo.add_commodity(food, 50)
     a.market.place_sell_order(seller, food, 50, 10)
 
-    ship = _make_ship(sim, a, fuel_units=2, name="Trader")
+    ship = _make_ship(sim, a, fuel_milli=200, name="Trader")
     _accumulating_plan(ship, a, b, food)
     assert ship.fuel < ship.brain._fuel_reserve_need()
 
@@ -947,7 +981,7 @@ def test_accumulating_plan_still_tops_up_from_a_local_ask():
     seller.cargo.add_commodity(food, 50)
     a.market.place_sell_order(seller, food, 50, 10)
 
-    ship = _make_ship(sim, a, fuel_units=2, name="Trader")
+    ship = _make_ship(sim, a, fuel_milli=200, name="Trader")
     _accumulating_plan(ship, a, b, food)
 
     ship.brain.decide_trade_actions()
@@ -961,7 +995,8 @@ def test_accumulating_plan_still_tops_up_from_a_local_ask():
 
 def test_distress_is_not_blocked_by_a_plan_that_never_loads():
     sim, _, food, (a, b) = _make_world([("A", 0, 0), ("B", 100, 0)])
-    ship = _make_ship(sim, a, fuel_units=30, money=100, name="Trader")
+    # Poorer than one short round trip of fuel, which is the distress floor.
+    ship = _make_ship(sim, a, fuel_milli=BASE_FUEL_CAPACITY, money=10, name="Trader")
 
     for _ in range(DISTRESS_PATIENCE):
         assert not ship.brain.is_distressed
@@ -987,7 +1022,7 @@ def test_is_stranded_false_once_fuel_exceeds_reserve():
     sim, fuel, _food, (a, b) = _make_world([("A", 0, 0), ("B", 100, 0)])
     ship = _make_ship(sim, a, fuel_units=0, name="Trader")
     reserve = ship.brain._fuel_reserve_need()
-    ship.fuel += reserve + 5
+    ship.fuel += reserve + 1
 
     assert not ship.brain.is_stranded()
 
@@ -1111,12 +1146,15 @@ def test_rationed_escape_hop_clears_the_departure_gate():
 
     ship.brain.decide_trade_actions()
     buys = [o for o in a.market.buy_orders[fuel] if o.actor is ship]
-    assert len(buys) == 1 and buys[0].quantity == escape_target
+    assert len(buys) == 1 and buys[0].quantity == milli_to_units_ceil(escape_target)
 
     a.market.match_orders()
     ship.pump_fuel()
     on_hand = ship.fuel
-    assert on_hand == leg
+    # The book sells whole units, so the ration lands on the unit covering
+    # the escape leg.
+    assert on_hand == units_to_milli(milli_to_units_ceil(escape_target))
+    assert on_hand >= leg
     assert on_hand >= ship.brain._departure_fuel_requirement(b)
     assert ship.brain._fuel_safe_destination(b, a, on_hand - leg)
 
@@ -1143,7 +1181,7 @@ def test_scarcity_gate_ignores_a_one_credit_galaxy_minimum():
     buyer = _make_ship(sim, home, money=2000, name="Buyer")
     home.market.place_buy_order(buyer, fuel, 20, 10)
 
-    ship = _make_ship(sim, home, fuel_units=40, name="Trader")
+    ship = _make_ship(sim, home, fuel_milli=BASE_FUEL_CAPACITY, name="Trader")
     brain = ship.brain
     brain._nav.refresh_market_facts()
 
@@ -1167,7 +1205,9 @@ def test_fuel_remainder_never_rests_below_replacement_cost():
         supplier = _make_ship(sim, planet, hold_fuel=200, name=f"S{planet.name}")
         planet.market.place_sell_order(supplier, fuel, 100, 40)
 
-    ship = _make_ship(sim, home, fuel_units=40, hold_fuel=10, name="Trader")
+    ship = _make_ship(
+        sim, home, fuel_milli=BASE_FUEL_CAPACITY, hold_fuel=10, name="Trader"
+    )
     brain = ship.brain
     brain._nav.refresh_market_facts()
     assert brain._fuel_value_reference() == 40
@@ -1183,7 +1223,9 @@ def test_fuel_remainder_never_rests_below_replacement_cost():
 def test_fuel_remainder_floor_falls_back_before_any_fuel_trades():
     """With no believable valuation anywhere the floor is the fallback price."""
     sim, fuel, _, (a, _) = _make_world([("A", 0, 0), ("B", 100, 0)])
-    ship = _make_ship(sim, a, fuel_units=40, hold_fuel=10, name="Trader")
+    ship = _make_ship(
+        sim, a, fuel_milli=BASE_FUEL_CAPACITY, hold_fuel=10, name="Trader"
+    )
     brain = ship.brain
     brain._nav.refresh_market_facts()
     assert brain._fuel_value_reference() is None

@@ -9,7 +9,7 @@ import math
 import pytest
 
 from spacesim2.core.planet import Planet
-from spacesim2.core.ship import Ship, ShipStatus
+from spacesim2.core.ship import Ship, ShipStatus, units_to_milli
 from spacesim2.core.simulation import Simulation
 from spacesim2.ui.live.camera import FIT_MARGIN, Camera
 from spacesim2.ui.live.director import Director, polyline_point
@@ -154,7 +154,8 @@ def test_traveling_ship_waypoints_follow_core_route() -> None:
     vm = GalaxyViewModel(sim)
     ship = sim.ships[0]
     # Drive a real departure so the core records a lane route.
-    ship.fuel = 500
+    # Plenty of millifuel: these tests are about rendering, not the burn.
+    ship.fuel = units_to_milli(500)
     origin = ship.planet
     assert origin is not None
     # Pick a destination that is at least two hops away, if one exists.
@@ -202,7 +203,8 @@ def test_director_positions_ship_along_route_with_segment_heading() -> None:
     sim = _sim()
     vm = GalaxyViewModel(sim)
     ship = sim.ships[0]
-    ship.fuel = 500
+    # Plenty of millifuel: these tests are about rendering, not the burn.
+    ship.fuel = units_to_milli(500)
     origin = ship.planet
     assert origin is not None
     dest = next(

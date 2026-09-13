@@ -19,7 +19,7 @@ from spacesim2.core.government import (
 from spacesim2.core.market import Market
 from spacesim2.core.navigation import FUEL_BID_FALLBACK_FLOOR, get_navigator
 from spacesim2.core.planet import Planet
-from spacesim2.core.ship import Ship
+from spacesim2.core.ship import FUEL_MILLI, Ship
 from spacesim2.core.simulation import Simulation
 
 
@@ -49,8 +49,9 @@ def _expected_advance(sim: Simulation, origin: Planet, destination: Planet) -> i
     reference = navigator.fuel_value_reference()
     if reference is None:
         reference = float(FUEL_BID_FALLBACK_FLOOR)
+    # calculate_fuel_needed is millifuel; the reference prices a market unit.
     fuel = Ship.calculate_fuel_needed(navigator.distance(origin, destination))
-    return math.ceil(fuel * reference * (1 + GOVERNMENT_JOB_MARGIN))
+    return math.ceil(fuel * reference / FUEL_MILLI * (1 + GOVERNMENT_JOB_MARGIN))
 
 
 class TestRefresh:
@@ -130,7 +131,7 @@ class TestFlyingAJob:
         ship = Ship("Hauler", sim, origin, initial_money=0)
         sim.ships.append(ship)
         origin.add_ship(ship)
-        ship.fuel = 50
+        ship.fuel = ship.fuel_capacity
         # Exactly enough hold for this lot. With no room for riders the brain
         # has no reason to break the journey, so it is flown by hand as the
         # module docstring says.
@@ -164,7 +165,7 @@ class TestFlyingAJob:
         ship = Ship("Hauler", sim, origin, initial_money=0)
         sim.ships.append(ship)
         origin.add_ship(ship)
-        ship.fuel = 50
+        ship.fuel = ship.fuel_capacity
         assert origin.contracts.accept(job, ship)
         assert _government_jobs(origin) == []
         # The brain releases a contract that is merely accepted at the top of

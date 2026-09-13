@@ -13,6 +13,8 @@ from spacesim2.core.galaxy import StarLaneNetwork
 from spacesim2.core.market import Market
 from spacesim2.core.planet import Planet
 from spacesim2.core.ship import (
+    BASE_FUEL_CAPACITY,
+    DISTANCE_PER_TURN,
     FUEL_STOP_TANK_FRACTION,
     REFUEL_STOP_MAX_SHORTFALL,
     REFUEL_STOP_MAX_TURNS,
@@ -21,14 +23,25 @@ from spacesim2.core.ship import (
     TradePlan,
 )
 
-# A -- B -- C in a line, one lane of 20 distance units each. A lane is one
-# turn and one fuel unit, so route fuel splits exactly at B: the refund of
-# unburned fuel covers the second leg with nothing lost to rounding.
+# A -- B -- C in a line, one lane of 20 distance units each: one turn, and
+# 100 millifuel at efficiency 1.0. Whole distances cost whole millifuel, so
+# route fuel splits exactly at B and the refund of unburned fuel covers the
+# second leg with nothing lost to rounding.
 CHAIN = [("A", 0, 0), ("B", 20, 0), ("C", 40, 0)]
-# The same chain with 30-unit lanes, which do not divide by 20: the whole
-# route costs 3 fuel but each leg costs 2, so breaking it at B leaves the ship
-# one unit short of the leg to C.
-UNEVEN_CHAIN = [("A", 0, 0), ("B", 30, 0), ("C", 60, 0)]
+# The same chain with lanes of 30.05, whose burn of 150.25 millifuel does not
+# land on a whole millifuel. ceil(x) + ceil(y) - ceil(x + y) is 1 exactly when
+# the two fractions sum to less than 1, which these do, so breaking the route
+# at B costs the one millifuel of slack the guard allows. At the single
+# ceiling the burn now uses, no split can ever cost more than that.
+UNEVEN_CHAIN = [("A", 0, 0), ("B", 30.05, 0), ("C", 60.1, 0)]
+# A third of a tank: below FUEL_STOP_TANK_FRACTION, so a stop is worth taking.
+DEFAULT_TANK = BASE_FUEL_CAPACITY // 3
+# Two thirds of a tank: above it, so the room left is not worth a stop.
+FULL_ENOUGH_TANK = 2 * BASE_FUEL_CAPACITY // 3
+# Value of a docked turn used by the book-depth tests. A one-unit fill at B
+# saves 15 credits against the galaxy reference and a four-unit fill saves 60,
+# so this sits between them and the depth of the book decides the stop.
+BOOK_DEPTH_TRIP_VALUE = 50.0
 
 
 def _make_chain_world(specs=CHAIN):
@@ -62,10 +75,11 @@ def _make_chain_world(specs=CHAIN):
     return sim, fuel, food, planets
 
 
-def _make_ship(sim, planet, fuel_units=0, money=1000, name="Trader"):
+def _make_ship(sim, planet, fuel_milli=0, money=1000, name="Trader"):
+    """Dock a ship at ``planet`` with ``fuel_milli`` thousandths of a unit."""
     ship = Ship(name, sim, planet, initial_money=money)
     planet.add_ship(ship)
-    ship.fuel = fuel_units
+    ship.fuel = fuel_milli
     ship.check_maintenance = lambda: False  # deterministic departures
     return ship
 
@@ -102,7 +116,9 @@ def _world(
     if middle_history is not None:
         _price_history(b, fuel, middle_history)
 
-    ship = _make_ship(sim, a, fuel_units=tank if tank is not None else 20, money=money)
+    ship = _make_ship(
+        sim, a, fuel_milli=tank if tank is not None else DEFAULT_TANK, money=money
+    )
     ship.brain._nav.refresh_market_facts(turn=0)
     return sim, fuel, food, (a, b, c), ship
 
@@ -128,9 +144,10 @@ def _advance(sim, ship):
 def test_ship_stops_at_the_middle_planet_and_resumes_with_more_fuel():
     """A cheap deep ask en route: dock, bid, pump, resume, arrive fuller."""
     sim, fuel, _, (a, b, c), ship = _world()
+    leg = ship.fuel_required(20.0)
     _depart(ship, c)
     assert ship.route == [a, b, c]
-    assert ship.route_fuel_charged == 2
+    assert ship.route_fuel_charged == 2 * leg
 
     # Turn 1: the ship reaches B, docks, and bids for fuel.
     _advance(sim, ship)
@@ -138,8 +155,8 @@ def test_ship_stops_at_the_middle_planet_and_resumes_with_more_fuel():
     assert ship.planet is b
     assert ship.stop_resume is c
     assert ship.refuel_stops == 1
-    # Charged 2 for the whole route, burned 1 to B.
-    assert ship.fuel == 19
+    # Charged both legs at departure, burned one to B: the rest was refunded.
+    assert ship.fuel == DEFAULT_TANK - leg
     buys = [o for o in b.market.buy_orders[fuel] if o.actor is ship]
     assert len(buys) == 1 and buys[0].quantity > 0
 
@@ -156,8 +173,8 @@ def test_ship_stops_at_the_middle_planet_and_resumes_with_more_fuel():
     _advance(sim, ship)
     assert ship.planet is c
     assert ship.status == ShipStatus.DOCKED
-    # A straight flight would have landed with 18.
-    assert ship.fuel > 18
+    # A straight flight would have landed with the tank less both legs.
+    assert ship.fuel > DEFAULT_TANK - 2 * leg
 
 
 def test_a_stop_never_leaves_the_ship_short_of_the_remaining_route():
@@ -170,13 +187,13 @@ def test_a_stop_never_leaves_the_ship_short_of_the_remaining_route():
     assert ship.fuel >= remaining
 
 
-def test_a_one_unit_rounding_shortfall_is_bought_rather_than_refused():
-    """Lanes that do not split evenly cost a unit, which the stop buys back."""
-    # 30 + 30 costs ceil(30/20) twice = 4 against ceil(60/20) = 3 for the
-    # whole route, so the refund of 1 is a unit short of the leg still to fly.
+def test_a_one_millifuel_rounding_shortfall_is_bought_rather_than_refused():
+    """Lanes that do not split evenly cost a millifuel, which the stop buys back."""
     sim, fuel, _, (a, b, c), ship = _world(specs=UNEVEN_CHAIN)
     _depart(ship, c)
-    assert ship.route_fuel_charged == 3
+    half = ship.fuel_required(ship.brain._nav.distance(a, b))
+    # The two legs together cost one millifuel more than the whole route.
+    assert ship.route_fuel_charged == 2 * half - 1
 
     _advance(sim, ship)
     _advance(sim, ship)
@@ -189,8 +206,9 @@ def test_a_one_unit_rounding_shortfall_is_bought_rather_than_refused():
 def test_no_stop_when_the_shortfall_is_over_the_cap():
     """A shortfall above REFUEL_STOP_MAX_SHORTFALL refuses the stop.
 
-    Charging the route two units less than it costs forces a three-unit
-    shortfall out of a chain whose own rounding loses one.
+    A single ceiling can never lose more than one millifuel to a split, so
+    the over-cap case is forced: undercharging the route by the cap itself
+    puts the shortfall at the chain's own millifuel plus that much.
     """
     sim, _, _, (a, b, c), ship = _world(specs=UNEVEN_CHAIN)
     _depart(ship, c)
@@ -203,7 +221,7 @@ def test_no_stop_when_the_shortfall_is_over_the_cap():
 
 
 def test_an_unaffordable_shortfall_refuses_the_stop():
-    """A ship that cannot buy the unit the rounding costs flies on instead."""
+    """A ship that cannot buy back the rounding flies on instead."""
     sim, _, _, (a, b, c), ship = _world(specs=UNEVEN_CHAIN, money=0)
     _depart(ship, c)
 
@@ -215,14 +233,19 @@ def test_an_unaffordable_shortfall_refuses_the_stop():
 
 def test_an_unfilled_shortfall_is_re_bought_before_the_resume():
     """The ship stays docked and bids again until the tank covers the leg."""
-    sim, fuel, _, (a, b, c), ship = _world(specs=UNEVEN_CHAIN, tank=3)
+    sim, fuel, _, (a, b, c), ship = _world(specs=UNEVEN_CHAIN, tank=0)
+    ship.fuel = ship.fuel_required(ship.brain._nav.distance(a, c))
+    charged = ship.fuel
+    leg = ship.fuel_required(ship.brain._nav.distance(b, c))
     _depart(ship, c)
     assert ship.fuel == 0
 
     _advance(sim, ship)
     _advance(sim, ship)
     assert ship.planet is b
-    assert ship.fuel == 1  # the refund, one short of the leg to C
+    # The refund, one millifuel short of the leg still to fly.
+    assert ship.fuel == charged - leg
+    assert ship.fuel == leg - 1
     assert [o for o in b.market.buy_orders[fuel] if o.actor is ship]
 
     # Nothing fills: the ship must not depart, and must bid again.
@@ -254,13 +277,14 @@ def _stop_taken(**kwargs):
 
 def test_no_stop_with_a_full_enough_tank():
     """Above FUEL_STOP_TANK_FRACTION there is too little room to be worth it."""
-    sim, _, _, (a, b, c), ship = _world(tank=40)
+    sim, _, _, (a, b, c), ship = _world(tank=FULL_ENOUGH_TANK)
+    refund = ship.fuel_required(20.0)
     _depart(ship, c)
     # After the refund the tank is back above the fraction.
-    assert ship.fuel + 1 >= FUEL_STOP_TANK_FRACTION * ship.fuel_capacity
+    assert ship.fuel + refund >= FUEL_STOP_TANK_FRACTION * ship.fuel_capacity
     _advance(sim, ship)
     assert ship.stop_resume is None
-    assert _stop_taken(tank=20) is True
+    assert _stop_taken(tank=DEFAULT_TANK) is True
 
 
 def test_no_stop_above_the_planets_own_thirty_day_average():
@@ -287,11 +311,11 @@ def test_no_stop_when_the_book_is_too_thin_to_beat_the_trip_value():
     _sell_fuel(sim, b, 5, quantity=1)
     _price_history(b, fuel, 20)
     ship.brain._nav.refresh_market_facts(turn=0)
-    _depart(ship, c, turn_value=100.0)
+    _depart(ship, c, turn_value=BOOK_DEPTH_TRIP_VALUE)
     _advance(sim, ship)
     assert ship.stop_resume is None
-    # The same thin book is worth stopping for when the trip is worth nothing.
-    assert _stop_taken(middle_ask=5, turn_value=100.0) is True
+    # A deep book at the same price and the same trip value does pay.
+    assert _stop_taken(middle_ask=5, turn_value=BOOK_DEPTH_TRIP_VALUE) is True
 
 
 def test_no_stop_when_the_ship_cannot_afford_a_useful_fill():
@@ -331,14 +355,14 @@ def test_a_loaded_plan_survives_the_stop_and_sells_at_the_destination():
         purchase_price_per_unit=10,
         expected_sell_price_per_unit=30,
         distance=200.0,
-        fuel_needed_one_way=10,
+        fuel_needed_one_way=1000,
         fuel_price_at_origin=20,
         fuel_units_from_tank=0,
         fuel_price_from_tank=20,
     )
     ship.brain._current_plan = plan
     ship.brain._plan_loaded = True
-    ship.brain._committed_fuel_need = 10
+    ship.brain._committed_fuel_need = 1000
     ship.brain._addon_commodities = {food}
 
     _depart(ship, c)
@@ -346,7 +370,7 @@ def test_a_loaded_plan_survives_the_stop_and_sells_at_the_destination():
     assert ship.planet is b
     assert ship.brain._current_plan is plan
     assert ship.brain._plan_loaded is True
-    assert ship.brain._committed_fuel_need == 10
+    assert ship.brain._committed_fuel_need == 1000
     assert ship.brain._addon_commodities == {food}
     # No cargo was sold at the stop.
     assert not c.market.sell_orders[food]
@@ -398,8 +422,8 @@ def test_stop_turns_price_the_lane_rounding():
     total = ship.route_cumulative_distance[-1]
     reached = ship.route_cumulative_distance[1]
     extra = (
-        math.ceil(reached / 20)
-        + math.ceil((total - reached) / 20)
-        - math.ceil(total / 20)
+        math.ceil(reached / DISTANCE_PER_TURN)
+        + math.ceil((total - reached) / DISTANCE_PER_TURN)
+        - math.ceil(total / DISTANCE_PER_TURN)
     )
     assert extra == 0  # 20 + 20 splits exactly, so the stop costs one turn

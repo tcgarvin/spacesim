@@ -70,14 +70,14 @@ FUEL_LINGER_TANK_FRACTION = 0.5
 # above the old 0.5 line, at a median tank of 0.533 and a p75 of 0.56, so the
 # gate was mostly turning away ships with two thirds of a tank of room.
 FUEL_STOP_TANK_FRACTION = 0.6
-# Fuel units the per-leg rounding may cost before a stop is refused outright.
-# Travel turns alone can cost at most one, since ceil(total/20) never exceeds
-# ceil(covered/20) + ceil(remaining/20), but fuel_required ceils a second time
-# when it divides by fuel efficiency, so a ship under 1.0 efficiency can lose
-# two. At a cap of one, that guard was refusing 25.6% of the intermediate
-# nodes ships passed. The stop buys the shortfall back at the local ask, which
-# the criteria have already established is cheap with a deep book.
-REFUEL_STOP_MAX_SHORTFALL = 2
+# Millifuel the per-leg rounding may cost before a stop is refused outright.
+# ``fuel_required`` ceils once, to the thousandth, so splitting a route at a
+# node costs ceil(a) + ceil(b) - ceil(a + b) millifuel, which is 0 or 1 for
+# any real a and b. A cap of 1 therefore admits every rounding split and
+# refuses nothing else, which is all this guard was ever meant to do. The old
+# cap of 2 whole units existed because fuel_required ceiled a second time
+# after dividing by efficiency; that second ceiling is gone.
+REFUEL_STOP_MAX_SHORTFALL = 1
 # Docked turns a refuel stop may last before the ship abandons the resume and
 # normal docked logic takes over. The stop is meant to last two turns, one to
 # bid and one to depart; a longer wait means the departure fuel check keeps
@@ -191,7 +191,18 @@ SHIP_CAPITAL_FLOOR = 1000
 # cheap and fly past spiked markets instead of buying its next leg wherever
 # it happens to be docked. Measured before the split, spiked survival top-ups
 # were 252k of the fleet's 266k fuel premium over 600 turns.
-BASE_FUEL_CAPACITY = 60
+# Tank fuel is stored in integer thousandths of a market unit (millifuel),
+# so a leg burns exactly what its distance implies instead of rounding up to
+# a whole unit, and the tank never holds a float. One market unit of
+# nova_fuel pumped from the hold adds FUEL_MILLI to the tank. Constants that
+# describe market units keep the _UNITS suffix; tank values are millifuel.
+FUEL_MILLI = 1000
+# Distance one market unit of fuel carries a ship at efficiency 1.0.
+DISTANCE_PER_FUEL_UNIT = 200.0
+# Distance a ship covers in one turn. Travel time is independent of fuel
+# efficiency and of the millifuel resolution.
+DISTANCE_PER_TURN = 20.0
+BASE_FUEL_CAPACITY = 6 * FUEL_MILLI
 FUEL_CAPACITY_ROUND_TRIP_HEADROOM = 3.0
 # Share of the tank a new ship is launched with.
 INITIAL_FUEL_FRACTION = 0.6
@@ -234,11 +245,13 @@ class TradePlan:
     purchase_price_per_unit: int
     expected_sell_price_per_unit: int
 
-    # Fuel calculations. Of the outbound leg's burn, ``fuel_units_from_tank``
-    # units are already aboard and are valued at ``fuel_price_from_tank`` -
-    # the galaxy fuel reference, what replacing them typically costs. The
-    # rest must be bought here at ``fuel_price_at_origin``, the local ask,
-    # however spiked that is.
+    # Fuel calculations. ``fuel_needed_one_way`` and ``fuel_units_from_tank``
+    # are millifuel (see FUEL_MILLI); the two prices are credits per market
+    # unit, so every product of the two is divided by FUEL_MILLI. Of the
+    # outbound leg's burn, ``fuel_units_from_tank`` is already aboard and is
+    # valued at ``fuel_price_from_tank`` - the galaxy fuel reference, what
+    # replacing it typically costs. The rest must be bought here at
+    # ``fuel_price_at_origin``, the local ask, however spiked that is.
     distance: float
     fuel_needed_one_way: int
     fuel_price_at_origin: int
@@ -264,10 +277,14 @@ class TradePlan:
         must be bought at the local ask. Both are charged: fuel burned is
         value spent, whenever it was bought.
         """
-        from_tank = min(self.fuel_units_from_tank, self.fuel_needed_one_way)
-        to_buy = self.fuel_needed_one_way - from_tank
-        return (
-            from_tank * self.fuel_price_from_tank + to_buy * self.fuel_price_at_origin
+        from_tank_milli = min(self.fuel_units_from_tank, self.fuel_needed_one_way)
+        to_buy_milli = self.fuel_needed_one_way - from_tank_milli
+        return round(
+            (
+                from_tank_milli * self.fuel_price_from_tank
+                + to_buy_milli * self.fuel_price_at_origin
+            )
+            / FUEL_MILLI
         )
 
     @property
@@ -301,7 +318,7 @@ class TradePlan:
         the haul against this too. Priced at the origin ask, which is what
         such a ship actually pays before it leaves.
         """
-        return self.fuel_needed_one_way * self.fuel_price_at_origin
+        return round(self.fuel_needed_one_way * self.fuel_price_at_origin / FUEL_MILLI)
 
     @property
     def profit_margin(self) -> float:
@@ -367,10 +384,14 @@ class ContractPlan:
     @property
     def total_fuel_cost(self) -> int:
         """Cost of the outbound leg's fuel, mixed-priced as a trade plan's is."""
-        from_tank = min(self.fuel_units_from_tank, self.fuel_needed_one_way)
-        to_buy = self.fuel_needed_one_way - from_tank
-        return (
-            from_tank * self.fuel_price_from_tank + to_buy * self.fuel_price_at_origin
+        from_tank_milli = min(self.fuel_units_from_tank, self.fuel_needed_one_way)
+        to_buy_milli = self.fuel_needed_one_way - from_tank_milli
+        return round(
+            (
+                from_tank_milli * self.fuel_price_from_tank
+                + to_buy_milli * self.fuel_price_at_origin
+            )
+            / FUEL_MILLI
         )
 
     @property
@@ -408,16 +429,18 @@ class _TripFuel:
     """
 
     distance: float
+    # Millifuel for one leg; see FUEL_MILLI.
     fuel_one_way: int
     # Local ask (or the avg-price fallback): what fuel bought here costs.
     fuel_price: int
     # Typical believable fuel price across the galaxy: what fuel already in
     # the tank is worth, and what replacing it normally costs.
     fuel_reference_price: int
-    # Round-trip shortfall the ship buys here, at ``fuel_price``.
+    # Round-trip shortfall the ship buys here, in whole market units, at
+    # ``fuel_price``.
     fuel_to_buy: int
-    # Units of the outbound leg's burn already aboard. The rest come out of
-    # ``fuel_to_buy`` and are charged at the local ask.
+    # Millifuel of the outbound leg's burn already aboard. The rest come out
+    # of ``fuel_to_buy`` and are charged at the local ask.
     fuel_from_tank_one_way: int
     expected_maintenance_cost: int
 
@@ -433,6 +456,7 @@ class _PairEconomics:
     """
 
     distance: float
+    # Millifuel, as in :class:`_TripFuel`; ``fuel_to_buy`` is market units.
     fuel_one_way: int
     fuel_price: int
     fuel_reference_price: int
@@ -720,14 +744,14 @@ class TraderBrain(ShipBrain):
         return self._repair_kit_tier() is not None
 
     def _maintenance_fuel_buffer(self) -> int:
-        """Tank fuel a maintenance roll could burn before the next departure.
+        """Tank millifuel a maintenance roll could burn before the next departure.
 
         Zero while the ship carries a repair kit, because the cargo tiers are
         tried before the fuel tier. Otherwise MAINTENANCE_FUEL_UNITS, the
         legacy tier's cost, which is charged on top of every arrival reserve
         so a repair cannot leave the ship below the leg it was funded for.
         """
-        return 0 if self._holds_repair_kit() else MAINTENANCE_FUEL_UNITS
+        return 0 if self._holds_repair_kit() else units_to_milli(MAINTENANCE_FUEL_UNITS)
 
     def _arrival_fuel_requirement(
         self, destination: Planet, return_planet: Planet
@@ -774,8 +798,8 @@ class TraderBrain(ShipBrain):
             self._nav.distance(destination, return_planet)
         )
         if self._fuel_purchasable_at(destination):
-            depth = self._nav.fuel_ask_depth_at(destination)
-            unsupplied = self._refuel_need_at(destination) - depth
+            depth_milli = units_to_milli(self._nav.fuel_ask_depth_at(destination))
+            unsupplied = self._refuel_need_at(destination) - depth_milli
             requirement = min(requirement, max(0, unsupplied))
         return requirement
 
@@ -856,7 +880,10 @@ class TraderBrain(ShipBrain):
         return reserve
 
     def _affordable_local_fuel(self, planet: Planet) -> int:
-        """Fuel units the ship could buy at ``planet`` right now.
+        """Whole market units of fuel the ship could buy at ``planet`` now.
+
+        Callers that add this to a tank level must convert it with
+        :func:`units_to_milli`.
 
         The reach of a docked ship is the tank plus this: ships run near the
         survival target, so judging any trip on tank fuel alone rejects trips
@@ -872,11 +899,11 @@ class TraderBrain(ShipBrain):
         _, ask = planet.market.get_bid_ask_spread(fuel_commodity)
         if ask is None or ask <= 0:
             return 0
-        tank_room = ship.fuel_capacity - ship.fuel
-        return max(0, min(tank_room, int(ship.money * 0.9) // ask))
+        tank_room_units = milli_to_units_floor(ship.fuel_capacity - ship.fuel)
+        return max(0, min(tank_room_units, int(ship.money * 0.9) // ask))
 
     def _fuel_survival_target(self) -> int:
-        """Fuel units to keep on hand to stay mobile.
+        """Tank millifuel to keep on hand to stay mobile.
 
         The larger of two shortest round trips and the escape leg to a
         refueling planet, capped by the tank. This is the level worth paying
@@ -950,7 +977,7 @@ class TraderBrain(ShipBrain):
         if price is None or price <= 0:
             reference = self._fuel_value_reference()
             price = math.ceil(reference) if reference else FUEL_BID_FALLBACK_FLOOR
-        return self._fuel_reserve_need() * price
+        return milli_to_units_ceil(self._fuel_reserve_need()) * price
 
     def _update_distress(self, idle_and_broke: bool) -> None:
         """Advance or clear the distress counter for this docked turn.
@@ -1354,11 +1381,14 @@ class TraderBrain(ShipBrain):
         does not take hold space: it fills into the hold and is pumped into
         the tank next turn.
 
-        ``required_floor`` is a tank level the caller treats as non-negotiable
-        whatever the price, alongside the survival and committed-trip targets.
-        An en-route refuel stop passes the fuel the rest of its route needs,
-        so the one unit the lane rounding can cost is bought rather than
-        bunkered.
+        ``pending_fuel`` and the order quantity are whole market units; every
+        tank target here is millifuel.
+
+        ``required_floor`` is a tank level (millifuel) the caller treats as
+        non-negotiable whatever the price, alongside the survival and
+        committed-trip targets. An en-route refuel stop passes the millifuel
+        the rest of its route needs, so the rounding the split costs is
+        bought rather than bunkered.
         """
         ship = self.ship
         planet = ship.planet
@@ -1372,7 +1402,7 @@ class TraderBrain(ShipBrain):
         if fuel_ask is None or fuel_ask <= 0:
             return None
 
-        current_fuel = ship.fuel + pending_fuel
+        current_milli = ship.fuel + units_to_milli(pending_fuel)
 
         # Post above the resting ask when the recent clearing price is higher,
         # the rule cargo bids already use (TradePlan.bid_price_per_unit).
@@ -1412,8 +1442,10 @@ class TraderBrain(ShipBrain):
             ship.fuel_capacity,
             max(survival_target, self._committed_fuel_need, required_floor),
         )
+        # The target is millifuel; the market sells whole units, so round the
+        # shortfall up to the unit that covers it.
         required_units = min(
-            max(0, required_target - current_fuel),
+            milli_to_units_ceil(required_target - current_milli),
             int(ship.money * 0.9) // fuel_bid,
         )
         required_units = max(0, required_units)
@@ -1428,8 +1460,11 @@ class TraderBrain(ShipBrain):
             bunker_budget = (
                 int(ship.money * budget_fraction) - required_units * fuel_bid
             )
+            room_after_required = (
+                ship.fuel_capacity - current_milli - units_to_milli(required_units)
+            )
             bunker_units = min(
-                ship.fuel_capacity - current_fuel - required_units,
+                milli_to_units_floor(room_after_required),
                 max(0, bunker_budget) // fuel_bid,
             )
             bunker_units = max(0, bunker_units)
@@ -1542,25 +1577,25 @@ class TraderBrain(ShipBrain):
                 bid, _ = station.market.get_bid_ask_spread(commodity)
                 price = max(bid or 0, self._flow_value(station.market, commodity) or 0)
                 value += price * quantity
-            leg = ship.fuel_required(self._nav.distance(origin, station))
-            score = value - leg * fuel_price
+            leg_milli = ship.fuel_required(self._nav.distance(origin, station))
+            score = value - (leg_milli / FUEL_MILLI) * fuel_price
             if best is None or score > best_score:
                 best = station
                 best_score = score
         return best
 
     def _bunker_fillable_units(
-        self, bid_price: int, planet: Planet, tank_units: int
+        self, bid_price: int, planet: Planet, tank_milli: int
     ) -> int:
-        """Fuel units the ship could realistically buy at ``planet`` in one turn.
+        """Market units of fuel the ship could buy at ``planet`` in one turn.
 
-        The smallest of tank room above ``tank_units``, what the cheap-tier
+        The smallest of tank room above ``tank_milli``, what the cheap-tier
         bunker budget affords at ``bid_price``, and the supply a single turn
         offers: the resting ask depth or the recent traded units per turn,
         whichever is larger. The depth resting now and the flow arriving next
         turn are alternative estimates of the same thing, not additive.
 
-        ``planet`` and ``tank_units`` are passed rather than read off the ship
+        ``planet`` and ``tank_milli`` are passed rather than read off the ship
         because an en-route refuel stop asks about a planet the ship has not
         docked at yet and a tank that still has to be credited with the
         unburned route fuel.
@@ -1569,13 +1604,13 @@ class TraderBrain(ShipBrain):
         fuel_commodity = self._fuel_commodity()
         if fuel_commodity is None or bid_price <= 0:
             return 0
-        room = ship.fuel_capacity - tank_units
+        room_units = milli_to_units_floor(ship.fuel_capacity - tank_milli)
         affordable = int(ship.money * FUEL_BUNKER_BUDGET_FRACTION_CHEAP) // bid_price
         supply = max(
             self._nav.fuel_ask_depth_at(planet),
             int(self._recent_flow_per_turn(planet.market, fuel_commodity)),
         )
-        return max(0, min(room, affordable, supply))
+        return max(0, min(room_units, affordable, supply))
 
     def _trip_turn_value(self, profit: float, destination: Planet) -> float:
         """Value of one docked turn to a ship about to fly to ``destination``.
@@ -1588,7 +1623,7 @@ class TraderBrain(ShipBrain):
         if origin is None:
             return 0.0
         distance = self._nav.distance(origin, destination)
-        travel_turns = max(1, math.ceil(distance / 20))
+        travel_turns = max(1, math.ceil(distance / DISTANCE_PER_TURN))
         return profit / (2 * travel_turns + 1)
 
     def _should_linger_to_bunker(self, turn_value: float) -> bool:
@@ -1645,7 +1680,9 @@ class TraderBrain(ShipBrain):
 
         Departure charged the whole route up front and the stop refunds what
         is not yet burned, so the only fuel a stop can cost is the per-leg
-        rounding: ``fuel_shortfall``, at most REFUEL_STOP_MAX_SHORTFALL units.
+        rounding: ``fuel_shortfall`` millifuel, at most
+        REFUEL_STOP_MAX_SHORTFALL. The market sells whole units, so the ship
+        buys the one unit that covers it.
         The stop buys them here rather than treating them as a reason to fly
         on. The criteria
         below already establish that the ask is cheap and the book deep, so
@@ -1686,14 +1723,15 @@ class TraderBrain(ShipBrain):
         if saving_per_unit <= 0:
             return False
         bid = max(ask, self._flow_value(market, fuel_commodity) or 0)
-        if ship.money < fuel_shortfall * bid:
+        shortfall_units = milli_to_units_ceil(fuel_shortfall)
+        if ship.money < shortfall_units * bid:
             return False
         fillable = self._bunker_fillable_units(bid, planet, tank_after_refund)
-        if fillable < fuel_shortfall + 1:
+        if fillable < shortfall_units + 1:
             return False
         # The shortfall is replacing fuel the rounding took away, not saving
         # anything, so only the units past it count toward the saving.
-        saving = (fillable - fuel_shortfall) * saving_per_unit
+        saving = (fillable - shortfall_units) * saving_per_unit
         return saving > self._departed_trip_turn_value * stop_turns
 
     def _stop_fuel_price(self, planet: Planet) -> int:
@@ -1743,7 +1781,7 @@ class TraderBrain(ShipBrain):
         if payment <= 0:
             return False
         fuel_price = self._stop_fuel_price(planet)
-        shortfall_cost = fuel_shortfall * fuel_price
+        shortfall_cost = milli_to_units_ceil(fuel_shortfall) * fuel_price
         if ship.money < shortfall_cost:
             return False
         return payment > self._departed_trip_turn_value * stop_turns + shortfall_cost
@@ -1807,12 +1845,12 @@ class TraderBrain(ShipBrain):
         market = planet.market
         ceiling = self._nav.fuel_bid_ceiling()
 
-        current_fuel = ship.fuel
         # Bid only up to the survival target, not a full tank. A tank-sized
         # rescue bid at delivery prices reserves most of the ship's money for
         # as long as it goes unfilled, locking it out of the trading that
-        # could earn its way out.
-        max_units = self._fuel_survival_target() - current_fuel
+        # could earn its way out. The target is millifuel; the bid is whole
+        # market units.
+        max_units = milli_to_units_ceil(self._fuel_survival_target() - ship.fuel)
         if max_units <= 0:
             return None
 
@@ -1901,7 +1939,13 @@ class TraderBrain(ShipBrain):
         arrival_requirement = self._arrival_fuel_requirement(destination, origin)
         fuel_wanted = max(fuel_round_trip, fuel_one_way + arrival_requirement)
         tank_room = self.ship.fuel_capacity - current_fuel
-        fuel_to_buy = max(0, min(fuel_wanted - current_fuel, tank_room))
+        # The tank is millifuel; the market sells whole units. Round the
+        # shortfall up to the unit that covers it, but never past the whole
+        # units the tank still has room for.
+        fuel_to_buy = min(
+            milli_to_units_ceil(min(fuel_wanted - current_fuel, tank_room)),
+            milli_to_units_floor(tank_room),
+        )
         if fuel_to_buy > 0 and not self._fuel_purchasable_at(origin):
             return None
         # Fuel that has to be bought here at a spiked ask, while a station is
@@ -1918,7 +1962,7 @@ class TraderBrain(ShipBrain):
         # Never fly somewhere that leaves no escape route: the destination
         # must sell fuel, or the fuel left after arrival must reach a planet
         # that does.
-        fuel_after_arrival = current_fuel + fuel_to_buy - fuel_one_way
+        fuel_after_arrival = current_fuel + units_to_milli(fuel_to_buy) - fuel_one_way
         if not self._fuel_safe_destination(destination, origin, fuel_after_arrival):
             return None
 
@@ -1975,7 +2019,7 @@ class TraderBrain(ShipBrain):
         # ships out of every pair whenever fuel prices spiked.
         fuel_left_after_trip = max(current_fuel, fuel_round_trip) - fuel_round_trip
         refuel_shortfall = max(0, self._fuel_reserve_need() - fuel_left_after_trip)
-        refuel_floor = refuel_shortfall * fuel_price
+        refuel_floor = milli_to_units_ceil(refuel_shortfall) * fuel_price
         money_for_trading = int(
             (self.ship.money - fuel_cost - refuel_floor - maintenance_cost) * 0.9
         )
@@ -2727,7 +2771,11 @@ class TraderBrain(ShipBrain):
             )
 
             if current_fuel < fuel_needed:
-                fuel_to_buy = fuel_needed - current_fuel
+                # Tank targets are millifuel; the book sells whole units.
+                fuel_to_buy = min(
+                    milli_to_units_ceil(fuel_needed - current_fuel),
+                    milli_to_units_floor(self.ship.fuel_capacity - current_fuel),
+                )
                 _, fuel_ask = market.get_bid_ask_spread(fuel_commodity)
                 fuel_bid = (
                     fuel_ask
@@ -2950,7 +2998,9 @@ class TraderBrain(ShipBrain):
         # rejected almost every one of them and the cargo was dumped into a
         # local book that had no buyer.
         _, local_fuel_ask = market.get_bid_ask_spread(fuel_commodity)
-        fuel_available = fuel_in_tank + self._affordable_local_fuel(current_planet)
+        fuel_available = fuel_in_tank + units_to_milli(
+            self._affordable_local_fuel(current_planet)
+        )
 
         for commodity in self._get_tradeable_commodities():
             quantity = self._sellable_quantity(commodity)
@@ -2989,11 +3039,12 @@ class TraderBrain(ShipBrain):
                     self._nav.distance(current_planet, planet)
                 )
                 origin_fuel_price = market.get_avg_price(fuel_commodity) or 10
-                from_tank = min(fuel_needed, fuel_in_tank)
-                to_buy = fuel_needed - from_tank
-                fuel_cost = from_tank * origin_fuel_price + to_buy * (
-                    local_fuel_ask or origin_fuel_price
-                )
+                from_tank_milli = min(fuel_needed, fuel_in_tank)
+                to_buy_milli = fuel_needed - from_tank_milli
+                fuel_cost = (
+                    from_tank_milli * origin_fuel_price
+                    + to_buy_milli * (local_fuel_ask or origin_fuel_price)
+                ) / FUEL_MILLI
                 dest_net = dest_value - fuel_cost
                 if dest_net > local_value * 1.15:
                     # The trip this cargo is being held for is profitable at
@@ -3680,7 +3731,7 @@ class TraderBrain(ShipBrain):
             return None
 
         best_planet = None
-        best_expected_value = 0
+        best_expected_value = 0.0
 
         for destination in self.ship.simulation.planets:
             if destination == current_planet:
@@ -3708,7 +3759,7 @@ class TraderBrain(ShipBrain):
             origin_fuel_price = (
                 current_planet.market.get_avg_price(fuel_commodity) or 10
             )
-            fuel_cost = fuel_needed * origin_fuel_price
+            fuel_cost = fuel_needed * origin_fuel_price / FUEL_MILLI
             # Riders the hop could take on. The hop is already paid for by the
             # cargo aboard, so this only decides between destinations.
             net_value = (
@@ -3839,10 +3890,10 @@ class TraderBrain(ShipBrain):
         if not starved and not self._nav.has_any_trade_signal():
             return None
 
-        buyable_fuel = self._affordable_local_fuel(current_planet)
+        buyable_units = self._affordable_local_fuel(current_planet)
         _, local_fuel_ask = current_planet.market.get_bid_ask_spread(fuel_commodity)
-        fuel_price = local_fuel_ask if buyable_fuel > 0 and local_fuel_ask else 0
-        reach = fuel_available + buyable_fuel
+        fuel_price = local_fuel_ask if buyable_units > 0 and local_fuel_ask else 0
+        reach = fuel_available + units_to_milli(buyable_units)
 
         best_origin: Optional[Planet] = None
         best_profit = 0
@@ -3866,9 +3917,12 @@ class TraderBrain(ShipBrain):
             departure_need = self._departure_fuel_requirement(origin)
             if reach < departure_need:
                 continue
-            fuel_to_buy = max(0, departure_need - fuel_available)
+            fuel_to_buy_milli = max(0, departure_need - fuel_available)
+            fuel_to_buy_units = milli_to_units_ceil(fuel_to_buy_milli)
             if not self._fuel_safe_destination(
-                origin, current_planet, fuel_available + fuel_to_buy - fuel_to_origin
+                origin,
+                current_planet,
+                fuel_available + fuel_to_buy_milli - fuel_to_origin,
             ):
                 continue
 
@@ -3897,7 +3951,7 @@ class TraderBrain(ShipBrain):
             best_there = max(plan_value, contract_profit)
             if best_there <= 0:
                 continue
-            net_profit = best_there - fuel_to_buy * fuel_price
+            net_profit = best_there - fuel_to_buy_units * fuel_price
             if net_profit > best_profit:
                 best_profit = net_profit
                 best_origin = origin
@@ -3945,7 +3999,9 @@ class TraderBrain(ShipBrain):
             return None
         if intent.origin is not current_planet:
             return None
-        reach = fuel_available + self._affordable_local_fuel(current_planet)
+        reach = fuel_available + units_to_milli(
+            self._affordable_local_fuel(current_planet)
+        )
         departure_need = self._departure_fuel_requirement(intent.target)
         if reach < departure_need:
             return None
@@ -4014,6 +4070,7 @@ class Ship:
         # burns; nova_fuel in ``cargo`` is trade goods like anything else.
         # Market fills land in the hold, and ``pump_fuel`` moves them into
         # the tank at the start of each docked turn.
+        # Both the tank and its capacity are millifuel; see FUEL_MILLI.
         self.fuel = 0
         self.fuel_capacity = fuel_capacity
         self.fuel_efficiency = fuel_efficiency  # Fuel burn is divided by this
@@ -4046,6 +4103,16 @@ class Ship:
     def refuel_stops(self) -> int:
         """En-route refuel stops this ship has made."""
         return len(self.refuel_stop_turns)
+
+    @property
+    def fuel_units(self) -> float:
+        """Tank contents in market units, for display only (0.001 resolution)."""
+        return self.fuel / FUEL_MILLI
+
+    @property
+    def fuel_capacity_units(self) -> float:
+        """Tank capacity in market units, for display only."""
+        return self.fuel_capacity / FUEL_MILLI
 
     @property
     def pickup_stops(self) -> int:
@@ -4084,19 +4151,20 @@ class Ship:
 
         ``keep_in_hold`` units stay in the hold as trade cargo; a fuel
         delivery plan passes its load so the pump does not eat the cargo.
-        Returns the units moved.
+        Returns the market units moved. The hold trades whole units, so the
+        tank only ever takes on whole units of room.
         """
         fuel_commodity = self.simulation.commodity_registry.get_commodity("nova_fuel")
         if fuel_commodity is None:
             return 0
         in_hold = self.cargo.get_quantity(fuel_commodity)
-        movable = max(0, in_hold - max(0, keep_in_hold))
-        room = max(0, self.fuel_capacity - self.fuel)
-        moved = min(movable, room)
-        if moved > 0:
-            self.cargo.remove_commodity(fuel_commodity, moved)
-            self.fuel += moved
-        return moved
+        movable_units = max(0, in_hold - max(0, keep_in_hold))
+        room_milli = max(0, self.fuel_capacity - self.fuel)
+        moved_units = min(movable_units, milli_to_units_floor(room_milli))
+        if moved_units > 0:
+            self.cargo.remove_commodity(fuel_commodity, moved_units)
+            self.fuel += units_to_milli(moved_units)
+        return moved_units
 
     def route_distance(self, origin: Planet, destination: Planet) -> float:
         """Length of the shortest star-lane route between two planets.
@@ -4108,22 +4176,21 @@ class Ship:
 
     @staticmethod
     def calculate_fuel_needed(distance: float) -> int:
-        """Baseline fuel for a journey of ``distance``, ignoring efficiency.
+        """Baseline millifuel for a journey of ``distance``, ignoring efficiency.
 
         Planning for a specific ship must use :meth:`fuel_required`, which
         applies the ship's fuel efficiency the same way departure does.
         """
-        # 1 fuel per 20 distance units, rounded up.
-        return math.ceil(distance / 20)
+        return fuel_needed_for(distance, 1.0)
 
     def fuel_required(self, distance: float) -> int:
-        """Efficiency-adjusted fuel this ship burns for a journey of ``distance``.
+        """Efficiency-adjusted millifuel this ship burns for ``distance``.
 
-        Uses the same rounding as departure so planning and consumption
-        never disagree; otherwise ships with efficiency < 1.0 under-reserve
-        fuel and strand.
+        One ceiling to the thousandth, applied identically here and at
+        departure so planning and consumption never disagree; otherwise
+        ships with efficiency < 1.0 under-reserve fuel and strand.
         """
-        return math.ceil(Ship.calculate_fuel_needed(distance) / self.fuel_efficiency)
+        return fuel_needed_for(distance, self.fuel_efficiency)
 
     def check_maintenance(self) -> bool:
         """Roll whether the ship needs maintenance before this departure."""
@@ -4147,10 +4214,12 @@ class Ship:
             if commodity is None:
                 continue
             if commodity_id == "nova_fuel":
-                # The fuel tier burns tank fuel, not hold cargo.
-                if self.fuel < qty:
+                # The fuel tier burns tank fuel, not hold cargo. The tier
+                # quantity is market units; the tank is millifuel.
+                qty_milli = units_to_milli(qty)
+                if self.fuel < qty_milli:
                     continue
-                self.fuel -= qty
+                self.fuel -= qty_milli
             elif self.cargo.has_quantity(commodity, qty):
                 self.cargo.remove_commodity(commodity, qty)
             else:
@@ -4165,7 +4234,7 @@ class Ship:
     def _maintenance_stock(self, commodity: "CommodityDefinition") -> int:
         """Units of a maintenance good on hand: tank plus hold for fuel, else the hold."""
         if commodity.id == "nova_fuel":
-            return self.fuel + self.cargo.get_quantity(commodity)
+            return milli_to_units_floor(self.fuel) + self.cargo.get_quantity(commodity)
         return self.cargo.get_quantity(commodity)
 
     def _buy_maintenance_supplies(self) -> None:
@@ -4318,14 +4387,15 @@ class Ship:
 
         if self.fuel < adjusted_fuel_needed:
             self.last_action = (
-                f"Insufficient fuel for journey (need {adjusted_fuel_needed})"
+                "Insufficient fuel for journey "
+                f"(need {adjusted_fuel_needed / FUEL_MILLI:.3f})"
             )
             return False
 
         self.fuel -= adjusted_fuel_needed
 
-        # 1 turn per 20 distance units, minimum 1.
-        self.travel_time = max(1, math.ceil(distance / 20))
+        # One turn per DISTANCE_PER_TURN of route, minimum 1.
+        self.travel_time = max(1, math.ceil(distance / DISTANCE_PER_TURN))
         self.travel_progress = 0.0
         self.status = ShipStatus.TRAVELING
         self.destination = destination
@@ -4413,8 +4483,8 @@ class Ship:
         numbers and ``stop_for_fuel`` / ``stop_for_pickup`` record the answers.
 
         Route fuel is charged with a ceiling per leg, so splitting a route in
-        two costs fuel: the shortfall. Up to REFUEL_STOP_MAX_SHORTFALL units
-        of it are passed to the brain, which stops only where it can buy them
+        two costs fuel: the shortfall. Up to REFUEL_STOP_MAX_SHORTFALL
+        millifuel of it are passed to the brain, which stops only where it can buy them
         back at the local ask; more than that is refused here.
 
         Returns True when the ship stopped.
@@ -4435,11 +4505,13 @@ class Ship:
             shortfall = max(0, self.fuel_required(total - reached) - refund)
             if shortfall > REFUEL_STOP_MAX_SHORTFALL:
                 continue
+            # The docked turn plus whatever splitting the route adds to the
+            # travel time, which is charged per leg at DISTANCE_PER_TURN.
             stop_turns = (
                 1
-                + Ship.calculate_fuel_needed(reached)
-                + Ship.calculate_fuel_needed(total - reached)
-                - Ship.calculate_fuel_needed(total)
+                + math.ceil(reached / DISTANCE_PER_TURN)
+                + math.ceil((total - reached) / DISTANCE_PER_TURN)
+                - math.ceil(total / DISTANCE_PER_TURN)
             )
             for_fuel = self.brain.wants_refuel_stop(
                 node, destination, refund, shortfall, stop_turns
@@ -4628,16 +4700,37 @@ def _cumulative_lane_distances(
     return cumulative
 
 
+def fuel_needed_for(distance: float, fuel_efficiency: float) -> int:
+    """Millifuel a ship of ``fuel_efficiency`` burns over ``distance``.
+
+    One ceiling, to the thousandth of a market unit. Every planning and
+    consumption site routes through this so they never disagree.
+    """
+    return math.ceil(distance * FUEL_MILLI / (DISTANCE_PER_FUEL_UNIT * fuel_efficiency))
+
+
+def units_to_milli(units: int) -> int:
+    """Market units of fuel as tank millifuel."""
+    return units * FUEL_MILLI
+
+
+def milli_to_units_ceil(milli: int) -> int:
+    """Whole market units that cover ``milli`` millifuel; never negative."""
+    return max(0, math.ceil(milli / FUEL_MILLI))
+
+
+def milli_to_units_floor(milli: int) -> int:
+    """Whole market units fully contained in ``milli`` millifuel; never negative."""
+    return max(0, milli // FUEL_MILLI)
+
+
 def mean_round_trip_fuel(mean_pair_distance: float, fuel_efficiency: float) -> int:
-    """Fuel a ship of ``fuel_efficiency`` burns on an average round trip.
+    """Millifuel a ship of ``fuel_efficiency`` burns on an average round trip.
 
     ``mean_pair_distance`` is the mean shortest lane route between planets,
     from :meth:`Navigator.mean_pair_distance`.
     """
-    one_way = math.ceil(
-        Ship.calculate_fuel_needed(mean_pair_distance) / fuel_efficiency
-    )
-    return 2 * one_way
+    return 2 * fuel_needed_for(mean_pair_distance, fuel_efficiency)
 
 
 def starting_capital(mean_pair_distance: float, fuel_efficiency: float) -> int:
@@ -4648,9 +4741,9 @@ def starting_capital(mean_pair_distance: float, fuel_efficiency: float) -> int:
     SHIP_CAPITAL_FUEL_PRICE_REFERENCE, marked up by a working-capital
     fraction for cargo, and floored at the small-galaxy baseline.
     """
-    fuel_units = mean_round_trip_fuel(mean_pair_distance, fuel_efficiency) + (
-        2 * MAINTENANCE_CHANCE * MAINTENANCE_FUEL_UNITS
-    )
+    fuel_units = (
+        mean_round_trip_fuel(mean_pair_distance, fuel_efficiency) / FUEL_MILLI
+    ) + (2 * MAINTENANCE_CHANCE * MAINTENANCE_FUEL_UNITS)
     budget = (
         SHIP_CAPITAL_ROUND_TRIPS
         * fuel_units
@@ -4661,7 +4754,7 @@ def starting_capital(mean_pair_distance: float, fuel_efficiency: float) -> int:
 
 
 def fuel_capacity_for(mean_pair_distance: float, fuel_efficiency: float) -> int:
-    """Tank size for a galaxy of this size, never below the baseline."""
+    """Tank size in millifuel for a galaxy of this size, never below the baseline."""
     return max(
         BASE_FUEL_CAPACITY,
         math.ceil(

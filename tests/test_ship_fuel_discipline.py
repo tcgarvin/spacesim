@@ -16,7 +16,12 @@ from spacesim2.core.galaxy import StarLaneNetwork
 from spacesim2.core.market import Market
 from spacesim2.core.navigation import FUEL_STATION_MIN_DEPTH, get_navigator
 from spacesim2.core.planet import Planet
-from spacesim2.core.ship import MAINTENANCE_FUEL_UNITS, Ship
+from spacesim2.core.ship import (
+    MAINTENANCE_FUEL_UNITS,
+    Ship,
+    milli_to_units_ceil,
+    units_to_milli,
+)
 
 STATION_DEPTH = max(FUEL_STATION_MIN_DEPTH, 50)
 
@@ -51,10 +56,11 @@ def _make_world(planet_specs):
     return sim, registry, planets
 
 
-def _make_ship(sim, planet, fuel_units=0, money=1000, name="TestShip", hold_fuel=0):
+def _make_ship(sim, planet, fuel_milli=0, money=1000, name="TestShip", hold_fuel=0):
+    """Dock a ship at ``planet`` with ``fuel_milli`` thousandths of a unit."""
     ship = Ship(name, sim, planet, initial_money=money, fuel_efficiency=1.0)
     planet.add_ship(ship)
-    ship.fuel = fuel_units
+    ship.fuel = fuel_milli
     if hold_fuel:
         ship.cargo.add_commodity(
             sim.commodity_registry.get_commodity("nova_fuel"), hold_fuel
@@ -94,15 +100,17 @@ def test_standing_bid_is_capped_at_the_ceiling():
     sim, registry, (a, b) = _make_world([("A", 0, 0), ("B", 100, 0)])
     fuel = registry.get_commodity("nova_fuel")
     _rest_fuel_ask(sim, a, STATION_DEPTH, 10, "SupplierA")
-    ship = _make_ship(sim, b, fuel_units=0, money=1000, name="Trapped")
+    ship = _make_ship(sim, b, fuel_milli=0, money=1000, name="Trapped")
     nav = get_navigator(sim)
     nav.refresh_market_facts()
     ceiling = nav.fuel_bid_ceiling()
 
     assert ceiling == 20
     assert not ship.brain._can_reach_station()
-    # The uncapped delivery price is above the ceiling, so the cap binds.
-    assert nav.fuel_delivery_bid_price(b, 20) == ceiling
+    # Priced for the units this ship actually wants, the uncapped delivery
+    # price is above the ceiling, so the cap binds.
+    wanted = milli_to_units_ceil(ship.brain._fuel_survival_target())
+    assert nav.fuel_delivery_bid_price(b, wanted) == ceiling
 
     order_id = ship.brain._post_standing_fuel_bid()
 
@@ -116,7 +124,8 @@ def test_no_standing_bid_when_a_station_is_reachable():
     """With fuel for the hop, the ship flies rather than bids."""
     sim, _registry, (a, b) = _make_world([("A", 0, 0), ("B", 100, 0)])
     _rest_fuel_ask(sim, a, STATION_DEPTH, 10, "SupplierA")
-    ship = _make_ship(sim, b, fuel_units=8, money=1000, name="Mobile")
+    # Comfortably more than the 500 millifuel hop to the station at A.
+    ship = _make_ship(sim, b, fuel_milli=800, money=1000, name="Mobile")
     get_navigator(sim).refresh_market_facts()
 
     assert ship.brain._can_reach_station()
@@ -127,7 +136,7 @@ def test_no_standing_bid_when_a_station_is_reachable():
 def test_topup_buys_nothing_at_a_spike_when_a_station_is_reachable():
     """The reposition, not the book, is how this ship gets fuel."""
     sim, _registry, _a, b, c = _spiked_world()
-    ship = _make_ship(sim, c, fuel_units=6, money=5000, name="Mobile")
+    ship = _make_ship(sim, c, fuel_milli=600, money=5000, name="Mobile")
     get_navigator(sim).refresh_market_facts()
 
     assert b in ship.brain._reachable_stations()
@@ -139,7 +148,7 @@ def test_trapped_topup_buys_the_rationed_minimum_at_the_ceiling():
     """No station in range: buy the escape units only, never above the cap."""
     sim, registry, _a, b, c = _spiked_world()
     fuel = registry.get_commodity("nova_fuel")
-    ship = _make_ship(sim, c, fuel_units=0, money=5000, name="Trapped")
+    ship = _make_ship(sim, c, fuel_milli=0, money=5000, name="Trapped")
     nav = get_navigator(sim)
     nav.refresh_market_facts()
 
@@ -152,7 +161,9 @@ def test_trapped_topup_buys_the_rationed_minimum_at_the_ceiling():
     assert order.price == nav.fuel_bid_ceiling()
     # The escape target is the leg to the nearest station, which demands no
     # arrival reserve of its own.
-    assert order.quantity == ship.fuel_required(ship.route_distance(c, b))
+    assert order.quantity == milli_to_units_ceil(
+        ship.fuel_required(ship.route_distance(c, b))
+    )
 
 
 def test_local_reference_price_is_capped_at_the_ceiling():
@@ -174,7 +185,8 @@ def test_local_reference_price_is_capped_at_the_ceiling():
 def test_empty_ship_repositions_to_the_nearest_station():
     """With no cargo to value, the cheapest leg wins."""
     sim, _registry, a, b, c = _spiked_world()
-    ship = _make_ship(sim, c, fuel_units=6, money=5000, name="Empty")
+    # Enough for the 500 millifuel hop to B, short of the 1000 to A.
+    ship = _make_ship(sim, c, fuel_milli=600, money=5000, name="Empty")
     get_navigator(sim).refresh_market_facts()
 
     assert set(ship.brain._reachable_stations()) >= {b}
@@ -191,7 +203,8 @@ def test_loaded_ship_repositions_to_the_station_that_pays_most():
     thin = _make_ship(sim, b, money=100, name="ThinBuyer")
     b.market.place_buy_order(thin, food, 1, 1)
 
-    ship = _make_ship(sim, c, fuel_units=12, money=5000, name="Loaded")
+    # Enough for either station, so cargo value picks the target.
+    ship = _make_ship(sim, c, fuel_milli=1200, money=5000, name="Loaded")
     ship.cargo.add_commodity(food, 10)
     get_navigator(sim).refresh_market_facts()
 
@@ -202,7 +215,7 @@ def test_loaded_ship_repositions_to_the_station_that_pays_most():
 def test_no_reposition_from_a_station():
     """A ship already at depth waits or bunkers under the existing rules."""
     sim, _registry, a, _b, _c = _spiked_world()
-    ship = _make_ship(sim, a, fuel_units=1, money=5000, name="AtStation")
+    ship = _make_ship(sim, a, fuel_milli=100, money=5000, name="AtStation")
     get_navigator(sim).refresh_market_facts()
 
     assert ship.brain._refuel_reposition_target() is None
@@ -214,7 +227,7 @@ def test_no_reposition_when_local_fuel_is_cheap():
     _rest_fuel_ask(sim, a, STATION_DEPTH, 10, "SupplierA")
     _rest_fuel_ask(sim, b, STATION_DEPTH, 10, "SupplierB")
     _rest_fuel_ask(sim, d, 1, 10, "TrickleD")
-    ship = _make_ship(sim, d, fuel_units=6, money=5000, name="Cheap")
+    ship = _make_ship(sim, d, fuel_milli=600, money=5000, name="Cheap")
     nav = get_navigator(sim)
     nav.refresh_market_facts()
 
@@ -229,7 +242,7 @@ def test_reposition_departs_without_listing_the_cargo():
     food = registry.get_commodity("food")
     buyer = _make_ship(sim, b, money=100000, name="Buyer")
     b.market.place_buy_order(buyer, food, 10, 50)
-    ship = _make_ship(sim, c, fuel_units=6, money=5000, name="Loaded")
+    ship = _make_ship(sim, c, fuel_milli=600, money=5000, name="Loaded")
     ship.cargo.add_commodity(food, 10)
 
     ship.brain.decide_trade_actions()
@@ -247,19 +260,24 @@ def test_reposition_departs_without_listing_the_cargo():
 
 def test_plan_funds_the_leg_plus_the_arrival_reserve():
     """A non-station destination can demand more fuel than the round trip."""
-    sim, _registry, (a, b, d) = _make_world([("A", 0, 0), ("B", 100, 0), ("D", 0, 300)])
+    # D is 80 away, so the leg, its escape leg back, and the maintenance
+    # buffer together still fit the tank. The buffer is five market units,
+    # which at 200 distance a unit dwarfs every leg in this galaxy.
+    sim, _registry, (a, b, d) = _make_world([("A", 0, 0), ("B", 100, 0), ("D", 0, 80)])
     _rest_fuel_ask(sim, a, STATION_DEPTH, 10, "SupplierA")
     _rest_fuel_ask(sim, b, STATION_DEPTH, 10, "SupplierB")
-    ship = _make_ship(sim, a, fuel_units=0, money=100000, name="Planner")
+    ship = _make_ship(sim, a, fuel_milli=0, money=100000, name="Planner")
     nav = get_navigator(sim)
     nav.refresh_market_facts()
 
     leg = ship.fuel_required(ship.route_distance(a, d))
     escape = ship.fuel_required(nav.nearest_fuel_station_distance(d) or 0.0)
-    arrival = escape + MAINTENANCE_FUEL_UNITS
+    arrival = escape + units_to_milli(MAINTENANCE_FUEL_UNITS)
     assert leg + arrival > 2 * leg  # the round trip alone would not fund it
+    assert leg + arrival <= ship.fuel_capacity
 
     economics = ship.brain._pair_economics(a, d)
 
     assert economics is not None
-    assert economics.fuel_to_buy == leg + arrival
+    # The tank is millifuel; the book sells whole units.
+    assert economics.fuel_to_buy == milli_to_units_ceil(leg + arrival)

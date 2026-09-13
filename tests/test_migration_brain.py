@@ -319,7 +319,7 @@ class TestDepartureRequest:
         monkeypatch.setattr(
             mig,
             "get_navigator",
-            lambda _sim: _navigator(default=100.0),
+            lambda _sim: _navigator(default=1000.0),
         )
         drive = FoodDrive(sim.commodity_registry)
         brain = ColonistBrain()
@@ -345,7 +345,7 @@ class TestDepartureRequest:
         decision = brain.decide_migration(actor)
         assert isinstance(decision, MigrationRequest)
         assert decision.destination is brain.migration_intent.destination
-        # Distance 100 is 5 fuel units; at a 40-credit reference that is 200
+        # Distance 1000 is 5 fuel units; at a 40-credit reference that is 200
         # of fuel, and the opening offer is the estimate, fuel plus half.
         assert decision.fare_offer == 300
         assert brain.migration_intent.first_request_turn == sim.current_turn

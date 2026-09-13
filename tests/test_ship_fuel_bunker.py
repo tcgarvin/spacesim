@@ -11,6 +11,7 @@
 
 from spacesim2.core.ship import (
     ACCUMULATION_PATIENCE,
+    BASE_FUEL_CAPACITY,
     FUEL_BUNKER_BUDGET_FRACTION,
     FUEL_BUNKER_BUDGET_FRACTION_CHEAP,
     FUEL_LINGER_TANK_FRACTION,
@@ -19,6 +20,16 @@ from spacesim2.core.ship import (
 from tests.test_ship_fuel import _make_ship, _make_world
 
 THREE_PLANETS = [("A", 0, 0), ("B", 100, 0), ("C", 200, 0)]
+# A third of a tank: below FUEL_LINGER_TANK_FRACTION, so there is room worth
+# lingering for.
+LOW_TANK = BASE_FUEL_CAPACITY // 3
+# Two thirds: above it.
+FULL_ENOUGH_TANK = 2 * BASE_FUEL_CAPACITY // 3
+# Purse for the budget-tier tests. A leg of 100 costs 500 millifuel, so the
+# survival target of two round trips is two market units and the rest of a
+# 6-unit tank is room the budget, not the tank, has to ration: at an ask of
+# 10 both tiers must afford fewer than the 4 units of room left.
+BUNKER_TEST_MONEY = 60
 
 
 def _sell_fuel(sim, planet, price, quantity=100, name=None):
@@ -92,9 +103,11 @@ def _bunker_quantity_at_reference(remote_ask):
     _sell_fuel(sim, b, remote_ask)
     _sell_fuel(sim, c, remote_ask)
 
-    ship = _make_ship(sim, a, fuel_units=0, money=500, name="Trader")
+    ship = _make_ship(sim, a, fuel_units=0, money=BUNKER_TEST_MONEY, name="Trader")
     ship.brain._nav.refresh_market_facts(turn=0)
-    assert ship.brain._fuel_survival_target() == 20
+    # Two round trips of the 100-unit lane: 4 * 500 millifuel, so two whole
+    # market units.
+    assert ship.brain._fuel_survival_target() == 2000
     assert ship.brain._opportunistic_fuel_topup() is not None
     buys = _fuel_buys(a, fuel, ship)
     assert len(buys) == 1
@@ -105,10 +118,10 @@ def _bunker_quantity_at_reference(remote_ask):
 def test_cheap_tier_budget_applies_at_or_below_the_reference():
     """An ask at the reference spends the larger fraction of cash on fuel."""
     quantity = _bunker_quantity_at_reference(remote_ask=10)
-    required = 20  # the survival target, bought before any bunkering
-    budget = int(500 * FUEL_BUNKER_BUDGET_FRACTION_CHEAP)
+    required = 2  # the survival target in whole units, bought before bunkering
+    budget = int(BUNKER_TEST_MONEY * FUEL_BUNKER_BUDGET_FRACTION_CHEAP)
     assert quantity == required + (budget - required * 10) // 10
-    assert quantity == 40
+    assert quantity == 4
 
 
 def test_normal_tier_budget_applies_above_the_reference():
@@ -118,10 +131,10 @@ def test_normal_tier_budget_applies_above_the_reference():
     ask is 10 in both, so the difference is the budget fraction alone.
     """
     quantity = _bunker_quantity_at_reference(remote_ask=9)
-    required = 20
-    budget = int(500 * FUEL_BUNKER_BUDGET_FRACTION)
+    required = 2
+    budget = int(BUNKER_TEST_MONEY * FUEL_BUNKER_BUDGET_FRACTION)
     assert quantity == required + (budget - required * 10) // 10
-    assert quantity == 25
+    assert quantity == 3
 
 
 # ---------------------------------------------------------------------------
@@ -138,7 +151,7 @@ def _cargo_world(local_fuel_ask, tank):
     buyer = _make_ship(sim, b, money=5000, name="Buyer")
     b.market.place_buy_order(buyer, food, 10, 20)
 
-    ship = _make_ship(sim, a, fuel_units=tank, money=1000, name="Trader")
+    ship = _make_ship(sim, a, fuel_milli=tank, money=1000, name="Trader")
     ship.cargo.add_commodity(food, 10)
     ship.brain._nav.refresh_market_facts(turn=0)
     return sim, fuel, food, a, b, ship
@@ -146,7 +159,7 @@ def _cargo_world(local_fuel_ask, tank):
 
 def test_ship_lingers_when_cheap_fuel_beats_a_turn_of_the_trip():
     """Cheap fuel and a low-value trip: stay docked one more turn."""
-    _, _, _, a, b, ship = _cargo_world(local_fuel_ask=5, tank=20)
+    _, _, _, a, b, ship = _cargo_world(local_fuel_ask=5, tank=LOW_TANK)
     assert ship.fuel < FUEL_LINGER_TANK_FRACTION * ship.fuel_capacity
 
     assert ship.brain.decide_travel() is None
@@ -156,7 +169,7 @@ def test_ship_lingers_when_cheap_fuel_beats_a_turn_of_the_trip():
 
 def test_no_linger_with_a_full_enough_tank():
     """Above the fill threshold there is too little room left to be worth it."""
-    _, _, _, _, b, ship = _cargo_world(local_fuel_ask=5, tank=40)
+    _, _, _, _, b, ship = _cargo_world(local_fuel_ask=5, tank=FULL_ENOUGH_TANK)
     assert ship.fuel >= FUEL_LINGER_TANK_FRACTION * ship.fuel_capacity
 
     assert ship.brain.decide_travel() is b
@@ -165,7 +178,7 @@ def test_no_linger_with_a_full_enough_tank():
 
 def test_no_linger_at_a_spiked_ask():
     """A local ask outside the bunker premium is not worth waiting for."""
-    _, _, _, _, b, ship = _cargo_world(local_fuel_ask=50, tank=20)
+    _, _, _, _, b, ship = _cargo_world(local_fuel_ask=50, tank=LOW_TANK)
 
     assert ship.brain.decide_travel() is b
     assert ship.brain._fuel_linger_pending is False
@@ -173,7 +186,7 @@ def test_no_linger_at_a_spiked_ask():
 
 def test_no_second_linger_at_the_same_stop():
     """One linger turn per stop, however cheap the fuel stays."""
-    _, _, _, a, b, ship = _cargo_world(local_fuel_ask=5, tank=20)
+    _, _, _, a, b, ship = _cargo_world(local_fuel_ask=5, tank=LOW_TANK)
     ship.brain._fuel_linger_planet = a
 
     assert ship.brain.decide_travel() is b
@@ -187,7 +200,7 @@ def test_linger_buys_fuel_without_spending_a_loaded_plan_s_patience():
     departure patience that releases a loaded plan's cargo, and the ship must
     actually have a fuel bid resting for the turn to be worth anything.
     """
-    sim, fuel, food, a, b, ship = _cargo_world(local_fuel_ask=5, tank=20)
+    sim, fuel, food, a, b, ship = _cargo_world(local_fuel_ask=5, tank=LOW_TANK)
     plan = TradePlan(
         origin=a,
         destination=b,
@@ -197,9 +210,9 @@ def test_linger_buys_fuel_without_spending_a_loaded_plan_s_patience():
         purchase_price_per_unit=10,
         expected_sell_price_per_unit=30,
         distance=100.0,
-        fuel_needed_one_way=5,
+        fuel_needed_one_way=500,
         fuel_price_at_origin=5,
-        fuel_units_from_tank=5,
+        fuel_units_from_tank=500,
         fuel_price_from_tank=20,
     )
     ship.brain._current_plan = plan

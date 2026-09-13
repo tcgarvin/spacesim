@@ -33,10 +33,12 @@ from spacesim2.core.market import Market
 from spacesim2.core.navigation import get_navigator
 from spacesim2.core.ship import (
     FUEL_BUNKER_PREMIUM,
+    FUEL_MILLI,
     Ship,
     TradePlan,
     TraderBrain,
     _PairEconomics,
+    milli_to_units_ceil,
 )
 
 PATH_STACK: list[str] = []
@@ -180,14 +182,18 @@ def decide_trade_actions(self: TraderBrain) -> None:
     current_fuel = ship.fuel
     ref = reference_for(self)
     ask = plan.fuel_price_at_origin
+    # These plan fields and current_fuel are millifuel (see FUEL_MILLI);
+    # every product with a per-market-unit price is divided back down.
     to_buy_round_trip = max(0, plan.fuel_needed_round_trip - current_fuel)
     to_buy_outbound = plan.fuel_needed_one_way - min(
         plan.fuel_units_from_tank, plan.fuel_needed_one_way
     )
-    extra_cash = (to_buy_round_trip - to_buy_outbound) * ask
+    extra_cash = round((to_buy_round_trip - to_buy_outbound) * ask / FUEL_MILLI)
     replacement_price = max(ask, plan.fuel_price_from_tank)
-    extra_replacement = min(plan.fuel_units_from_tank, plan.fuel_needed_one_way) * (
-        replacement_price - plan.fuel_price_from_tank
+    extra_replacement = round(
+        min(plan.fuel_units_from_tank, plan.fuel_needed_one_way)
+        * (replacement_price - plan.fuel_price_from_tank)
+        / FUEL_MILLI
     )
     costs = (
         plan.total_purchase_cost + plan.total_fuel_cost + plan.expected_maintenance_cost
@@ -209,7 +215,7 @@ def decide_trade_actions(self: TraderBrain) -> None:
             "margin_repl": profit_repl / (costs + extra_replacement)
             if costs + extra_replacement > 0
             else 0.0,
-            "fuel_to_buy": to_buy_round_trip,
+            "fuel_to_buy": milli_to_units_ceil(to_buy_round_trip),
             "cap": PLAN_CAPS.get(id(plan), "unknown"),
             "distressed": self.is_distressed,
         }
@@ -357,8 +363,8 @@ def fleet_snapshot(sim: Any) -> dict[str, Any]:
     total_refuel_stops = 0
     for ship in sim.ships:
         total_money += ship.money
-        total_fuel_units += ship.fuel
-        total_fuel_value += ship.fuel * fuel_ref
+        total_fuel_units += ship.fuel_units
+        total_fuel_value += ship.fuel_units * fuel_ref
         if ship.money < 100:
             broke += 1
         if not ship.departure_turns:

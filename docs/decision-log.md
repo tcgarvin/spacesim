@@ -4,6 +4,38 @@ Append-only record of closed decisions, postmortems, and landed campaigns.
 Newest first. Open work lives in `TODO.md`; current reference docs live
 alongside this file.
 
+## 2026-09-13 - Ship fuel burn cut 10x, tank in millifuel
+
+Motivation, measured 2026-09-13 at 100 planets over 400 turns: fuel spend
+was 2.34x the fleet's gross trading profit, 91 of 100 ships spent more on
+fuel than they earned gross, and distress spikes were only 0.6% of fuel
+spend in the second half of the run, so the cost was ordinary volume at
+ordinary prices, not spikes.
+
+| Constant | Before | After |
+|---|---|---|
+| `DISTANCE_PER_FUEL_UNIT` | 20 | 200 |
+| `BASE_FUEL_CAPACITY` | 60 units | 6 units (`6 * FUEL_MILLI`) |
+| Fleet fuel spend / gross trading profit | 2.34x | (pending A/B) |
+| Ships spending more on fuel than they earn gross | 91 / 100 | (pending A/B) |
+
+`Ship.fuel` and `Ship.fuel_capacity` are now integer millifuel, thousandths
+of a market unit of `nova_fuel` (`FUEL_MILLI` = 1000); `Ship.fuel_units` and
+`fuel_capacity_units` are float display properties. `calculate_fuel_needed`
+and `fuel_required` ceil once, to the millifuel, replacing the old
+ceil-to-a-unit-then-ceil-again-after-efficiency double rounding. Market
+purchases stay in whole units; `units_to_milli`, `milli_to_units_ceil`, and
+`milli_to_units_floor` convert at the boundary.
+
+Two decisions: the maintenance fuel tier stays at `MAINTENANCE_FUEL_UNITS`
+(5 market units, unchanged) rather than being re-expressed in millifuel,
+since it prices a repair event, not a distance; starting capital and tank
+size, both derived from mean round-trip fuel, shrink about tenfold with the
+burn rather than being held at their old floors, so the `SHIP_CAPITAL_FLOOR`
+(1000) still applies but binds more often at small galaxies.
+
+Effect: (pending A/B)
+
 ## 2026-09-12 - Upper-tier demand: netback valuation, stock discount, durables as capital
 
 Three landings, 46056a3, 9541d3c (with f9c3a03) and d557047, from the

@@ -36,7 +36,7 @@ from spacesim2.core.drives.facility_upkeep_drive import (
 )
 from spacesim2.core.drives.facility_upkeep_drive import FacilityUpkeepDrive
 from spacesim2.core.navigation import get_navigator
-from spacesim2.core.ship import fuel_capacity_for
+from spacesim2.core.ship import fuel_capacity_for, milli_to_units_ceil
 
 if TYPE_CHECKING:
     from spacesim2.core.commodity import CommodityDefinition
@@ -279,7 +279,10 @@ class SpaceportOperatorBrain(ActorBrain):
         exists to prevent.
         """
         navigator = get_navigator(actor.sim)
-        one_tank = fuel_capacity_for(navigator.mean_pair_distance(), 1.0)
+        # fuel_capacity_for is millifuel; the stock floor is market units.
+        one_tank = milli_to_units_ceil(
+            fuel_capacity_for(navigator.mean_pair_distance(), 1.0)
+        )
         return dealer.flow_stock_target(market, fuel, floor=one_tank)
 
     def _fuel_bid(

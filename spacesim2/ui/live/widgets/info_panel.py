@@ -235,7 +235,7 @@ def draw_ship_panel(
 
     w.section("ship")
     w.kv_row("money", f"{detail.money:,}cr")
-    w.kv_row("fuel", f"{detail.fuel}")
+    w.kv_row("fuel", f"{detail.fuel_units:.3f} / {detail.fuel_capacity_units:.3f}")
     cargo_frac = (
         detail.cargo_used / detail.cargo_capacity if detail.cargo_capacity else 0.0
     )

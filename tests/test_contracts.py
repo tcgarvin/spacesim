@@ -61,11 +61,12 @@ def _two_planet_sim(lands: int = 10) -> Simulation:
     return sim
 
 
-def _ship(sim: Simulation, planet: Planet, fuel: int = 50) -> Ship:
+def _ship(sim: Simulation, planet: Planet, fuel: int = -1) -> Ship:
+    """A hauler with a full tank unless ``fuel`` (millifuel) says otherwise."""
     ship = Ship("Hauler", sim, planet, initial_money=0)
     sim.ships.append(ship)
     planet.add_ship(ship)
-    ship.fuel = fuel
+    ship.fuel = ship.fuel_capacity if fuel < 0 else fuel
     return ship
 
 

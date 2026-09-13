@@ -20,11 +20,13 @@ from typing import Any, List
 
 from spacesim2.cli.common import create_and_setup_simulation
 from spacesim2.core.ship import (
+    DISTANCE_PER_TURN,
     FUEL_BUNKER_BUDGET_FRACTION_CHEAP,
     FUEL_BUNKER_PREMIUM,
     FUEL_STOP_TANK_FRACTION,
     REFUEL_STOP_MAX_SHORTFALL,
     Ship,
+    milli_to_units_ceil,
 )
 
 REASONS = Counter()
@@ -72,12 +74,13 @@ def _classify(brain: Any, planet: Any, refund: int, shortfall: int, stop_turns: 
         return "ask_at_or_above_reference", ratio
 
     bid = max(ask, brain._flow_value(market, fuel_commodity) or 0)
-    if ship.money < shortfall * bid:
+    shortfall_units = milli_to_units_ceil(shortfall)
+    if ship.money < shortfall_units * bid:
         return "cannot_afford_shortfall", ratio
     fillable = brain._bunker_fillable_units(bid, planet, tank_after_refund)
-    if fillable < shortfall + 1:
+    if fillable < shortfall_units + 1:
         return "fillable_too_small", ratio
-    saving = (fillable - shortfall) * (reference - ask)
+    saving = (fillable - shortfall_units) * (reference - ask)
     if saving <= brain._departed_trip_turn_value * stop_turns:
         return "saving_below_trip_value", ratio
     return "accept", ratio
@@ -110,9 +113,9 @@ def _take_route_stop(self: Ship, previous_progress: float) -> bool:
                 continue
             stop_turns = (
                 1
-                + Ship.calculate_fuel_needed(reached)
-                + Ship.calculate_fuel_needed(total - reached)
-                - Ship.calculate_fuel_needed(total)
+                + math.ceil(reached / DISTANCE_PER_TURN)
+                + math.ceil((total - reached) / DISTANCE_PER_TURN)
+                - math.ceil(total / DISTANCE_PER_TURN)
             )
             reason, detail = _classify(self.brain, node, refund, shortfall, stop_turns)
             REASONS[reason] += 1

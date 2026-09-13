@@ -14,7 +14,7 @@ from spacesim2.core.galaxy import StarLaneNetwork
 from spacesim2.core.market import Market
 from spacesim2.core.navigation import FUEL_STATION_MIN_DEPTH
 from spacesim2.core.planet import Planet
-from spacesim2.core.ship import MAINTENANCE_FUEL_UNITS, Ship
+from spacesim2.core.ship import MAINTENANCE_FUEL_UNITS, Ship, units_to_milli
 
 MAINTENANCE_GOODS = (
     ("ship_components", "Ship Components"),
@@ -62,10 +62,11 @@ def _make_world(planet_specs):
     return sim, registry, planets
 
 
-def _make_ship(sim, planet, fuel_units=0, money=1000, name="TestShip", hold_fuel=0):
+def _make_ship(sim, planet, fuel_milli=0, money=1000, name="TestShip", hold_fuel=0):
+    """Dock a ship at ``planet`` with ``fuel_milli`` thousandths of a unit."""
     ship = Ship(name, sim, planet, initial_money=money)
     planet.add_ship(ship)
-    ship.fuel = fuel_units
+    ship.fuel = fuel_milli
     if hold_fuel:
         ship.cargo.add_commodity(
             sim.commodity_registry.get_commodity("nova_fuel"), hold_fuel
@@ -148,9 +149,8 @@ def test_arrival_requirement_carries_the_maintenance_buffer_without_a_kit():
     ship.brain._nav.refresh_market_facts()
 
     escape_leg = ship.fuel_required(ship.route_distance(b, a))
-    assert (
-        ship.brain._arrival_fuel_requirement(b, a)
-        == escape_leg + MAINTENANCE_FUEL_UNITS
+    assert ship.brain._arrival_fuel_requirement(b, a) == escape_leg + units_to_milli(
+        MAINTENANCE_FUEL_UNITS
     )
 
     ship.cargo.add_commodity(components, 1)
@@ -167,7 +167,9 @@ def test_a_partial_tier_is_not_a_repair_kit():
 
     ship.cargo.add_commodity(supplies, 2)
     assert not ship.brain._holds_repair_kit()
-    assert ship.brain._maintenance_fuel_buffer() == MAINTENANCE_FUEL_UNITS
+    assert ship.brain._maintenance_fuel_buffer() == units_to_milli(
+        MAINTENANCE_FUEL_UNITS
+    )
 
     ship.cargo.add_commodity(supplies, 1)
     assert ship.brain._holds_repair_kit()

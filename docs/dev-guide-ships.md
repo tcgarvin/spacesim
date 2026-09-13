@@ -83,36 +83,43 @@ if bid is None:
 
 ### Fuel calculations
 
+The tank is stored as an integer count of millifuel, thousandths of a market
+unit of `nova_fuel` (`FUEL_MILLI` = 1000). Market purchases stay in whole
+units; `units_to_milli`, `milli_to_units_ceil`, and `milli_to_units_floor`
+convert at the boundary where fuel is bought or sold.
+
 ```python
 # Shortest star-lane route, not the straight line (see core/galaxy.py and
 # core/navigation.py). A multi-lane route is fuelled in one charge at
 # departure and intermediate planets are passed without docking, except for
 # the opportunistic refuel stop below.
 distance = ship.route_distance(planet_a, planet_b)
-fuel_needed = Ship.calculate_fuel_needed(distance)  # ceil(distance/20)
+fuel_needed = Ship.calculate_fuel_needed(distance)  # millifuel, ceil(distance * 1000 / 200)
 
 # Account for ship fuel efficiency (varies 0.8-1.2 per ship)
 # Efficiency > 1.0 = better (uses LESS fuel)
 # Efficiency < 1.0 = worse (uses MORE fuel)
-adjusted_fuel = math.ceil(fuel_needed / ship.fuel_efficiency)
+adjusted_fuel = ship.fuel_required(distance)  # single ceiling to the thousandth
 
 # Always plan for round-trip fuel (conservative)
 fuel_round_trip = fuel_needed * 2
 ```
 
 `Ship.fuel_required(distance)` applies the same rounding as departure; use
-it when planning for a specific ship so planning and consumption agree.
+it when planning for a specific ship so planning and consumption agree. It
+ceils once, to the millifuel, rather than ceiling to a whole unit and then
+ceiling again after dividing by efficiency.
 
 ### Fuel constants
 
 | Constant | Value | Notes |
 |----------|-------|-------|
-| Base consumption | `ceil(distance/20)` | 1 fuel per 20 distance units |
-| Fuel capacity | `BASE_FUEL_CAPACITY` (60) or more | Tank, separate from the hold; scales with the galaxy, see below |
+| Base consumption | `ceil(distance * 1000 / 200)` millifuel | 1 market unit of `nova_fuel` per 200 distance at efficiency 1.0 (`DISTANCE_PER_FUEL_UNIT`) |
+| Fuel capacity | `BASE_FUEL_CAPACITY` (6 units, `6 * FUEL_MILLI`) or more | Tank, separate from the hold; scales with the galaxy, see below |
 | Starting fuel | `INITIAL_FUEL_FRACTION` (60%) of the tank | Initial fuel for new ships |
 | Fuel efficiency | 0.8-1.2 | Random multiplier per ship |
-| Maintenance cost | 5 fuel | `MAINTENANCE_CHANCE` (10%) per departure |
-| Travel time | `ceil(distance/20)` turns | Independent of fuel |
+| Maintenance cost | 5 fuel (`MAINTENANCE_FUEL_UNITS`) | `MAINTENANCE_CHANCE` (10%) per departure; market units, not millifuel |
+| Travel time | `ceil(distance / 20)` turns (`DISTANCE_PER_TURN`) | Independent of fuel |
 
 ### Fuel purchasing: bunker or ration
 
@@ -224,16 +231,15 @@ Departure charged `route_fuel_charged` for the whole route, so the stop
 refunds what is not yet burned and the resumed leg is charged normally. Route
 fuel is rounded up per leg, so splitting a route can cost fuel:
 `shortfall = max(0, fuel_required(remaining) - refund)`.
-`Ship._take_route_stop` allows up to `REFUEL_STOP_MAX_SHORTFALL` (2) units and
-refuses more. Travel turns alone can only cost one unit, since
-`ceil(total/20) <= ceil(covered/20) + ceil(remaining/20)`, but `fuel_required`
-ceils a second time when it divides by fuel efficiency, so a ship under 1.0
-efficiency can lose two. At a cap of one, that guard was refusing 25.6% of the
-intermediate nodes ships passed at 40 planets; at two it refuses under 1%. The one unit is bought rather than treated as a reason to
-fly on: the stop's criteria already establish a cheap ask with a deep book, so
-it is the cheapest fuel the trip will see. The purchase goes in as the
-top-up's `required_floor`, and `_route_stop_travel` holds the ship docked
-until the tank covers the remaining route.
+`Ship._take_route_stop` allows up to `REFUEL_STOP_MAX_SHORTFALL` (1
+millifuel) and refuses more. `fuel_required` ceils once, to the millifuel, so
+splitting a route into two legs can lose at most one millifuel per extra
+ceiling, negligible next to a market unit; the shortfall is bought rather
+than treated as a reason to fly on, since the stop's criteria already
+establish a cheap ask with a deep book, so it is the cheapest fuel the trip
+will see. The purchase goes in as the top-up's `required_floor`, and
+`_route_stop_travel` holds the ship docked until the tank covers the
+remaining route.
 
 `TraderBrain.wants_refuel_stop` requires all of:
 
@@ -434,17 +440,21 @@ for the galaxy they will fly in, from `Navigator.mean_pair_distance()`:
   expected maintenance, valued at `SHIP_CAPITAL_FUEL_PRICE_REFERENCE` (40
   credits a unit, the price a five-planet galaxy was tuned at), marked up by
   `SHIP_CAPITAL_RESERVE_FRACTION` for cargo, floored at `SHIP_CAPITAL_FLOOR`
-  (1000). A mean round trip burns about 5 fuel units at 5 planets and about
-  30 at 100, and every plan must fund round-trip fuel before a credit goes
-  to cargo, so a fixed 1000-credit purse grounded most of a 100-planet
-  fleet.
+  (1000). At `DISTANCE_PER_FUEL_UNIT` (200), a mean round trip burns about
+  0.5 fuel units at 5 planets and about 3 at 100, a tenth of the burn before
+  the fuel-efficiency change (`DISTANCE_PER_FUEL_UNIT` was 20), so both
+  quantities shrink about tenfold; every plan must still fund round-trip fuel
+  before a credit goes to cargo, and the 1000-credit floor keeps a
+  small-galaxy purse from falling below what a fixed floor is meant to
+  guarantee.
 - `fuel_capacity_for(mean_distance, efficiency)`:
   `FUEL_CAPACITY_ROUND_TRIP_HEADROOM` (3.0) average round trips, never below
-  `BASE_FUEL_CAPACITY` (60). The tank costs no hold space, so it is sized
-  for several trips: a ship bunkers where fuel is cheap and can fly past
-  spiked markets. Before the split the tank was 1.5 round trips and shared
-  the hold, and spiked survival top-ups were 252k of the fleet's 266k fuel
-  premium over 600 turns at 100 planets.
+  `BASE_FUEL_CAPACITY` (6 units, `6 * FUEL_MILLI`, was 60 before the burn-rate
+  change). The tank costs no hold space, so it is sized for several trips: a
+  ship bunkers where fuel is cheap and can fly past spiked markets. Before the
+  split the tank was 1.5 round trips and shared the hold, and spiked survival
+  top-ups were 252k of the fleet's 266k fuel premium over 600 turns at 100
+  planets.
 
 A `Ship` built directly, as tests do, keeps the constant defaults.
 

@@ -55,19 +55,6 @@ perf levers live in `docs/performance.md`.
   shortfall is untested.
 - Operators still hold ~2k fuel units at turn 400 and never post delivery
   bids that a ship acts on; fuel does not move between planets by ship.
-- Fuel burn rounds twice: `Ship.fuel_required` is
-  `ceil(ceil(distance / 20) / fuel_efficiency)`, layered in fbef729 on the
-  older `calculate_fuel_needed`. On lane hops (mean 41 distance) a
-  1.2-efficiency ship burns 2.56 fuel per leg against 2.60 for a 1.0 ship.
-  Measured over 3030 real legs of an 800-turn 100-planet run, a 20%
-  efficiency gain saves 14.3% of fleet fuel under the double ceil and 18.5%
-  under a single `ceil(distance / (20 * efficiency))`. Legs at 3 fuel or
-  less are 30% of legs but 8% of fuel burned, so efficiency matters for
-  the fleet, not for the short staple hops. Move to a single ceil and a
-  named distance-per-fuel constant (travel time keeps its own 20 per turn);
-  a 20-25% fuel saving is then the constant at 24-25 or the efficiency
-  range shifted from [0.8, 1.2] to [1.0, 1.5]. Keep planning and departure
-  on the one function.
 - Ships sit docked a median 10 turns per visit (`ACCUMULATION_PATIENCE` is
   8) while rich planets rest 500-1700 units of processed_food asks at 1-3
   credits; the delivery cycle is 22 turns (12 transit) and the median load
