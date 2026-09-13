@@ -171,9 +171,23 @@ Use the `simulation-analyst` subagent for substantial notebook work.
 | `dev check` sim stage (5 planets, 200 turns) | ~25 s |
 
 Rules:
-- Anything over about 2 minutes needs an explicit Bash `timeout` (maximum
-  600 s) or `run_in_background: true`. Runs over 10 minutes must be
-  backgrounded.
+- Up to about 2 minutes, use an explicit Bash `timeout` in the foreground.
+  Past that, do not rely on plain `run_in_background: true`: the harness has
+  killed long sim runs ("low on memory") even with memory to spare (observed
+  2026-09-13 on a 100-planet/400-turn run and a 120-turn galaxy run; 12-planet
+  runs are unaffected). Detach instead:
+  ```bash
+  setsid nohup bash -c 'uv run --project /home/timg/code/spacesim2 spacesim2 run --turns 400 --quiet --summary > OUT.txt 2>&1; echo EXIT $? >> OUT.txt' > /dev/null 2>&1 < /dev/null &
+  ```
+  Watch `OUT.txt` for the `EXIT` line (Monitor, or a bounded polling loop),
+  then read the summary JSON. `$!` is the `setsid` wrapper, not the sim; use
+  `pgrep -f "spacesim2 run"` if you need the real PID. A `data/runs/` export
+  directory appearing is not completion, only `EXIT` is.
+- Any run past the 12-planet routine loop, and any A/B (`sim-ab-testing`),
+  should go to a subagent (`simulation-analyst` or general-purpose) so the
+  lead session's foreground and context are not tied up and a harness kill
+  does not lose the lead's work. The subagent uses the detached pattern above
+  for galaxy-scale runs.
 - Never write `sleep N; <command>`; the harness blocks it. Never poll with
   repeated one-second sleeps.
 - Smoke test a probe at `--planets 12` for 100 turns before the real run.

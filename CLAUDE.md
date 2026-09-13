@@ -64,13 +64,35 @@ Defaults are 100 planets x 100 actors x 2 makers x 2 operators x 1 ship, and
 | default 100 planets | ~2 s/turn | ~7 min | ~15 min |
 | 100 planets + `--log-actors all` + export | ~4 s/turn | ~15 min | ~35 min |
 
-The Bash tool's default timeout is 120 s (max 600 s). Anything above the first
-row needs an explicit `timeout` or `run_in_background: true` on the first
-call. `--workers N` threads the actor phase but only helps on a free-threaded
-interpreter; see `docs/performance.md`.
+The Bash tool's default timeout is 120 s (max 600 s). Anything above the
+first row needs detaching from the harness's task tracker (see "Long runs"
+below), never a bare `run_in_background: true`. `--workers N` threads the
+actor phase but only helps on a free-threaded interpreter; see
+`docs/performance.md`.
 
 `dev check`'s sim stage is separate and cheap: 5 planets x 100 actors x 200
 turns, run in-process.
+
+### Long runs and A/B: detach and delegate
+
+`run_in_background: true` alone gets killed by the harness on long sim runs
+even with memory to spare (observed 2026-09-13: 100 planets/400 turns, and a
+120-turn galaxy run, both killed; 12-planet runs are unaffected). Anything
+past the 12-planet routine loop runs detached instead:
+
+```bash
+setsid nohup bash -c 'uv run --project /home/timg/code/spacesim2 spacesim2 run --turns 400 --quiet --summary > OUT.txt 2>&1; echo EXIT $? >> OUT.txt' > /dev/null 2>&1 < /dev/null &
+```
+
+Watch `OUT.txt` for the `EXIT` line (Monitor, or a bounded polling loop in a
+background Bash), then read the `===SUMMARY_BEGIN===`/`===SUMMARY_END===`
+JSON. `$!` is the `setsid` wrapper's PID, not the sim; use
+`pgrep -f "spacesim2 run"` to find the process. The `data/runs/` export
+directory appears at start, so its presence is not completion — only `EXIT`
+is. Send A/B runs (`dev ab`, which is 100-planet-scale by default) and any
+galaxy-scale probe to a subagent (`simulation-analyst` or general-purpose) so
+the lead session's context and foreground stay free and a harness kill does
+not cost the lead's work; the subagent uses the same detached pattern.
 
 ### Shell rules
 

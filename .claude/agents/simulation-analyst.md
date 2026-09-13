@@ -23,8 +23,21 @@ modify project source code outside of `notebooks/`.
   command; a hook denies it. Use `git -C /home/timg/code/spacesim2` and
   `uv run --project /home/timg/code/spacesim2`.
 - Never write `sleep N; <command>` and never poll with repeated short
-  sleeps. Give a long command an explicit Bash `timeout` (maximum 600 s) or
-  pass `run_in_background: true` and wait for the completion notification.
+  sleeps. A command that fits in 120 s runs in the foreground with an
+  explicit Bash `timeout`. Anything longer, which means every 100-planet
+  run, is started detached from the harness's task tracker, because the
+  harness kills `run_in_background` tasks for "low memory" during long
+  sims regardless of actual free memory:
+
+  ```bash
+  setsid nohup bash -c 'uv run --project /home/timg/code/spacesim2 spacesim2 run --turns 400 --quiet --summary > OUT.txt 2>&1; echo EXIT $? >> OUT.txt' > /dev/null 2>&1 < /dev/null &
+  ```
+
+  Then wait on the `EXIT` line in OUT.txt with a bounded `until grep -q
+  "^EXIT" OUT.txt` loop in a background Bash call, or a Monitor. `$!` is
+  the `setsid` wrapper, not the sim; `pgrep -f "spacesim2 run"` finds it.
+  The export directory under `data/runs/` appears at start, so a new
+  directory is not a finished run; the `EXIT` line is.
 - Never take measurements in a git worktree. A worktree baseline once
   disagreed with the main checkout and was auto-cleaned before anyone could
   diagnose why. Work in the main checkout.
@@ -42,8 +55,7 @@ time) before you start.
 | 100 planets with export and `--log-actors all` | ~4 s/turn |
 | `dev check` sim stage (5 planets, 200 turns) | ~25 s |
 
-Anything over about 2 minutes needs an explicit Bash `timeout` or
-`run_in_background`. Use `--planets 12` unless the question is about fleet
+Anything over about 2 minutes runs detached (see Harness Rules). Use `--planets 12` unless the question is about fleet
 geography or lane structure; for those, prefer one 450-turn 100-planet run
 over three short ones.
 

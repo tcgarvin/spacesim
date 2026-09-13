@@ -45,18 +45,38 @@ uv run spacesim2 dev ab --base <ref> --reps 3 --turns 450 --planets 100 --out tm
 
 Cost: about 31 s per 12-planet 200-turn run, and several minutes per
 100-planet 450-turn run, so a default batch is 6 runs of several minutes
-each. Run it in the background.
+each. Run it detached, in a subagent — see below.
 
-## Running in the background and waiting
+## Running detached, and delegating to a subagent
 
-Start it with Bash `run_in_background: true`; the command prints one line
-per completed run to stderr (`[ab] before_1 done in 312s (1/6)`), and
-writes `<out>/done` containing the exit code when it finishes. Wait on that
-sentinel with Monitor rather than a chain of `sleep` calls:
+At 100 planets (the default), `dev ab` runs several multi-minute sims back
+to back, and plain Bash `run_in_background: true` has been killed by the
+harness on runs of this length ("low on memory" with memory to spare,
+observed 2026-09-13). Do not background `dev ab` directly. Instead:
 
-```bash
-until [ -f tmp/ab_out/done ]; do sleep 15; done; cat tmp/ab_out/table.txt
-```
+1. Delegate the whole `dev ab` invocation to a subagent
+   (`simulation-analyst` or general-purpose) — this keeps the lead session's
+   foreground and context free, and a harness kill costs only the subagent's
+   turn, not the lead's work.
+2. Inside the subagent, start `dev ab` detached from the harness's task
+   tracker:
+   ```bash
+   setsid nohup bash -c 'uv run --project /home/timg/code/spacesim2 spacesim2 dev ab --base <ref> --reps 3 --turns 450 --planets 100 --out tmp/ab_out > tmp/ab_out.log 2>&1; echo EXIT $? >> tmp/ab_out.log' > /dev/null 2>&1 < /dev/null &
+   ```
+3. `dev ab` prints one line per completed run to stderr (`[ab] before_1 done
+   in 312s (1/6)`), captured in `tmp/ab_out.log` above. Watch for completion
+   by polling the `done` sentinel `dev ab` itself writes to `<out>/done`
+   (holding the exit code) — via Monitor, or a bounded loop in a background
+   Bash, not a chain of `sleep` calls:
+   ```bash
+   until [ -f tmp/ab_out/done ]; do sleep 15; done; cat tmp/ab_out/table.txt
+   ```
+   `$!` after `setsid ... &` is the wrapper's PID, not `dev ab`; use
+   `pgrep -f "spacesim2 dev ab"` if you need the real one.
+
+A `--reps 2 --turns 200 --planets 12` A/B (gross-breakage check only, see
+"How many replicates" below) finishes inside the foreground timeout and does
+not need detaching or delegation.
 
 Then read `<out>/table.txt`, not the per-run JSON files. The raw
 `before_<i>.json` / `after_<i>.json` stay there for a follow-up question.
