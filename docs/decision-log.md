@@ -94,6 +94,26 @@ port, the same as before the burn change, and measured fleet-wide stock rose
 to 217 of a possible 720, so the ports are not over-stocked, they are holding
 the fuel the fleet stopped hoarding.
 
+Same check at 100 planets x 400 turns, one run each (run_20260913_164942
+with the 6-unit tank, run_20260913_183919 with the 60-unit tank and
+trip-sized bunkering):
+
+| metric | 6-unit tank | 60-unit tank, trip-sized |
+|---|---|---|
+| fuel spend / gross trade profit, all turns | 0.39 | 0.37 |
+| fuel spend / gross trade profit, turns 201-400 | 0.17 | 0.19 |
+| ships spending more on fuel than gross profit, turns 201-400 | 19/100 | 21/100 |
+| fleet net market flow | +141k | +143k |
+| ship money median | 2638 | 3035 |
+| ships solvent | 0.85 | 0.82 |
+| fuel in tanks per ship (units) | 4.8 | 4.3 |
+| stranded / idle ships | 0 / 2 | 0 / 0 |
+| spiked fuel spend, all turns | 7188 | 254 |
+
+The margin gains hold with the large tank, tanks carry under half the
+9-unit three-round-trip target, and no KPI moved more than 20% against the
+6-unit run except spiked fuel spend, which fell.
+
 ## 2026-09-12 - Upper-tier demand: netback valuation, stock discount, durables as capital
 
 Three landings, 46056a3, 9541d3c (with f9c3a03) and d557047, from the
