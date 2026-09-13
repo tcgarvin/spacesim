@@ -17,10 +17,9 @@ from spacesim2.core.market import Market
 from spacesim2.core.navigation import FUEL_STATION_MIN_DEPTH, get_navigator
 from spacesim2.core.planet import Planet
 from spacesim2.core.ship import (
-    MAINTENANCE_FUEL_UNITS,
+    MAINTENANCE_FUEL_MILLI,
     Ship,
     milli_to_units_ceil,
-    units_to_milli,
 )
 
 STATION_DEPTH = max(FUEL_STATION_MIN_DEPTH, 50)
@@ -272,7 +271,7 @@ def test_plan_funds_the_leg_plus_the_arrival_reserve():
 
     leg = ship.fuel_required(ship.route_distance(a, d))
     escape = ship.fuel_required(nav.nearest_fuel_station_distance(d) or 0.0)
-    arrival = escape + units_to_milli(MAINTENANCE_FUEL_UNITS)
+    arrival = escape + MAINTENANCE_FUEL_MILLI
     assert leg + arrival > 2 * leg  # the round trip alone would not fund it
     assert leg + arrival <= ship.fuel_capacity
 

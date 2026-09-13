@@ -143,24 +143,25 @@ REPOSITION_ORIGIN_CANDIDATES = 12
 # on planets ships rarely call at, so nothing else brings a ship there.
 REPOSITION_CONTRACT_PATIENCE = 3
 
-# Chance per departure that a ship rolls a maintenance stop, and the fuel
-# units the legacy maintenance tier consumes. Used by Ship.check_maintenance
-# and to price expected maintenance into trade plans.
+# Chance per departure that a ship rolls a maintenance stop, and the tank
+# millifuel the legacy maintenance tier consumes (see FUEL_MILLI: 500 is half
+# a market unit). Used by Ship.check_maintenance and to price expected
+# maintenance into trade plans.
 MAINTENANCE_CHANCE = 0.1
-MAINTENANCE_FUEL_UNITS = 5
+MAINTENANCE_FUEL_MILLI = 500
 
-# Maintenance goods, best quality first, as (commodity id, units per repair,
-# label). A "repair kit" is one complete tier of the cargo goods. The fuel
-# tier is the legacy fallback: it burns tank fuel rather than hold cargo, and
-# is what MAINTENANCE_FUEL_UNITS of arrival reserve exists to survive.
+# Maintenance kit goods, best quality first, as (commodity id, units per
+# repair, label). Quantities here are whole units of hold cargo. A "repair
+# kit" is one complete tier. The fuel tier is the legacy fallback and is not
+# one of these entries: it burns MAINTENANCE_FUEL_MILLI of tank millifuel
+# rather than hold cargo, and is what the kit-less arrival buffer exists to
+# survive.
 MAINTENANCE_KIT_TIERS: Tuple[Tuple[str, int, str], ...] = (
     ("ship_components", 1, "ship components"),
     ("ship_parts", 2, "ship parts"),
     ("ship_supplies", 3, "ship supplies"),
 )
-MAINTENANCE_TIERS: Tuple[Tuple[str, int, str], ...] = MAINTENANCE_KIT_TIERS + (
-    ("nova_fuel", MAINTENANCE_FUEL_UNITS, "fuel"),
-)
+MAINTENANCE_FUEL_ID = "nova_fuel"
 MAINTENANCE_KIT_IDS = frozenset(tier[0] for tier in MAINTENANCE_KIT_TIERS)
 
 # Consecutive docked turns with no cargo, no plan and less cash than one
@@ -747,11 +748,11 @@ class TraderBrain(ShipBrain):
         """Tank millifuel a maintenance roll could burn before the next departure.
 
         Zero while the ship carries a repair kit, because the cargo tiers are
-        tried before the fuel tier. Otherwise MAINTENANCE_FUEL_UNITS, the
+        tried before the fuel tier. Otherwise MAINTENANCE_FUEL_MILLI, the
         legacy tier's cost, which is charged on top of every arrival reserve
         so a repair cannot leave the ship below the leg it was funded for.
         """
-        return 0 if self._holds_repair_kit() else units_to_milli(MAINTENANCE_FUEL_UNITS)
+        return 0 if self._holds_repair_kit() else MAINTENANCE_FUEL_MILLI
 
     def _arrival_fuel_requirement(
         self, destination: Planet, return_planet: Planet
@@ -764,7 +765,7 @@ class TraderBrain(ShipBrain):
 
         The requirement is normally the escape leg to the nearest fuel
         station, plus :meth:`_maintenance_fuel_buffer`. The buffer covers the
-        legacy maintenance tier, which burns MAINTENANCE_FUEL_UNITS of tank
+        legacy maintenance tier, which burns MAINTENANCE_FUEL_MILLI of tank
         fuel on the turn after a departure roll: a ship funded to exactly its
         escape leg lands, repairs, and is then below the leg it was funded
         for. A ship carrying a repair kit needs no buffer.
@@ -1040,7 +1041,7 @@ class TraderBrain(ShipBrain):
 
         One repair kit is held back. Maintenance goods the ship needs to
         repair itself are equipment, not trade cargo: selling them puts the
-        arrival reserve back up by MAINTENANCE_FUEL_UNITS, which costs more
+        arrival reserve back up by MAINTENANCE_FUEL_MILLI, which costs more
         fuel than the kit is worth. Only the tier the ship would repair with
         is reserved, so a second tier bought as cargo still sells.
         """
@@ -1969,7 +1970,7 @@ class TraderBrain(ShipBrain):
         # Expected maintenance over the round trip: two departure rolls, each
         # possibly costing the fuel-tier repair at origin fuel prices.
         maintenance_cost = math.ceil(
-            2 * MAINTENANCE_CHANCE * MAINTENANCE_FUEL_UNITS * fuel_price
+            2 * MAINTENANCE_CHANCE * MAINTENANCE_FUEL_MILLI * fuel_price / FUEL_MILLI
         )
 
         return _TripFuel(
@@ -2675,10 +2676,10 @@ class TraderBrain(ShipBrain):
     def _buy_repair_kit(self) -> List[str]:
         """Buy one complete maintenance tier when it is cheaper than the fuel it saves.
 
-        A ship with no kit carries MAINTENANCE_FUEL_UNITS of extra arrival
+        A ship with no kit carries MAINTENANCE_FUEL_MILLI of extra arrival
         reserve on every leg, because the legacy maintenance tier burns tank
         fuel. Owning a kit removes that reserve, so any kit costing less than
-        those units at the galaxy fuel reference pays for itself immediately,
+        that fuel at the galaxy fuel reference pays for itself immediately,
         and again at every repair. Buys the cheapest complete tier with a
         resting ask, at that ask, one tier per turn.
 
@@ -2691,7 +2692,7 @@ class TraderBrain(ShipBrain):
         if planet is None or self._holds_repair_kit():
             return []
         reference = self._fuel_value_reference()
-        budget_ceiling = MAINTENANCE_FUEL_UNITS * (
+        budget_ceiling = (MAINTENANCE_FUEL_MILLI / FUEL_MILLI) * (
             reference if reference is not None else float(FUEL_BID_FALLBACK_FLOOR)
         )
         spendable = int(ship.money * 0.9)
@@ -4203,39 +4204,57 @@ class Ship:
         - ship_components, 1 unit: best quality
         - ship_parts, 2 units: medium quality
         - ship_supplies, 3 units: basic quality
-        - nova_fuel, 5 units: legacy fallback
+        - nova_fuel, MAINTENANCE_FUEL_MILLI of tank millifuel: legacy fallback
 
         Returns True if maintenance succeeded, False if supplies are lacking.
         """
         registry = self.simulation.commodity_registry
 
-        for commodity_id, qty, label in MAINTENANCE_TIERS:
+        for commodity_id, qty, label in MAINTENANCE_KIT_TIERS:
             commodity = registry.get_commodity(commodity_id)
             if commodity is None:
                 continue
-            if commodity_id == "nova_fuel":
-                # The fuel tier burns tank fuel, not hold cargo. The tier
-                # quantity is market units; the tank is millifuel.
-                qty_milli = units_to_milli(qty)
-                if self.fuel < qty_milli:
-                    continue
-                self.fuel -= qty_milli
-            elif self.cargo.has_quantity(commodity, qty):
-                self.cargo.remove_commodity(commodity, qty)
-            else:
+            if not self.cargo.has_quantity(commodity, qty):
                 continue
+            self.cargo.remove_commodity(commodity, qty)
             self.status = ShipStatus.DOCKED
             self.last_action = f"Performed maintenance using {qty} {label}"
+            return True
+
+        # The fuel tier burns tank millifuel, not hold cargo.
+        if self.fuel >= MAINTENANCE_FUEL_MILLI:
+            self.fuel -= MAINTENANCE_FUEL_MILLI
+            self.status = ShipStatus.DOCKED
+            self.last_action = (
+                "Performed maintenance using "
+                f"{MAINTENANCE_FUEL_MILLI / FUEL_MILLI:.3f} fuel"
+            )
             return True
 
         self.last_action = "Cannot perform maintenance - insufficient supplies"
         return False
 
     def _maintenance_stock(self, commodity: "CommodityDefinition") -> int:
-        """Units of a maintenance good on hand: tank plus hold for fuel, else the hold."""
-        if commodity.id == "nova_fuel":
+        """Units of a maintenance good on hand: tank plus hold for fuel, else the hold.
+
+        The fuel tier's need is rounded up to whole market units by
+        :meth:`_maintenance_tiers`, so a tank holding less than one unit
+        reads as zero and the ship buys the unit it cannot pump out.
+        """
+        if commodity.id == MAINTENANCE_FUEL_ID:
             return milli_to_units_floor(self.fuel) + self.cargo.get_quantity(commodity)
         return self.cargo.get_quantity(commodity)
+
+    @staticmethod
+    def _maintenance_tiers() -> List[Tuple[str, int]]:
+        """Every repair tier as (commodity id, units to buy), best first.
+
+        The fuel tier's cost is millifuel, but a market only sells whole
+        units, so it is rounded up for the purchase path.
+        """
+        return [(tier[0], tier[1]) for tier in MAINTENANCE_KIT_TIERS] + [
+            (MAINTENANCE_FUEL_ID, milli_to_units_ceil(MAINTENANCE_FUEL_MILLI))
+        ]
 
     def _buy_maintenance_supplies(self) -> None:
         """Buy maintenance goods from the local market when stranded.
@@ -4256,7 +4275,7 @@ class Ship:
         for order in existing["buy"] + existing["sell"]:
             market.cancel_order(order.order_id)
 
-        tiers = [(tier[0], tier[1]) for tier in MAINTENANCE_TIERS]
+        tiers = self._maintenance_tiers()
         for commodity_id, qty_needed in tiers:
             commodity = registry.get_commodity(commodity_id)
             if commodity is None:
@@ -4743,7 +4762,7 @@ def starting_capital(mean_pair_distance: float, fuel_efficiency: float) -> int:
     """
     fuel_units = (
         mean_round_trip_fuel(mean_pair_distance, fuel_efficiency) / FUEL_MILLI
-    ) + (2 * MAINTENANCE_CHANCE * MAINTENANCE_FUEL_UNITS)
+    ) + (2 * MAINTENANCE_CHANCE * MAINTENANCE_FUEL_MILLI / FUEL_MILLI)
     budget = (
         SHIP_CAPITAL_ROUND_TRIPS
         * fuel_units

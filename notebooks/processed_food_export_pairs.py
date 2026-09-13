@@ -42,8 +42,9 @@ from spacesim2.core.navigation import Navigator, get_navigator
 from spacesim2.core.planet import Planet
 from spacesim2.core.ship import (
     DEMAND_HORIZON_TURNS,
+    FUEL_MILLI,
     MAINTENANCE_CHANCE,
-    MAINTENANCE_FUEL_UNITS,
+    MAINTENANCE_FUEL_MILLI,
     SELL_PRICE_HAIRCUT,
     SPECULATIVE_PLAN_CAP,
     Ship,
@@ -190,7 +191,7 @@ def trace_pair_economics(
         return out
 
     maintenance_cost = math.ceil(
-        2 * MAINTENANCE_CHANCE * MAINTENANCE_FUEL_UNITS * fuel_price
+        2 * MAINTENANCE_CHANCE * MAINTENANCE_FUEL_MILLI * fuel_price / FUEL_MILLI
     )
     fuel_left_after_trip = max(current_fuel, fuel_round_trip) - fuel_round_trip
     reserve_need = brain._fuel_reserve_need()

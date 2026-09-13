@@ -14,7 +14,7 @@ from spacesim2.core.galaxy import StarLaneNetwork
 from spacesim2.core.market import Market
 from spacesim2.core.navigation import FUEL_STATION_MIN_DEPTH
 from spacesim2.core.planet import Planet
-from spacesim2.core.ship import MAINTENANCE_FUEL_UNITS, Ship, units_to_milli
+from spacesim2.core.ship import MAINTENANCE_FUEL_MILLI, Ship
 
 MAINTENANCE_GOODS = (
     ("ship_components", "Ship Components"),
@@ -149,8 +149,9 @@ def test_arrival_requirement_carries_the_maintenance_buffer_without_a_kit():
     ship.brain._nav.refresh_market_facts()
 
     escape_leg = ship.fuel_required(ship.route_distance(b, a))
-    assert ship.brain._arrival_fuel_requirement(b, a) == escape_leg + units_to_milli(
-        MAINTENANCE_FUEL_UNITS
+    assert (
+        ship.brain._arrival_fuel_requirement(b, a)
+        == escape_leg + MAINTENANCE_FUEL_MILLI
     )
 
     ship.cargo.add_commodity(components, 1)
@@ -167,9 +168,7 @@ def test_a_partial_tier_is_not_a_repair_kit():
 
     ship.cargo.add_commodity(supplies, 2)
     assert not ship.brain._holds_repair_kit()
-    assert ship.brain._maintenance_fuel_buffer() == units_to_milli(
-        MAINTENANCE_FUEL_UNITS
-    )
+    assert ship.brain._maintenance_fuel_buffer() == MAINTENANCE_FUEL_MILLI
 
     ship.cargo.add_commodity(supplies, 1)
     assert ship.brain._holds_repair_kit()
@@ -195,8 +194,8 @@ def test_kit_bought_when_it_costs_less_than_the_fuel_it_saves():
     sim, registry, a, _b, supplier = _fuel_reference_world()
     supplies = registry.get_commodity("ship_supplies")
     supplier.cargo.add_commodity(supplies, 10)
-    # Three units at 12 is 36, under 5 fuel at the reference of 10.
-    a.market.place_sell_order(supplier, supplies, 10, 12)
+    # Three units at 1 is 3, under 0.5 fuel at the reference of 10.
+    a.market.place_sell_order(supplier, supplies, 10, 1)
     ship = _make_ship(sim, a, money=5000, name="Trader")
     ship.brain._nav.refresh_market_facts()
 
@@ -205,17 +204,17 @@ def test_kit_bought_when_it_costs_less_than_the_fuel_it_saves():
     assert len(actions) == 1
     orders = a.market.get_actor_orders(ship)["buy"]
     assert [(o.commodity_type.id, o.quantity, o.price) for o in orders] == [
-        ("ship_supplies", 3, 12)
+        ("ship_supplies", 3, 1)
     ]
 
 
-def test_kit_skipped_when_it_costs_more_than_five_fuel():
+def test_kit_skipped_when_it_costs_more_than_the_fuel_it_saves():
     """Above the fuel it would save, the kit is not worth the money."""
     sim, registry, a, _b, supplier = _fuel_reference_world()
     supplies = registry.get_commodity("ship_supplies")
     supplier.cargo.add_commodity(supplies, 10)
-    # Three units at 20 is 60, above 5 fuel at the reference of 10.
-    a.market.place_sell_order(supplier, supplies, 10, 20)
+    # Three units at 2 is 6, above 0.5 fuel at the reference of 10.
+    a.market.place_sell_order(supplier, supplies, 10, 2)
     ship = _make_ship(sim, a, money=5000, name="Trader")
     ship.brain._nav.refresh_market_facts()
 
@@ -241,13 +240,13 @@ def test_kit_purchase_respects_the_cash_buffer():
     sim, registry, a, _b, supplier = _fuel_reference_world()
     supplies = registry.get_commodity("ship_supplies")
     supplier.cargo.add_commodity(supplies, 10)
-    a.market.place_sell_order(supplier, supplies, 10, 12)
-    # 36 credits of kit against 39 spendable out of 44.
-    ship = _make_ship(sim, a, money=39, name="Poor")
+    a.market.place_sell_order(supplier, supplies, 10, 1)
+    # 3 credits of kit against 2 spendable out of 3.
+    ship = _make_ship(sim, a, money=3, name="Poor")
     ship.brain._nav.refresh_market_facts()
     assert ship.brain._buy_repair_kit() == []
 
-    rich = _make_ship(sim, a, money=41, name="LessPoor")
+    rich = _make_ship(sim, a, money=4, name="LessPoor")
     assert rich.brain._buy_repair_kit() != []
 
 

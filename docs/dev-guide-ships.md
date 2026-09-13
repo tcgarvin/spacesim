@@ -118,7 +118,7 @@ ceiling again after dividing by efficiency.
 | Fuel capacity | `BASE_FUEL_CAPACITY` (6 units, `6 * FUEL_MILLI`) or more | Tank, separate from the hold; scales with the galaxy, see below |
 | Starting fuel | `INITIAL_FUEL_FRACTION` (60%) of the tank | Initial fuel for new ships |
 | Fuel efficiency | 0.8-1.2 | Random multiplier per ship |
-| Maintenance cost | 5 fuel (`MAINTENANCE_FUEL_UNITS`) | `MAINTENANCE_CHANCE` (10%) per departure; market units, not millifuel |
+| Maintenance cost | 500 millifuel (`MAINTENANCE_FUEL_MILLI`, 0.5 market units) | `MAINTENANCE_CHANCE` (10%) per departure; burns the tank, not the hold |
 | Travel time | `ceil(distance / 20)` turns (`DISTANCE_PER_TURN`) | Independent of fuel |
 
 ### Fuel purchasing: bunker or ration
@@ -540,18 +540,21 @@ exactly its escape leg can be short of it before it can requeue for fuel.
 `TraderBrain._arrival_fuel_requirement` adds a buffer on top of the escape
 leg to cover this:
 
-- `TraderBrain._maintenance_fuel_buffer()` returns `MAINTENANCE_FUEL_UNITS`
-  (5), the fuel-tier repair cost, unless the ship holds a complete repair
-  kit, in which case it returns 0.
+- `TraderBrain._maintenance_fuel_buffer()` returns `MAINTENANCE_FUEL_MILLI`
+  (500 millifuel, 0.5 market units), the fuel-tier repair cost, unless the
+  ship holds a complete repair kit, in which case it returns 0.
 - `TraderBrain._holds_repair_kit()` and `_repair_kit_tier()` check the hold
   against `MAINTENANCE_KIT_TIERS` - `ship_components` (1 unit),
   `ship_parts` (2), `ship_supplies` (3), best quality first, the same order
-  `Ship.perform_maintenance` tries them in. `MAINTENANCE_TIERS` is those
-  three plus the legacy `nova_fuel` (`MAINTENANCE_FUEL_UNITS`) tank-fuel
-  tier, which is what the buffer exists to survive.
+  `Ship.perform_maintenance` tries them in. Those quantities are whole units
+  of hold cargo. The legacy `nova_fuel` tier is not one of them: it burns
+  `MAINTENANCE_FUEL_MILLI` of tank millifuel after the kit tiers fail, and
+  is what the buffer exists to survive. `Ship._maintenance_tiers()` rounds
+  it up to one market unit for the purchase path, since a market sells only
+  whole units.
 - `TraderBrain._buy_repair_kit()` buys the cheapest complete tier with a
   resting ask, once per turn, whenever its cost is below
-  `MAINTENANCE_FUEL_UNITS` valued at the galaxy fuel reference: owning a kit
+  `MAINTENANCE_FUEL_MILLI` valued at the galaxy fuel reference: owning a kit
   removes the buffer from every arrival requirement this ship funds, so a
   kit that costs less than the buffer it removes pays for itself
   immediately. Runs in `decide_trade_actions` ahead of cargo listing and

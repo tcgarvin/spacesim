@@ -27,9 +27,19 @@ ceil-to-a-unit-then-ceil-again-after-efficiency double rounding. Market
 purchases stay in whole units; `units_to_milli`, `milli_to_units_ceil`, and
 `milli_to_units_floor` convert at the boundary.
 
-Two decisions: the maintenance fuel tier stays at `MAINTENANCE_FUEL_UNITS`
-(5 market units, unchanged) rather than being re-expressed in millifuel,
-since it prices a repair event, not a distance; starting capital and tank
+Two decisions: the maintenance fuel tier is re-expressed in millifuel as
+`MAINTENANCE_FUEL_MILLI` = 500, a tenth of the old 5 market units, keeping
+the tank fraction it had before the efficiency change. Left at 5 units it
+was 5000 millifuel out of a 6000-millifuel tank, and the kit-less arrival
+buffer that reserves it vetoed most destinations:
+
+| Probe, 12 planets x 200 turns x 2 replicates | 5000 milli | 500 milli |
+|---|---|---|
+| `_fuel_safe_destination` vetoes, kit-less ships | 54% | - |
+| Departures / turn | 0.66 | 0.87 |
+| Median ship money | 437 | 1141 |
+
+Starting capital and tank
 size, both derived from mean round-trip fuel, shrink about tenfold with the
 burn rather than being held at their old floors, so the `SHIP_CAPITAL_FLOOR`
 (1000) still applies but binds more often at small galaxies.

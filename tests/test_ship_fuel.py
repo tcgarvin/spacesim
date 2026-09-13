@@ -24,7 +24,7 @@ from spacesim2.core.ship import (
     BASE_FUEL_CAPACITY,
     DISTRESS_PATIENCE,
     FUEL_BID_FALLBACK_FLOOR,
-    MAINTENANCE_FUEL_UNITS,
+    MAINTENANCE_FUEL_MILLI,
     Ship,
     TradePlan,
     milli_to_units_ceil,
@@ -475,7 +475,7 @@ def test_maintenance_standing_bid_when_no_asks():
     ship._buy_maintenance_supplies()
     bids = [o for o in a.market.buy_orders[fuel] if o.actor is ship]
     assert len(bids) == 1
-    assert bids[0].quantity == 5  # the full nova_fuel tier shortfall
+    assert bids[0].quantity == 1  # the fuel tier, rounded up to a market unit
     first_price = bids[0].price
     assert first_price >= 10
 
@@ -704,11 +704,11 @@ def test_plan_prices_in_expected_maintenance():
     plan = trader.brain._evaluate_trade_opportunity(a, b, food)
 
     assert plan is not None
-    # 2 departures x 10% x 5 fuel units x fuel ask 20 = 20.
-    assert plan.expected_maintenance_cost == 20
+    # 2 departures x 10% x 0.5 fuel units x fuel ask 20 = 2.
+    assert plan.expected_maintenance_cost == 2
     assert (
         plan.expected_profit
-        == plan.expected_revenue - plan.total_purchase_cost - plan.total_fuel_cost - 20
+        == plan.expected_revenue - plan.total_purchase_cost - plan.total_fuel_cost - 2
     )
 
 
@@ -753,7 +753,7 @@ def test_maintenance_bids_prefer_produced_tiers_and_cover_all():
     fuel_bids = [o for o in a.market.buy_orders[fuel] if o.actor is ship]
     comp_bids = [o for o in a.market.buy_orders[components] if o.actor is ship]
     assert len(fuel_bids) == 1
-    assert fuel_bids[0].quantity == 5
+    assert fuel_bids[0].quantity == 1
     assert len(comp_bids) == 1
     assert comp_bids[0].quantity == 1
     # The produced fuel tier was funded first. With money to spare both rest
@@ -844,10 +844,11 @@ def test_arrival_requirement_holds_the_escape_leg_against_a_trickle_ask():
     assert ship.brain._nav.fuel_purchasable_at(b)
     assert not ship.brain._nav.fuel_station_at(b)
 
-    # No kit: a maintenance roll could burn MAINTENANCE_FUEL_UNITS of the
+    # No kit: a maintenance roll could burn MAINTENANCE_FUEL_MILLI of the
     # reserve after landing, so the requirement carries it.
-    assert ship.brain._arrival_fuel_requirement(b, a) == escape_cost + units_to_milli(
-        MAINTENANCE_FUEL_UNITS
+    assert (
+        ship.brain._arrival_fuel_requirement(b, a)
+        == escape_cost + MAINTENANCE_FUEL_MILLI
     )
 
     _give_repair_kit(ship)
