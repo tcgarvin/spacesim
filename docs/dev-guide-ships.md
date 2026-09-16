@@ -651,12 +651,29 @@ each held commodity against, for every other planet the ship can reach
 leg's fuel cost. Holding wins only when the destination's net beats the
 local value by 15% or more, and a loaded plan's cargo is not compared here —
 it flies to `plan.destination`. A commodity that has already made
-`MAX_CARGO_HOPS` (1) hops is skipped and defaults to selling locally: cargo
-that keeps hopping burns fuel on every leg against a price that has usually
-gone by arrival. `decide_travel`'s cargo branch (an unloaded hold, not under
-a plan) values `cargo_to_sell` at each candidate destination the same way,
-with `_realizable_value`, and counts a hop in `_cargo_hops` per commodity
-when it picks a destination.
+`MAX_CARGO_HOPS` (1) hops takes no part in that comparison: cargo that keeps
+hopping burns fuel on every leg against a price that has usually gone by
+arrival. `decide_travel`'s cargo branch (an unloaded hold, not under a plan)
+values `cargo_to_sell` at each candidate destination the same way, with
+`_realizable_value`, and counts a hop in `_cargo_hops` per commodity when it
+picks a destination.
+
+`_capped_cargo_ids` names the lots at the cap, and they are sold where the
+ship is. `decide_trade_actions` lists them through the ordinary cost-basis
+ladder even on a turn the rest of the hold is being held for another market,
+and `decide_travel` leaves them out of `cargo_to_sell`, so they do not vote
+for a destination and their hop count stops rising. A trade plan's own
+commodity and its add-ons are never capped goods: they were bought at the
+origin to sell at the plan's destination, and listing them at the origin
+would undo the plan. The listing does not pin the ship: if it does not fill
+before the ship has to leave — a contract deadline, a distress hop — the lot
+rides along and is listed again on arrival.
+
+The forced listing is what makes the cap binding. A cap that only removed a
+lot from the hold-for-elsewhere vote let the ship leave on the strength of
+other cargo while the stale lot rode along, and the space it took came off
+every later plan and add-on: plan sizing reads `cargo_capacity -
+cargo.get_total_quantity()`.
 
 A ship left holding cargo for another market that cannot depart —
 `_cargo_disposition` said hold, but the fuel gate refuses each turn — is not

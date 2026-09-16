@@ -390,3 +390,101 @@ def test_a_loaded_plan_that_cannot_depart_lists_its_hold():
     assert [o for o in a.market.sell_orders[food] if o.actor is ship]
     # The ask must not pin the ship here: the plan may still fly.
     assert ship.brain._selling_locally is False
+
+
+# ---------------------------------------------------------------------------
+# R5.4: a lot at the hop cap sells where the ship is
+# ---------------------------------------------------------------------------
+
+
+def _hold_and_stale_world():
+    """Two planets, fuel at both, and a ship holding food and medicine at A.
+
+    Medicine is worth far more at B than at A, so the hold votes to fly;
+    food has a local buyer at A. The caller sets the hop counts.
+    """
+    sim, fuel, food, (a, b) = _make_world([("A", 0, 0), ("B", 100, 0)])
+    medicine = CommodityDefinition(
+        id="medicine", name="Medicine", transportable=True, description="Cures."
+    )
+    sim.commodity_registry.add_commodity(medicine)
+
+    supplier_a = _make_ship(sim, a, hold_fuel=400, name="SupplierA")
+    a.market.place_sell_order(supplier_a, fuel, 200, 5)
+    supplier_b = _make_ship(sim, b, hold_fuel=400, name="SupplierB")
+    b.market.place_sell_order(supplier_b, fuel, 200, 5)
+
+    local_buyer = _make_ship(sim, a, money=20000, name="LocalBuyer")
+    a.market.place_buy_order(local_buyer, food, 20, 10)
+    remote_buyer = _make_ship(sim, b, money=200000, name="RemoteBuyer")
+    b.market.place_buy_order(remote_buyer, medicine, 20, 100)
+
+    ship = _make_ship(sim, a, fuel_units=6, money=2000, name="Hopper")
+    ship.cargo.add_commodity(food, 10)
+    ship.cargo.add_commodity(medicine, 10)
+    ship.brain._nav.refresh_market_facts()
+    return sim, a, b, food, medicine, ship
+
+
+def test_capped_cargo_is_listed_where_it_stands_while_other_cargo_flies():
+    """The lot at the cap sells here; it neither votes nor takes another hop."""
+    _sim, a, b, food, medicine, ship = _hold_and_stale_world()
+    ship.brain._cargo_hops["food"] = MAX_CARGO_HOPS
+
+    ship.brain.decide_trade_actions()
+
+    # Food is offered at A; the medicine the ship is flying with is not.
+    assert [o for o in a.market.sell_orders[food] if o.actor is ship]
+    assert not [o for o in a.market.sell_orders[medicine] if o.actor is ship]
+    # The ask does not pin the ship: the trip for the medicine still happens.
+    assert ship.brain._selling_locally is False
+
+    assert ship.brain.decide_travel() is b
+    # The capped lot did not travel as cargo to sell, so it took no hop.
+    assert ship.brain._cargo_hops["food"] == MAX_CARGO_HOPS
+    assert ship.brain._cargo_hops["medicine"] == 1
+
+
+def test_cargo_below_the_hop_cap_still_travels_with_the_hold():
+    """Under the cap nothing is force-listed and every lot counts a hop."""
+    sim, a, b, food, _medicine, ship = _hold_and_stale_world()
+    food_buyer = _make_ship(sim, b, money=200000, name="FoodBuyerB")
+    b.market.place_buy_order(food_buyer, food, 20, 100)
+    ship.brain._nav.refresh_market_facts()
+
+    ship.brain.decide_trade_actions()
+
+    assert not [o for o in a.market.sell_orders[food] if o.actor is ship]
+    assert ship.brain.decide_travel() is b
+    assert ship.brain._cargo_hops["food"] == 1
+    assert ship.brain._cargo_hops["medicine"] == 1
+
+
+def test_plan_cargo_at_its_origin_is_never_force_listed():
+    """A capped hop count on the plan's own commodity does not sell it here."""
+    _sim, a, b, food, _medicine, ship = _hold_and_stale_world()
+    ship.cargo.remove_commodity(_medicine, 10)
+    ship.brain._cargo_hops["food"] = MAX_CARGO_HOPS
+    plan = TradePlan(
+        origin=a,
+        destination=b,
+        commodity=food,
+        quantity=10,
+        bid_price_per_unit=20,
+        purchase_price_per_unit=20,
+        expected_sell_price_per_unit=100,
+        distance=ship.route_distance(a, b),
+        fuel_needed_one_way=ship.fuel_required(ship.route_distance(a, b)),
+        fuel_price_at_origin=5,
+        fuel_units_from_tank=0,
+        fuel_price_from_tank=5,
+    )
+    ship.brain._current_plan = plan
+    ship.brain._plan_loaded = True
+    ship.brain._plan_turns_left = ACCUMULATION_PATIENCE
+
+    assert not ship.brain._plan_departure_blocked(plan)
+
+    ship.brain.decide_trade_actions()
+
+    assert not [o for o in a.market.sell_orders[food] if o.actor is ship]
