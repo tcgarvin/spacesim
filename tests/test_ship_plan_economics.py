@@ -17,6 +17,7 @@ from spacesim2.core.market import Market
 from spacesim2.core.planet import Planet
 from spacesim2.core.ship import (
     ACCUMULATION_PATIENCE,
+    FLOW_CAPTURE_SHARE,
     FUEL_MILLI,
     Ship,
     milli_to_units_ceil,
@@ -320,3 +321,72 @@ def test_acquisition_walks_past_its_own_ask_to_the_real_one():
     assert acquisition is not None
     assert acquisition.entry_price == 20
     assert acquisition.ask_levels == [(20, 40)]
+
+
+# ---------------------------------------------------------------------------
+# Quantity is capped by what the origin can supply
+# ---------------------------------------------------------------------------
+
+
+def test_plan_quantity_is_capped_by_origin_ask_depth_and_flow():
+    """A deep destination and a full wallet do not buy units nobody is selling."""
+    sim, fuel, food, (a, b) = _make_world([("A", 0, 0), ("B", 100, 0)])
+    seller = _make_ship(sim, a, hold_fuel=200, name="Seller")
+    seller.cargo.add_commodity(food, 5)
+    a.market.place_sell_order(seller, food, 5, 10)
+    a.market.place_sell_order(seller, fuel, 100, 5)
+    _record_flow(a.market, food, 10, 2)  # 2 units a turn clear here
+    buyer = _make_ship(sim, b, money=100000, name="Buyer")
+    b.market.place_buy_order(buyer, food, 200, 40)
+
+    trader = _make_ship(sim, a, money=100000, name="Trader")
+    _give_repair_kit(trader)
+    acquisition = trader.brain._origin_acquisition(a, food)
+    assert acquisition is not None
+    expected = 5 + int(2 * ACCUMULATION_PATIENCE * FLOW_CAPTURE_SHARE)
+    assert acquisition.acquirable == expected
+
+    plan = trader.brain._evaluate_trade_opportunity(a, b, food)
+    assert plan is not None
+    assert plan.quantity == expected
+
+
+def test_origin_supply_does_not_bind_when_the_book_is_deeper_than_demand():
+    """The destination's demand still sizes the plan on a deep origin book."""
+    sim, fuel, food, (a, b) = _make_world([("A", 0, 0), ("B", 100, 0)])
+    seller = _make_ship(sim, a, hold_fuel=200, name="Seller")
+    seller.cargo.add_commodity(food, 200)
+    a.market.place_sell_order(seller, food, 200, 10)
+    a.market.place_sell_order(seller, fuel, 100, 5)
+    buyer = _make_ship(sim, b, money=100000, name="Buyer")
+    b.market.place_buy_order(buyer, food, 6, 40)
+
+    trader = _make_ship(sim, a, money=100000, name="Trader")
+    _give_repair_kit(trader)
+    acquisition = trader.brain._origin_acquisition(a, food)
+    assert acquisition is not None
+    assert acquisition.acquirable == 200
+
+    plan = trader.brain._evaluate_trade_opportunity(a, b, food)
+    assert plan is not None
+    assert plan.quantity == 6  # the destination's bid depth, not the book's
+
+
+def test_no_plan_when_origin_supply_rounds_to_nothing():
+    """A price signal with a trickle of flow and no resting ask buys nothing."""
+    sim, fuel, food, (a, b) = _make_world([("A", 0, 0), ("B", 100, 0)])
+    seller = _make_ship(sim, a, hold_fuel=200, name="Seller")
+    a.market.place_sell_order(seller, fuel, 100, 5)
+    # A believable price, but one unit cleared in five turns: under the
+    # capture share, eight docked turns win no whole unit.
+    a.market.last_traded_prices[food] = [10]
+    a.market.price_history[food] = [10]
+    a.market.volume_history[food] = [0, 0, 0, 0, 1]
+    a.market._clear_history_read_caches()
+    buyer = _make_ship(sim, b, money=100000, name="Buyer")
+    b.market.place_buy_order(buyer, food, 200, 40)
+
+    trader = _make_ship(sim, a, money=100000, name="Trader")
+    _give_repair_kit(trader)
+    assert trader.brain._origin_acquisition(a, food) is None
+    assert trader.brain._evaluate_trade_opportunity(a, b, food) is None

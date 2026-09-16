@@ -71,9 +71,10 @@ _LIVENESS_COMMODITY = "food"
 # while the drive's health coasts on existing stock.
 _DRIVE_MATERIALS = ("food", "clothing", "simple_building_materials", "medicine")
 
-# Commodities whose ship-carried share is worth watching: the drive materials
-# plus the fuel that moves them.
-_TRADE_WATCH_COMMODITIES = _DRIVE_MATERIALS + ("nova_fuel",)
+# Commodities whose ship-carried share is worth watching: the drive materials,
+# the fuel that moves them, and processed_food, the staple the upper tier of
+# the food chain exports.
+_TRADE_WATCH_COMMODITIES = _DRIVE_MATERIALS + ("nova_fuel", "processed_food")
 
 # Turns of history behind the `markets` and `trade` sections. Market volume
 # series keep 120 entries and transaction history is capped per market, so

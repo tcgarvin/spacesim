@@ -109,6 +109,11 @@ DEMAND_HORIZON_TURNS = 15
 # Docked turns a ship keeps a resting buy order open to fill its plan before
 # departing with what it has, or replanning if nothing filled.
 ACCUMULATION_PATIENCE = 8
+# Share of a market's recent per-turn flow one ship expects to win while its
+# buy order rests. The rest goes to local buyers and other ships. Plans sized
+# on the whole flow were phantom: a ship would plan 45 units, buy 7, and
+# depart with the trickle after ACCUMULATION_PATIENCE turns.
+FLOW_CAPTURE_SHARE = 0.5
 # Confidence discount on avg-price revenue estimates and resting asks. The
 # flow price is a forecast, not a resting order.
 SELL_PRICE_HAIRCUT = 0.9
@@ -503,6 +508,11 @@ class _OriginAcquisition:
     # else the flow price. Screens destination demand before the exact
     # quantity, and so the exact walked cost, is known.
     entry_price: int
+    # Units the ship can expect to buy here within the accumulation window:
+    # resting ask depth at or below ``bid_price`` plus the winnable share of
+    # the recent per-turn flow over ACCUMULATION_PATIENCE turns. Caps the
+    # planned quantity, so a plan is sized by what the origin can supply.
+    acquirable: int
 
 
 class ShipStatus(enum.Enum):
@@ -2097,7 +2107,8 @@ class TraderBrain(ShipBrain):
         replanning in the same turn would otherwise do.
 
         Returns None when the commodity cannot be acquired at all: no ask
-        resting and no flow to bid into.
+        resting and no flow to bid into, or a supply so thin that the ship
+        could not expect a single unit within the accumulation window.
         """
         market = origin.market
         _, origin_ask = market.get_bid_ask_spread(commodity)
@@ -2118,11 +2129,24 @@ class TraderBrain(ShipBrain):
 
         entry_price = ask_levels[0][0] if ask_levels else flow_price
         bid_price = max(entry_price, flow_price)
+        # What the origin can actually supply within the accumulation window:
+        # the resting asks the bid would lift, plus the share of the recent
+        # flow this ship can expect to win while it waits.
+        resting_depth = sum(qty for price, qty in ask_levels if price <= bid_price)
+        winnable_flow = int(
+            self._recent_flow_per_turn(market, commodity)
+            * ACCUMULATION_PATIENCE
+            * FLOW_CAPTURE_SHARE
+        )
+        acquirable = resting_depth + winnable_flow
+        if acquirable <= 0:
+            return None
         return _OriginAcquisition(
             ask_levels=ask_levels,
             flow_price=flow_price,
             bid_price=bid_price,
             entry_price=entry_price,
+            acquirable=acquirable,
         )
 
     def _walked_purchase_price(
@@ -2162,6 +2186,8 @@ class TraderBrain(ShipBrain):
         - Commodity is acquirable at origin: a resting ask, or an active
           local flow the ship can bid into
         - Enough money for purchase plus fuel
+        - The quantity the origin can supply while the buy order rests
+          (``_OriginAcquisition.acquirable``)
         - Enough cargo space
         - Enough fuel for the round trip, held or purchasable
 
@@ -2224,7 +2250,7 @@ class TraderBrain(ShipBrain):
 
         # Project revenue from the resting bids first, since their prices are
         # firm, then value the remainder at the haircut flow price.
-        quantity = min(max_quantity, sellable)
+        quantity = min(max_quantity, sellable, acquisition.acquirable)
         if quantity <= 0:
             return None
         remaining = quantity

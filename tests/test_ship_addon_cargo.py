@@ -30,6 +30,12 @@ def _addon_world(tools_bid_at_destination=True, food_depth=100):
     food_seller = _make_ship(sim, a, name="FoodSeller")
     food_seller.cargo.add_commodity(food, food_depth)
     a.market.place_sell_order(food_seller, food, food_depth, 10)
+    # Food also clears here at 5 units a turn, so a plan may be sized above
+    # the resting depth and fill over several docked turns.
+    a.market.last_traded_prices[food] = [10]
+    a.market.price_history[food] = [10]
+    a.market.volume_history[food] = [5]
+    a.market._clear_history_read_caches()
     tools_seller = _make_ship(sim, a, name="ToolsSeller")
     tools_seller.cargo.add_commodity(tools, 50)
     a.market.place_sell_order(tools_seller, tools, 50, 20)
@@ -79,7 +85,7 @@ def test_no_addon_without_destination_demand():
 
 
 def test_addon_cargo_is_not_sold_at_the_origin_while_accumulating():
-    # Only 30 food rests at A, so the 50-unit plan accumulates over turns.
+    # Only 30 food rests at A, so the plan the flow supports accumulates.
     sim, fuel, food, tools, a, b, trader = _addon_world(food_depth=30)
 
     trader.brain.decide_trade_actions()

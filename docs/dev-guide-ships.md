@@ -60,6 +60,13 @@ destination. `TraderBrain` is the reference implementation.
   Top-of-book times quantity overestimates on thin books.
 - A plan with no resting destination bids is speculative and capped at
   `SPECULATIVE_PLAN_CAP` units.
+- Cap quantity at what the origin can supply, `_OriginAcquisition.acquirable`:
+  resting ask depth at or below the plan's bid price plus the recent per-turn
+  flow times `ACCUMULATION_PATIENCE` times `FLOW_CAPTURE_SHARE` (0.5), the
+  share of local flow one ship expects to win. Without it a ship planned 45
+  units off a book holding 7, and the expected profit it was ranked on was
+  never achievable. A commodity whose origin supply rounds to zero is not
+  planned at all.
 - Price in expected maintenance through `TradePlan.expected_maintenance_cost`
   (2 departures times `MAINTENANCE_CHANCE` times the fuel-tier repair cost).
 - With deferred matching the resting book holds only what the local auction
