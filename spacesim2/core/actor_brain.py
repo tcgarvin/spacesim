@@ -94,9 +94,10 @@ class BrainCache:
       ``best_result``. They read tool/facility ownership or
       ``can_execute_process``.
 
-    ``yield_modifier`` is outside all groups and is never reset. It depends
-    only on the planet's attributes, fixed for the run, and the process,
-    and an actor never changes planet.
+    ``yield_modifier`` and ``hand_food_labor`` are outside all groups and
+    are never reset. They depend only on the actor's land, fixed for as long
+    as it stays on the planet, and on the process definitions. A migrant
+    draws new land, so the brains drop the whole cache on relocation.
 
     Money and drive metrics are not cached here, so they need no
     versioning. Keys are commodity/process ``id`` strings.
@@ -108,6 +109,7 @@ class BrainCache:
         "process_quote_values",
         "replacement_quote_parts",
         "yield_modifier",
+        "hand_food_labor",
         "skill_factor",
         "ranked_profits",
         "replacement_cost",
@@ -124,6 +126,9 @@ class BrainCache:
         self._actor_key: Tuple[int, int, int] = (-1, -1, -1)
         self._skills_key: Tuple[int, int] = (-1, -1)
         self.yield_modifier: Dict[str, float] = {}
+        # Labor turns per unit of hand-made food; None until first computed.
+        # See brains/hand_food.py.
+        self.hand_food_labor: Optional[float] = None
         self._reset_market_group()
         self._reset_skill_group()
         self._reset_valuation_group()

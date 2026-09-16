@@ -11,6 +11,7 @@ from spacesim2.core.actor import ActorType
 from spacesim2.core.brains.colonist import ColonistBrain
 from spacesim2.core.brains.industrialist import IndustrialistBrain
 from spacesim2.core.commands import PlaceSellOrderCommand, ProcessCommand
+from spacesim2.core.land import Land
 from spacesim2.core.simulation import Simulation
 
 
@@ -27,6 +28,9 @@ def world():
         num_planets=1, num_regular_actors=4, num_market_makers=0, num_ships=0
     )
     actor = next(a for a in sim.actors if a.actor_type == ActorType.REGULAR)
+    # Pin the land: a barren draw makes hand food unviable and the brains
+    # then skip the gate under test entirely. See brains/hand_food.py.
+    actor.land = Land({"biomass": 1.0})
     reg = sim.commodity_registry
     food = reg.get_commodity("food")
     biomass = reg.get_commodity("biomass")

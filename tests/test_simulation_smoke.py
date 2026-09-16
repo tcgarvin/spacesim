@@ -17,6 +17,7 @@ from spacesim2.analysis.summary import (
     compute_summary,
 )
 from spacesim2.cli.common import create_and_setup_simulation
+from spacesim2.core import planet_attributes
 
 
 @pytest.fixture(scope="module")
@@ -26,7 +27,12 @@ def smoke_run() -> dict:
     Self-trades are tallied as the run proceeds rather than read off the final
     books, because each market retains only its last few hundred transactions.
     """
-    sim = create_and_setup_simulation(planets=2, actors=40, makers=1, ships=1)
+    # Pin both planets above the hand-food break-even. With one ship and two
+    # planets a barren draw (1 in 6 per planet) starves half the population
+    # inside 120 turns by design; barren geography has its own tests.
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(planet_attributes, "BIOMASS_DRAW_LOW", 0.2)
+        sim = create_and_setup_simulation(planets=2, actors=40, makers=1, ships=1)
     highest_seen: Dict[int, int] = {}
     self_trades: List[Tuple[str, str, int]] = []
     for _ in range(120):

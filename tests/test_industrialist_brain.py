@@ -25,8 +25,9 @@ from spacesim2.core.commodity import (
     Inventory,
 )
 from spacesim2.core.drives.food_drive import FoodDrive
+from spacesim2.core.land import Land
 from spacesim2.core.market import Market
-from spacesim2.core.process import ProcessDefinition
+from spacesim2.core.process import ProcessDefinition, ResourceAttribute
 
 
 def _real_registry() -> CommodityRegistry:
@@ -34,6 +35,39 @@ def _real_registry() -> CommodityRegistry:
     registry = CommodityRegistry()
     registry.load_from_file("data/commodities.yaml")
     return registry
+
+
+def _hand_food_process_stub(commodity):
+    """A ``get_process`` side effect that knows only the hand-food track.
+
+    ``hand_food_viable`` prices ``gather_biomass`` and ``make_food`` from the
+    registry before the pantry gate is read, so a mock universe with no
+    processes at all never lets the gate fire. The mock registry resolves
+    every commodity id to one object, so food and biomass are the same here.
+    """
+    gather = ProcessDefinition(
+        id="gather_biomass",
+        name="Gather Biomass",
+        inputs={},
+        outputs={commodity: 8},
+        tools_required=[],
+        facilities_required=[],
+        labor=1,
+        description="",
+        resource_attribute=ResourceAttribute(commodity="biomass", effect="output"),
+    )
+    cook = ProcessDefinition(
+        id="make_food",
+        name="Make Food",
+        inputs={commodity: 4},
+        outputs={commodity: 4},
+        tools_required=[],
+        facilities_required=[],
+        labor=1,
+        description="",
+    )
+    by_id = {"gather_biomass": gather, "make_food": cook}
+    return lambda process_id: by_id.get(process_id)
 
 
 def _wire_producer_index(sim_mock):
@@ -163,9 +197,12 @@ class TestIndustrialistBrain:
             mock_food_commodity
         )
         mock_actor.sim.process_registry.all_processes.return_value = []
-        # No process definitions in this universe, so the self-supply record
-        # finds nothing to note.
-        mock_actor.sim.process_registry.get_process.return_value = None
+        # The gate first asks whether hand food pays on this actor's land,
+        # so the two food recipes have to exist. Everything else is absent.
+        mock_actor.land = Land({"biomass": 1.0})
+        mock_actor.sim.process_registry.get_process.side_effect = (
+            _hand_food_process_stub(mock_food_commodity)
+        )
         mock_actor.inventory.get_quantity.return_value = 1
         mock_actor.can_execute_process.return_value = True
 

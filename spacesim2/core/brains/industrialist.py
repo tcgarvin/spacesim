@@ -9,6 +9,7 @@ from spacesim2.core.actor_brain import (
     _get_avg_price,
     _get_bid_ask,
 )
+from spacesim2.core.brains.hand_food import hand_food_viable
 from spacesim2.core.brains.migration import (
     MigrationIntent,
     clear_intent,
@@ -271,7 +272,9 @@ class IndustrialistBrain(ActorBrain):
             return GovernmentWorkCommand()
 
         # The pantry counts the bought staple as well as hand-cooked food.
-        if food_pantry_units(actor) < 2:
+        # Land too barren to feed its holder skips the gate: gathering there
+        # never fills the pantry. See hand_food.py.
+        if food_pantry_units(actor) < 2 and hand_food_viable(actor, cache):
             if actor.can_execute_process("make_food"):
                 return self._record_self_supply(actor, "make_food")
             if biomass_commodity:

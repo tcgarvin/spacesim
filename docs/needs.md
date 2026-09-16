@@ -150,6 +150,38 @@ Only `FoodDrive` lists more than one material, so today only
 `processed_food` is affected. Cost is one dict lookup per material:
 `_cheapest_material_ask` has already filled the quote cache.
 
+### The food gate only fires where hand food works
+
+Both brains gate on a low pantry and answer it by gathering biomass and
+cooking. `ProcessCommand.execute` floors every run at 1 unit of output, so
+an actor whose land yields no biomass still brings home 1 unit a turn: four
+gather turns and a cook turn make 4 food per 5 turns against 1 eaten per
+turn. The pantry never reaches the gate's threshold, so the actor gathers
+for the rest of its life and buys nothing.
+
+`hand_food_viable` (`core/brains/hand_food.py`) prices the track in labor
+before the gate is read. It takes the two recipes from the registry and
+scales the gathering step by the actor's own land, the coefficient
+`ProcessCommand.execute` applies before its 1-unit floor:
+
+| biomass availability | labor turns per unit of food | viable |
+|---|---|---|
+| 1.0 | 0.375 | yes |
+| 0.2 | 0.875 | yes |
+| 0.1 | 1.5 | no |
+| 0.0 | infinite | no |
+
+Viable means one labor turn covers `DAILY_CONSUMPTION`, which is 1 food.
+Below that line the brains skip the whole food block and the actor falls
+through to its other work. The food drive's own market bid is untouched, so
+those residents buy imported food out of the wage. The verdict depends only
+on the land and the recipes, so it is memoized in the never-reset group of
+`BrainCache` and dropped with the rest of the cache when the actor migrates.
+
+The skill multiplier is left out of the figure: it scales the inputs and
+outputs of both steps alike and it changes over an actor's life, whereas
+land does not.
+
 ### Displacement bids for goods made by hand
 
 A need gate in `decide_economic_action` spends a labor turn making the good

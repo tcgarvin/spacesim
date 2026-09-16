@@ -9,6 +9,7 @@ from spacesim2.core.actor_brain import (
     _get_avg_price,
     _get_bid_ask,
 )
+from spacesim2.core.brains.hand_food import hand_food_viable
 from spacesim2.core.brains.migration import (
     MigrationIntent,
     clear_intent,
@@ -89,7 +90,10 @@ class ColonistBrain(ActorBrain):
 
         # Food is most urgent. The pantry counts the bought staple as well as
         # hand-cooked food, so an actor living on processed food does not cook.
-        if food_pantry_units(actor) < 5:
+        # On land too barren to feed its holder the gate is skipped outright:
+        # gathering there never fills the pantry, so the actor would repeat it
+        # forever. It works for wages instead and buys food. See hand_food.py.
+        if food_pantry_units(actor) < 5 and hand_food_viable(actor, cache):
             if actor.can_execute_process("make_food"):
                 return self._record_self_supply(actor, "make_food")
 
