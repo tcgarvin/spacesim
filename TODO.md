@@ -3,6 +3,36 @@
 Genuinely open work only. Closed postmortems live in `docs/decision-log.md`;
 perf levers live in `docs/performance.md`.
 
+## Trade volume and food-insecure planets (2026-09-16)
+
+Landed: origin-supply cap on plan quantity (3bda0c5, deliveries +55%,
+units per departure 6.4 -> 9.8) and zero-biomass planets (863c957, 1/6 of
+planets). Probes: `notebooks/food_security_probe.py`,
+`notebooks/food_pairs_zero_planets.py`, `notebooks/ship_hold_probe.py`.
+Open, in order of measured size:
+
+- Ranking. Food and processed_food plans into zero-biomass planets are
+  built and accepted but win `_best_plan_from` 3 times in 262: the winner
+  claims a median 1710 expected profit on 17 units against 267 on 36 for
+  food (`tmp/food_pairs_zero_50p.json`). In 82 of 211 losses the winning
+  ship flies to the hungry planet anyway with 83 empty slots. Candidates:
+  rank on profit per hold unit or per turn; verify the winners' claims
+  against realized trip gross first (pre-cap mean was 85 credits per trip).
+- Stale cargo. 42% of hold contents is unsold cargo past `MAX_CARGO_HOPS`
+  (median 28 of 100 units, age 37 turns, up to 13 hops): `_cargo_disposition`
+  only drops over-cap lots from the hold vote and `_choose_cargo_destination`
+  bumps hops for everything aboard. Forcing a local listing at the cap was
+  tried and reverted (6bac331, 2e425d3): carried-over share 42% -> 40% and
+  food mean_health 0.916 -> 0.889 past the variance test at 50 planets x 4
+  reps, because 1814 of 1893 stale lots sit where no bid exists at all, so
+  they cannot be listed. The lever is upstream: plans buy goods whose
+  destination revenue is not realized, then the lot has no market anywhere
+  on the ship's path.
+- Shortlist reach. 39% of cheap-origin to zero-planet pairs fall off the
+  top-8-by-value plus nearest-8 destination shortlist.
+- Zero-biomass planets: food ~9.4 per unit, food debt ~0.2, population
+  -25% by turn 600, ship food deliveries 0 after turn 150 (50 planets).
+
 ## Land (2026-09-10)
 
 - Passage queue residual at 100 planets: 553 waiting at turn 400 with
