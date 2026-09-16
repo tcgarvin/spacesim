@@ -4,6 +4,42 @@ Append-only record of closed decisions, postmortems, and landed campaigns.
 Newest first. Open work lives in `TODO.md`; current reference docs live
 alongside this file.
 
+## 2026-09-16 - Some planets cannot feed themselves
+
+The user wants planets that cannot grow their own food. The biomass planet
+mean stays a uniform draw, but the lower bound goes negative and negative
+draws clamp to exactly 0.0. `BIOMASS_DRAW_LOW` in
+`spacesim2/core/planet_attributes.py` is -0.2, so the share of barren
+planets is `-low / (1 - low)` = 1/6. Tune the share by changing that one
+constant.
+
+| Quantity | Value |
+|---|---|
+| Biomass draw | uniform(-0.2, 1.0), clamped at 0.0 |
+| Share at 0.0 | 1/6 |
+| Hand-food break-even biomass | 0.167 |
+
+Break-even: `gather_biomass` yields 8 x availability, floored at 1 unit by
+`ProcessCommand.execute`; `make_food` turns 4 biomass into 4 food; an actor
+eats 1 food per turn. A cycle of one gather turn plus 2a make_food turns
+yields 8a food over 1 + 2a turns, which covers consumption only at
+a >= 1/6. So the clamped planets sit below break-even by construction, and
+the draws just above zero are infeasible too.
+
+Decisions taken with it:
+
+- No anti-correlation with the other attributes. A barren planet is not
+  compensated with ore or fuel; some planets are simply bad.
+- Such planets may depopulate through migration, and that is accepted. The
+  intended outcomes are food imports or an empty planet, both of which the
+  migration and trade systems already support.
+
+Audit for division by a zero attribute found no unguarded site.
+`ActorBrain._impute_unit_cost` already skips a process whose
+`attribute_modifier <= 0.0`, `_replacement_cost` skips `expected_out <= 0`,
+`sample_coefficient` returns the mean directly when it is exactly 0 or 1,
+and the migration land terms and the JSON exports only add and compare.
+
 ## 2026-09-13 - Ship fuel burn cut 10x, tank in millifuel
 
 Motivation, measured 2026-09-13 at 100 planets over 400 turns: fuel spend

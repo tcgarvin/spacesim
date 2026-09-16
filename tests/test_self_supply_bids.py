@@ -13,6 +13,7 @@ from spacesim2.core.actor import ActorType
 from spacesim2.core.actor_brain import GOVERNMENT_WAGE, BrainCache
 from spacesim2.core.commodity import Inventory
 from spacesim2.core.drives.food_drive import PANTRY_TARGET, FoodDrive
+from spacesim2.core.land import Land
 from spacesim2.core.simulation import Simulation
 
 # One run of make_food, per data/processes.yaml.
@@ -38,8 +39,15 @@ def _food_drive(actor) -> FoodDrive:
 
 
 def _stocked_buyer(sim, money: int = 5000):
-    """A colonist with a full pantry, plenty of money, and a clean market."""
+    """A colonist with a full pantry, plenty of money, and a clean market.
+
+    The land is pinned to the penalty-free default. A random draw can give
+    the planet zero biomass, and an actor who cannot gather biomass has no
+    gathering run to displace.
+    """
     buyer, seller = _colonists(sim)
+    buyer.land = Land.default()
+    seller.land = Land.default()
     market = buyer.planet.market
     market.buy_orders.clear()
     market.sell_orders.clear()

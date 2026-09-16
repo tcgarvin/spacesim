@@ -204,3 +204,34 @@ class TestLandDrivesExtraction:
         process = sim.process_registry.get_process("gather_biomass")
         assert process is not None
         assert actor.brain._expected_yield_modifier(actor, process) == 0.4
+
+
+class TestZeroMeanLand:
+    """A planet mean of exactly 0.0 yields barren land, never an error."""
+
+    def test_sample_coefficient_at_zero_mean(self):
+        for concentration in (0.5, 2.0, 50.0):
+            assert sample_coefficient(0.0, concentration) == 0.0
+
+    def test_draws_at_zero_mean_are_all_zero(self):
+        attributes = PlanetAttributes(
+            biomass=0.0,
+            land_concentration={resource: 2.0 for resource in RESOURCE_ATTRIBUTES},
+        )
+        lands = generate_lands(attributes, count=50)
+        assert len(lands) == 50
+        assert all(land.get_availability("biomass") == 0.0 for land in lands)
+
+    def test_planet_lands_at_zero_mean(self):
+        planet = Planet(
+            "Barren",
+            Market(),
+            attributes=PlanetAttributes(
+                biomass=0.0,
+                land_concentration={resource: 2.0 for resource in RESOURCE_ATTRIBUTES},
+            ),
+            num_lands=10,
+        )
+        assert all(
+            land.get_availability("biomass") == 0.0 for land in planet.free_lands
+        )

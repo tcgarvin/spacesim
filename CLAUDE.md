@@ -263,8 +263,12 @@ Gathering processes (biomass, fiber, wood) use `output`. Mining processes
 (nova_fuel_ore, common_metal_ore) use `success`.
 
 Distributions in `PlanetAttributes.generate_random()`: `biomass` is
-uniform(0.2, 1.0), `nova_fuel_ore` is bimodal (0.0-0.3 or 0.7-1.0), the rest
-are uniform(0.0, 1.0).
+uniform(`BIOMASS_DRAW_LOW`, 1.0) with negative draws clamped to exactly 0.0,
+`nova_fuel_ore` is bimodal (0.0-0.3 or 0.7-1.0), the rest are
+uniform(0.0, 1.0). `BIOMASS_DRAW_LOW` is -0.2, so 1/6 of planets get biomass
+0.0; the share is `-low / (1 - low)`. Hand-made food breaks even at biomass
+0.167, so those planets cannot feed themselves and must import food or lose
+their residents to migration.
 
 Adding a new extractable resource:
 1. Add the attribute to `PlanetAttributes` with default 1.0.

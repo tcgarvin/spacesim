@@ -12,6 +12,12 @@ from typing import Dict
 LAND_CONCENTRATION_MIN = 0.5
 LAND_CONCENTRATION_MAX = 50.0
 
+# Lower bound of the uniform biomass draw. Draws below zero clamp to exactly
+# 0.0, so the share of planets that cannot grow food at all is
+# -low / (1 - low): -0.2 / 1.2 = 1/6. Raise the magnitude for more barren
+# planets, set it to 0.0 for none.
+BIOMASS_DRAW_LOW = -0.2
+
 RESOURCE_ATTRIBUTES = (
     "biomass",
     "fiber",
@@ -90,7 +96,13 @@ class PlanetAttributes:
     def generate_random(cls) -> "PlanetAttributes":
         """Roll random attributes with a distribution per resource.
 
-        - biomass: uniform 0.2-1.0, always some organic life
+        - biomass: uniform ``BIOMASS_DRAW_LOW``-1.0, negative draws clamped
+          to 0.0, so 1/6 of planets have no organic life. Hand-made food
+          breaks even at biomass 0.167: gather_biomass yields 8 x
+          availability (floored at 1 unit by ``ProcessCommand.execute``),
+          make_food turns 4 biomass into 4 food, and an actor eats 1 food
+          per turn. Planets below that cannot feed themselves and must
+          import food or lose their population to migration.
         - fiber, wood, common_metal_ore, silica: uniform 0.0-1.0
         - nova_fuel_ore: bimodal, 0.0-0.3 or 0.7-1.0
         - rare_earth_ore: bimodal, 0.0-0.2 or 0.6-1.0
@@ -100,7 +112,7 @@ class PlanetAttributes:
         ``LAND_CONCENTRATION_MIN`` and ``LAND_CONCENTRATION_MAX``.
         """
         return cls(
-            biomass=random.uniform(0.2, 1.0),
+            biomass=max(0.0, random.uniform(BIOMASS_DRAW_LOW, 1.0)),
             fiber=random.uniform(0.0, 1.0),
             wood=random.uniform(0.0, 1.0),
             common_metal_ore=random.uniform(0.0, 1.0),

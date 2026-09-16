@@ -74,7 +74,10 @@ Editing either file: see the `commodity-process-design` skill.
 - Every planet gets random resource availability ratings (0.0-1.0). Each is
   the mean of a per-resource land curve; the planet generates 100 lands from
   those curves, and every regular actor claims one at placement and keeps it
-  for the run. Gathering and mining yields read the actor's land, so a
+  for the run. Biomass is drawn uniform(-0.2, 1.0) and clamped at 0.0, so
+  1/6 of planets have no biomass. Hand-made food breaks even at biomass
+  0.167, so a barren planet cannot feed itself: it imports food or loses its
+  residents to migration. Gathering and mining yields read the actor's land, so a
   planet's supply of a resource is the sorted list of its residents' draws.
   See the Planet Attributes and Land section of `CLAUDE.md`,
   `core/planet_attributes.py`, and `core/land.py`.

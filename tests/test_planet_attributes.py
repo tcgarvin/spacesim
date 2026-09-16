@@ -1,9 +1,15 @@
 """Tests for planet attributes."""
 
+from unittest.mock import patch
+
 import pytest
 
 from spacesim2.core.land import Land
-from spacesim2.core.planet_attributes import PlanetAttributes, _bimodal_sample
+from spacesim2.core.planet_attributes import (
+    BIOMASS_DRAW_LOW,
+    PlanetAttributes,
+    _bimodal_sample,
+)
 from spacesim2.core.process import ResourceAttribute
 
 
@@ -59,10 +65,14 @@ class TestPlanetAttributes:
             assert 0.0 <= attrs.simple_building_materials <= 1.0
 
     def test_generate_random_respects_minimum_values(self):
-        """generate_random keeps biomass >= 0.2 and building materials >= 0.3."""
+        """generate_random keeps building materials >= 0.3.
+
+        Biomass has no floor above zero: the draw clamps its negative tail
+        to exactly 0.0 so some planets cannot grow food.
+        """
         for _ in range(100):
             attrs = PlanetAttributes.generate_random()
-            assert attrs.biomass >= 0.2
+            assert attrs.biomass >= 0.0
             assert attrs.simple_building_materials >= 0.3
 
     def test_get_availability_for_tracked_commodity(self):
@@ -277,3 +287,82 @@ def test_setup_guarantees_a_fuel_rich_planet():
             p.attributes is not None and p.attributes.nova_fuel_ore >= 0.7
             for p in sim.planets
         )
+
+
+class TestBiomassDrawClamping:
+    """The biomass draw's negative tail clamps to exactly 0.0."""
+
+    def _uniform_returning(self, biomass_draw):
+        """random.uniform stand-in that fixes only the biomass draw."""
+
+        def fake_uniform(low, high):
+            if low == BIOMASS_DRAW_LOW:
+                return biomass_draw
+            return (low + high) / 2.0
+
+        return fake_uniform
+
+    def test_negative_draw_clamps_to_zero(self, monkeypatch):
+        monkeypatch.setattr(
+            "spacesim2.core.planet_attributes.random.uniform",
+            self._uniform_returning(-0.15),
+        )
+        assert PlanetAttributes.generate_random().biomass == 0.0
+
+    def test_positive_draw_passes_through(self, monkeypatch):
+        monkeypatch.setattr(
+            "spacesim2.core.planet_attributes.random.uniform",
+            self._uniform_returning(0.42),
+        )
+        assert PlanetAttributes.generate_random().biomass == pytest.approx(0.42)
+
+    def test_zero_share_matches_the_lower_bound(self):
+        """The share of barren planets is -low / (1 - low)."""
+        draws = 4000
+        zeros = sum(
+            1 for _ in range(draws) if PlanetAttributes.generate_random().biomass == 0.0
+        )
+        expected = -BIOMASS_DRAW_LOW / (1.0 - BIOMASS_DRAW_LOW)
+        assert zeros / draws == pytest.approx(expected, abs=0.03)
+
+    def test_zero_biomass_is_a_valid_attribute(self):
+        attrs = PlanetAttributes(biomass=0.0)
+        assert attrs.get_availability("biomass") == 0.0
+        assert attrs.to_dict()["biomass"] == 0.0
+
+
+def test_a_barren_planet_runs_without_raising():
+    """A planet with no biomass at all survives a run end to end."""
+    from spacesim2.core.simulation import Simulation
+
+    real_generate = PlanetAttributes.generate_random
+    calls = {"n": 0}
+
+    def barren_first():
+        attrs = real_generate()
+        if calls["n"] == 0:
+            attrs.biomass = 0.0
+        calls["n"] += 1
+        return attrs
+
+    with patch.object(PlanetAttributes, "generate_random", side_effect=barren_first):
+        sim = Simulation()
+        sim.setup_simple(
+            num_planets=2,
+            num_regular_actors=10,
+            num_market_makers=1,
+            num_spaceport_operators=1,
+            num_ships=1,
+            lands_per_planet=20,
+        )
+
+    barren = sim.planets[0]
+    assert barren.attributes.biomass == 0.0
+    assert all(
+        actor.land.get_availability("biomass") == 0.0
+        for actor in barren.actors
+        if actor.land.coefficients
+    )
+
+    for _ in range(30):
+        sim.run_turn()
