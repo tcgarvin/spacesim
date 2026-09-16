@@ -3037,29 +3037,6 @@ class TraderBrain(ShipBrain):
             plan.destination, origin, self.ship.fuel - leg
         )
 
-    def _capped_cargo_ids(self) -> frozenset[str]:
-        """Held lots that have used up their MAX_CARGO_HOPS hops.
-
-        These sell where the ship is. They take no part in choosing the next
-        destination: they do not vote for one, they are not counted as cargo
-        to sell there, and their hop count stops rising.
-
-        A trade plan's own commodity and its add-ons are never in this set.
-        They are bought at the origin to be sold at the plan's destination,
-        and listing them at the origin would undo the plan.
-        """
-        plan = self._current_plan
-        excluded = {c.id for c in self._addon_commodities}
-        if isinstance(plan, TradePlan):
-            excluded.add(plan.commodity.id)
-        return frozenset(
-            commodity.id
-            for commodity in self._get_tradeable_commodities()
-            if commodity.id not in excluded
-            and self._sellable_quantity(commodity) > 0
-            and self._cargo_hops.get(commodity.id, 0) >= MAX_CARGO_HOPS
-        )
-
     def _cargo_disposition(self, market: "Market") -> Tuple[bool, int]:
         """Decide whether to sell the hold here, and what fuel that commits.
 
@@ -3543,27 +3520,6 @@ class TraderBrain(ShipBrain):
                     and not self._local_sale_stale
                 ):
                     self._selling_locally = True
-        if has_trade_cargo and not list_here:
-            # A lot at the hop cap sells where the ship is, even when other
-            # cargo is holding the hold for another market. The cap used to
-            # only keep such a lot out of the hold-for-elsewhere vote: the
-            # ship left anyway, the lot rode along, its hop count kept rising
-            # and the space it took shrank every later plan and add-on. The
-            # listing does not pin the ship here; if it does not fill before
-            # departure it is listed again on arrival.
-            capped = self._capped_cargo_ids()
-            if capped:
-                others = frozenset(
-                    c.id
-                    for c in self._get_tradeable_commodities()
-                    if c.id not in capped
-                )
-                sell_actions, listed, _ = self._list_cargo_locally(market, skip=others)
-                if listed:
-                    actions.extend(sell_actions)
-                    placed_fuel_sell = any(c.id == "nova_fuel" for c in listed)
-                    self._record_local_sale(current_planet, listed)
-                    self._note_listed(listed)
         if has_trade_cargo and not should_sell_here:
             # decide_travel will fly it there.
             actions.append("Holding cargo for better price elsewhere")
@@ -3800,15 +3756,12 @@ class TraderBrain(ShipBrain):
                 return plan.destination
             return None
 
-        # Reserve fuel is not cargo, and neither is a lot at the hop cap: it
-        # is listed where the ship is and does not travel as cargo to sell
-        # elsewhere, so it neither votes for a destination nor takes a hop.
+        # Reserve fuel is not cargo.
         commodities = self._get_tradeable_commodities()
-        capped = self._capped_cargo_ids()
         cargo_to_sell = {
             c: self._sellable_quantity(c)
             for c in commodities
-            if c.id not in capped and self._sellable_quantity(c) > 0
+            if self._sellable_quantity(c) > 0
         }
 
         if not cargo_to_sell:
