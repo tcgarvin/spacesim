@@ -3,6 +3,26 @@
 Genuinely open work only. Closed postmortems live in `docs/decision-log.md`;
 perf levers live in `docs/performance.md`.
 
+## Fleet capacity is the food-import limit (2026-09-16, evening)
+
+After the flow-credit fix (2f1a616) and the hand-food break-even gate
+(cce3791), barren planets bid 24-50 per food unit and 91+ per
+processed_food unit, and the planner accepts those plans. What stops the
+volume is the fleet: 50 ships x 100 hold deliver ~29 units/turn into
+barren planets that eat 600-900 (`tmp/food_pairs_zero_v3.json`,
+`notebooks/food_pairs_zero_v3.py`). The hold cap binds 59% of
+processed_food plan evaluations; 26-38 of 50 ships are in flight at any
+time; shortlist, cash and demand depth no longer bind. Consequences at 50
+planets x 400 turns (`tmp/ab_handfood/table.txt`): food pct_deprived
+0.022 -> 0.157, migration departures per 100 turns per 1000 actors
+40 -> 29 with the passage queue 823 -> 1285 (the same fleet carries the
+passengers), clothing and shelter deprivation ~0, ship money 3x.
+Levers, all design decisions: ships per planet (`--ships`), hold size
+(`cargo_capacity`, ship.py), or a ship-building process. Second-order:
+49% of food landed at barren planets is not sold there (purchasing power
+or ladder pricing; unprobed), and three barren planets with resting bids
+at 28-30 drew 0-1 arrivals in 400 turns because peers bid 91-243.
+
 ## Trade volume and food-insecure planets (2026-09-16)
 
 Landed: origin-supply cap on plan quantity (3bda0c5, deliveries +55%,
@@ -18,7 +38,7 @@ Open, in order of measured size:
   ship flies to the hungry planet anyway with 83 empty slots. Candidates:
   rank on profit per hold unit or per turn; verify the winners' claims
   against realized trip gross first (pre-cap mean was 85 credits per trip).
-- Stale cargo. 42% of hold contents is unsold cargo past `MAX_CARGO_HOPS`
+- Stale cargo. Remote bid-walk turnover cap (price capped at haircut clearing price, depth at 15 turns of volume) tried after 2f1a616: neutral, deliveries -14% within noise, discarded; per-turn transit decay untried. 42% of hold contents is unsold cargo past `MAX_CARGO_HOPS`
   (median 28 of 100 units, age 37 turns, up to 13 hops): `_cargo_disposition`
   only drops over-cap lots from the hold vote and `_choose_cargo_destination`
   bumps hops for everything aboard. Forcing a local listing at the cap was
