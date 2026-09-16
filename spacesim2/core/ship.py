@@ -114,6 +114,11 @@ ACCUMULATION_PATIENCE = 8
 # on the whole flow were phantom: a ship would plan 45 units, buy 7, and
 # depart with the trickle after ACCUMULATION_PATIENCE turns.
 FLOW_CAPTURE_SHARE = 0.5
+# Share of a destination's recent per-turn flow an outside seller expects to
+# take. The flow is volume locals already clear among themselves; a visiting
+# ship wins part of it by undercutting the resting asks, not all of it. The
+# origin-side analogue is FLOW_CAPTURE_SHARE.
+FLOW_SHARE_EXTERNAL = 0.5
 # Confidence discount on avg-price revenue estimates and resting asks. The
 # flow price is a forecast, not a resting order.
 SELL_PRICE_HAIRCUT = 0.9
@@ -705,6 +710,46 @@ class TraderBrain(ShipBrain):
         if not market.has_price_signal(commodity):
             return None
         return market.get_avg_price(commodity)
+
+    def _creditable_flow(
+        self,
+        market: "Market",
+        commodity: CommodityDefinition,
+        entry_price: float,
+    ) -> Tuple[int, int]:
+        """Price and units of ``market``'s flow this ship can expect to sell into.
+
+        Returns ``(price, units)``; ``(0, 0)`` when the flow credits nothing.
+
+        The flow is volume local sellers already clear among themselves. An
+        outside seller only takes it by undercutting the asks that are winning
+        it today, so the forecast price is the haircut clearing price capped
+        one tick under the local best ask, and it credits nothing at or below
+        ``entry_price``, what the cargo cost. The units are
+        FLOW_SHARE_EXTERNAL of the horizon's flow; the rest goes to the local
+        sellers.
+
+        Valuing the whole flow at the whole clearing price was the gap between
+        what plans claimed and what they earned: measured over 400 turns at 50
+        planets, plans claimed 978k credits of profit and realized 132k, and
+        299 of 389 arrivals held their cargo for another planet's forecast
+        instead of listing it where they stood.
+        """
+        flow_value = self._flow_value(market, commodity)
+        flow_px = int(flow_value * SELL_PRICE_HAIRCUT) if flow_value else 0
+        if flow_px <= 0:
+            return 0, 0
+        ask_levels = market.get_ask_levels(commodity, exclude_actor=self.ship)
+        if ask_levels:
+            flow_px = min(flow_px, ask_levels[0][0] - 1)
+        if flow_px <= entry_price:
+            return 0, 0
+        units = int(
+            self._recent_flow_per_turn(market, commodity)
+            * DEMAND_HORIZON_TURNS
+            * FLOW_SHARE_EXTERNAL
+        )
+        return flow_px, max(0, units)
 
     def _get_tradeable_commodities(self) -> List[CommodityDefinition]:
         """Commodities that can be traded between planets."""
@@ -1347,8 +1392,14 @@ class TraderBrain(ShipBrain):
         The resting bid levels are walked from the top for as many units as
         they hold; whatever is left is valued at the price
         :meth:`_place_flow_sell_orders` would rest it at, the lower of the
-        haircut flow price and the best bid. A market with neither a bid nor a
-        flow price values the remainder at nothing.
+        best bid and the flow price this ship can actually take flow at
+        (:meth:`_creditable_flow`), and only for as many units as that flow
+        credits. A market with neither a bid nor a creditable flow values the
+        remainder at nothing.
+
+        The forecast is the same one :meth:`_evaluate_trade_opportunity` plans
+        on, so a plan's revenue and the later decision to hold the cargo for
+        that planet read one number.
 
         The old valuation, ``max(best bid, flow) * quantity``, paid the top bid
         for every unit and ignored depth, so it valued a ten-unit load at ten
@@ -1358,8 +1409,10 @@ class TraderBrain(ShipBrain):
             return 0
         levels = market.get_bid_levels(commodity)
         best_bid = levels[0][0] if levels else 0
-        flow_value = self._flow_value(market, commodity)
-        flow_px = int(flow_value * SELL_PRICE_HAIRCUT) if flow_value else 0
+        basis = self.basis_per_unit(commodity)
+        flow_px, flow_qty = self._creditable_flow(
+            market, commodity, basis if basis is not None else 0.0
+        )
         remaining = quantity
         total = 0
         for price, level_qty in levels:
@@ -1368,9 +1421,9 @@ class TraderBrain(ShipBrain):
             take = min(level_qty, remaining)
             total += take * price
             remaining -= take
-        if remaining > 0:
+        if remaining > 0 and flow_px > 0:
             rest_price = min(flow_px, best_bid) if best_bid else flow_px
-            total += remaining * rest_price
+            total += min(remaining, flow_qty) * rest_price
         return total
 
     def _opportunistic_fuel_topup(
@@ -2223,16 +2276,9 @@ class TraderBrain(ShipBrain):
             if price > entry_price
         ]
         depth = sum(qty for _, qty in bid_levels)
-        # ...plus the flow: recent clearing volume at the haircut clearing
-        # price, a forecast rather than a resting order.
-        dest_flow_px = self._flow_value(dest_market, commodity)
-        flow_px = int(dest_flow_px * SELL_PRICE_HAIRCUT) if dest_flow_px else 0
-        flow_qty = 0
-        if flow_px > entry_price:
-            flow_qty = int(
-                self._recent_flow_per_turn(dest_market, commodity)
-                * DEMAND_HORIZON_TURNS
-            )
+        # ...plus the share of the flow this ship can take from the local
+        # sellers, at a price that undercuts them; see :meth:`_creditable_flow`.
+        flow_px, flow_qty = self._creditable_flow(dest_market, commodity, entry_price)
         if depth + flow_qty > 0:
             sellable = depth + flow_qty
         elif flow_px > entry_price:

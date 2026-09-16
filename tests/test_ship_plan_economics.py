@@ -17,7 +17,9 @@ from spacesim2.core.market import Market
 from spacesim2.core.planet import Planet
 from spacesim2.core.ship import (
     ACCUMULATION_PATIENCE,
+    DEMAND_HORIZON_TURNS,
     FLOW_CAPTURE_SHARE,
+    FLOW_SHARE_EXTERNAL,
     FUEL_MILLI,
     Ship,
     milli_to_units_ceil,
@@ -390,3 +392,72 @@ def test_no_plan_when_origin_supply_rounds_to_nothing():
     _give_repair_kit(trader)
     assert trader.brain._origin_acquisition(a, food) is None
     assert trader.brain._evaluate_trade_opportunity(a, b, food) is None
+
+
+# ---------------------------------------------------------------------------
+# Destination flow: only what undercutting the local sellers can win
+# ---------------------------------------------------------------------------
+
+
+def _flow_world():
+    """A, with 50 cheap units of food for sale, and B, with a food flow."""
+    sim, fuel, food, (a, b) = _make_world([("A", 0, 0), ("B", 100, 0)])
+    seller = _make_ship(sim, a, hold_fuel=200, name="Seller")
+    seller.cargo.add_commodity(food, 50)
+    a.market.place_sell_order(seller, food, 50, 10)
+    a.market.place_sell_order(seller, fuel, 100, 5)
+    return sim, fuel, food, a, b
+
+
+def test_destination_flow_is_credited_under_the_local_ask():
+    """Flow counts when the haircut price still undercuts what locals ask."""
+    sim, fuel, food, a, b = _flow_world()
+    _record_flow(b.market, food, 100, 4)  # 4 units a turn clear at 100
+    local = _make_ship(sim, b, hold_fuel=0, name="LocalSeller")
+    local.cargo.add_commodity(food, 100)
+    b.market.place_sell_order(local, food, 100, 200)  # asks well above the flow
+
+    trader = _make_ship(sim, a, money=100000, name="Trader")
+    _give_repair_kit(trader)
+    plan = trader.brain._evaluate_trade_opportunity(a, b, food)
+
+    assert plan is not None
+    # The haircut flow price (90) is under the local ask, so it stands.
+    assert plan.expected_sell_price_per_unit == 90
+    # Half the horizon's flow: 4 a turn x 15 turns x FLOW_SHARE_EXTERNAL.
+    assert plan.quantity == int(4 * DEMAND_HORIZON_TURNS * FLOW_SHARE_EXTERNAL)
+
+
+def test_destination_flow_credits_nothing_when_locals_undersell_the_entry():
+    """A ship cannot take flow at a price under what the cargo cost it."""
+    sim, fuel, food, a, b = _flow_world()
+    _record_flow(b.market, food, 100, 4)
+    local = _make_ship(sim, b, hold_fuel=0, name="LocalSeller")
+    local.cargo.add_commodity(food, 100)
+    # Locals rest at 10, the entry price at A: undercutting them loses money.
+    b.market.place_sell_order(local, food, 100, 10)
+
+    trader = _make_ship(sim, a, money=100000, name="Trader")
+    _give_repair_kit(trader)
+    assert trader.brain._creditable_flow(b.market, food, 10) == (0, 0)
+    # No resting bid either, so the flow was the whole case for the plan.
+    assert trader.brain._evaluate_trade_opportunity(a, b, food) is None
+
+
+def test_flow_price_is_capped_one_tick_under_the_local_ask():
+    """A seller resting below the flow price sets what the ship can get."""
+    sim, fuel, food, a, b = _flow_world()
+    _record_flow(b.market, food, 100, 4)
+    local = _make_ship(sim, b, hold_fuel=0, name="LocalSeller")
+    local.cargo.add_commodity(food, 100)
+    b.market.place_sell_order(local, food, 100, 60)
+
+    trader = _make_ship(sim, a, money=100000, name="Trader")
+    _give_repair_kit(trader)
+    assert trader.brain._creditable_flow(b.market, food, 10) == (
+        59,
+        int(4 * DEMAND_HORIZON_TURNS * FLOW_SHARE_EXTERNAL),
+    )
+    plan = trader.brain._evaluate_trade_opportunity(a, b, food)
+    assert plan is not None
+    assert plan.expected_sell_price_per_unit == 59

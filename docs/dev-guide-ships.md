@@ -58,6 +58,10 @@ destination. `TraderBrain` is the reference implementation.
 - Cap quantity at the destination's visible bid depth above cost and
   project revenue by walking the bid book (`Market.get_bid_levels`).
   Top-of-book times quantity overestimates on thin books.
+- Credit the destination's flow only for what undercutting its own sellers
+  can win, through `_creditable_flow` (see "Realizable value" below). The
+  plan evaluator and the hold decision call the same helper, so a plan and
+  the later decision to fly the cargo there read one number.
 - A plan with no resting destination bids is speculative and capped at
   `SPECULATIVE_PLAN_CAP` units.
 - Cap quantity at what the origin can supply, `_OriginAcquisition.acquirable`:
@@ -640,9 +644,26 @@ is the one thing that can put an ask there anyway.
 `_realizable_value(market, commodity, quantity)` prices a quantity the way
 it would actually sell: bid levels walked from the top for as many units as
 they hold, and any remainder priced at what `_place_flow_sell_orders` would
-rest it at, `min(flow_px, best_bid)`. A market with neither a bid nor a flow
-price values the remainder at nothing. This replaced `max(best_bid, flow) *
+rest it at, `min(flow_px, best_bid)`, and only for as many units as
+`_creditable_flow` credits. A market with neither a bid nor a creditable flow
+values the remainder at nothing. This replaced `max(best_bid, flow) *
 quantity`, which paid the top bid for the whole load and ignored depth.
+
+`_creditable_flow(market, commodity, entry_price)` returns the price and the
+units of a market's flow this ship can expect to sell into. The flow is volume
+local sellers already clear among themselves, so:
+
+- the price is the haircut clearing price, capped one tick under the local
+  best ask (`Market.get_ask_levels`, the ship's own asks excluded);
+- a price at or below `entry_price`, what the cargo cost, credits nothing;
+- the units are `FLOW_SHARE_EXTERNAL` (0.5) of the flow over
+  `DEMAND_HORIZON_TURNS`, the rest going to the local sellers.
+
+Measured over 400 turns at 50 planets before this rule, plans claimed 978k
+credits of profit and realized 132k, and 299 of 389 arrivals held their cargo
+for another planet's forecast rather than list it where they stood: the median
+planned sell price was 104-118 against an arrival best bid of 29-34, and 57%
+of the sellable quantity was flow credit.
 
 `_cargo_disposition` decides whether to sell the hold here or hold it for
 another planet, using `_realizable_value` on both sides: the local value of
