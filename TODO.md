@@ -5,8 +5,40 @@ perf levers live in `docs/performance.md`.
 
 ## Organizations: trading companies and ship building (2026-09-16)
 
-`TradingCompanyBrain`, ownership, and the hull chain are landing; see
-`docs/organizations-design.md` and the decision log entry of the same date.
+`TradingCompanyBrain`, ownership, and the hull chain landed 2026-09-16
+(5a1d7af..c59b524); see `docs/organizations-design.md` and the decision
+log entry of the same date. Verified with unit tests and 12-planet runs
+only.
+
+State at the end of 2026-09-16, one run of 12 planets x 300 turns:
+
+| KPI | Value |
+|---|---|
+| companies with a hull bid resting at t300 | 11 of 12 |
+| median hull bid | ~4.3k |
+| imputed hull cost | 5k-9k |
+| shipyards built | 2 |
+| hulls built | 0 |
+| remitted to companies | 156k |
+
+Demand and shipyard entry work; most bids sit below cost, so no ship was
+built. Endowment for a spawned ship is `sim.ship_starting_capital` (the
+1000 floor at 12 planets) with an empty tank.
+
+Next session, in order:
+
+1. 100-planet A/B against `c59b524^` (`dev ab --base 0ee2810 --python
+   .venv-ft/bin/python --workers 12`, 450 turns): `fleet.ships_built`,
+   `fleet.hull_bids_open`, `fleet.shipyards`, ship deliveries, food
+   deprivation on barren planets, tier-3 volumes. The shipyard-recipe
+   agent saw ship deliveries lower in two modified 12-planet reps than in
+   two baselines (456/325 vs 675/644); confirm or dismiss as noise first.
+2. If bids stay below cost, raise `SHIP_RAMP_DISCOUNT` (0.5 -> 0.75) in
+   `core/brains/trading_company.py`; that lifts the 12-planet median bid
+   to ~6.5k. `SHIP_VALUE_HORIZON_TURNS` is the same lever.
+3. `fleet.ships_built` counts ships whose name contains `" Trading Co-"`
+   (`analysis/summary.py`); replace with a stored setup count.
+
 Open:
 
 - Ship deletion or scrapping: nothing removes a ship from `sim.ships`, so a
