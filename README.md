@@ -33,6 +33,10 @@ uv run spacesim2 run --turns 200
 # Compact KPI summary with PASS/WARN/FAIL verdict
 uv run spacesim2 run --turns 200 --no-export --quiet --summary
 
+# Same run on the free-threaded side venv with a threaded actor phase
+# (faster, same KPIs; setup in docs/performance.md)
+.venv-ft/bin/python -m spacesim2.cli.main run --workers 12 --turns 200 --no-export --quiet --summary
+
 # Run an ad-hoc analysis script against the latest exported run
 uv run spacesim2 dev analyze notebooks/healthcheck_probe.py
 

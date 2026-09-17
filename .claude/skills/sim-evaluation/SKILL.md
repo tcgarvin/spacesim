@@ -13,13 +13,19 @@ answers the question.
 
 ```bash
 uv run pytest -q                                                              # 1. unit tests (~2s)
-uv run spacesim2 run --turns 200 --planets 12 --no-export --quiet --summary   # 2. behavior (~30 s)
+.venv-ft/bin/python -m spacesim2.cli.main run --workers 12 --turns 200 --planets 12 --no-export --quiet --summary   # 2. behavior (~16 s)
 # 3. read the JSON between ===SUMMARY_BEGIN=== / ===SUMMARY_END===
 ```
 
-Drop `--planets 12` (100-planet default, ~7 min) only when the question is
-about fleet geography. See "Run cost and waiting" below before starting
-anything longer than two minutes.
+Run sims on the free-threaded side venv with `--workers 12`, from the repo
+root. It gives the same KPIs as a serial `uv run spacesim2 run` within noise
+(`docs/performance.md`, "Drift check") and is about 3x faster at 100 planets
+and 4x at 12. Setup is in `docs/performance.md`; when `.venv-ft` is missing,
+`uv run spacesim2 run` takes the same flags and runs serially.
+
+Drop `--planets 12` (100-planet default, ~4 min threaded) only when the
+question is about fleet geography. See "Run cost and waiting" below before
+starting anything longer than two minutes.
 
 ## Stochasticity
 
@@ -39,7 +45,7 @@ For "is it broken" and "is the economy healthy". One command, one JSON
 object, a `PASS/WARN/FAIL` verdict.
 
 ```bash
-uv run spacesim2 run --turns 200 --no-export --quiet --summary
+.venv-ft/bin/python -m spacesim2.cli.main run --workers 12 --turns 200 --no-export --quiet --summary
 ```
 
 The JSON has these sections; the keys inside each are self-describing, and
@@ -87,7 +93,7 @@ For questions over logged history: prices by planet and turn, drive trends,
 distributions, correlations. The export records what happened each turn.
 
 ```bash
-uv run spacesim2 run --turns 300                        # exports Parquet to data/runs/
+.venv-ft/bin/python -m spacesim2.cli.main run --workers 12 --turns 300   # exports Parquet to data/runs/
 cp notebooks/scratch_template.py notebooks/my_question.py
 # edit my_question.py: load_run() -> Polars frames
 uv run spacesim2 dev analyze notebooks/my_question.py  # runs it, relays stdout
@@ -162,13 +168,16 @@ Use the `simulation-analyst` subagent for substantial notebook work.
 
 ## Run cost and waiting
 
+Threaded on `.venv-ft` with `--workers 12` and `--no-export --quiet`,
+measured 2026-09-13. A serial `uv run` takes about 3-4x as long.
+
 | Run | Wall time |
 |-----|-----------|
-| 12 planets, 200 turns, `--no-export --quiet` | ~30 s (~0.15 s/turn) |
-| 100 planets, 200 turns, `--no-export --quiet` | ~7 min (~2 s/turn) |
-| 100 planets, 450 turns | ~15 min |
-| 100 planets with export and `--log-actors all` | ~4 s/turn |
-| `dev check` sim stage (5 planets, 200 turns) | ~25 s |
+| 12 planets, 200 turns | ~16 s |
+| 12 planets, 450 turns | ~66 s |
+| 100 planets, 300 turns | ~6 min (~1.1 s/turn) |
+| 100 planets, 450 turns | ~9 min |
+| `dev check` sim stage (5 planets, 200 turns, stock serial) | ~25 s |
 
 Rules:
 - Up to about 2 minutes, use an explicit Bash `timeout` in the foreground.
@@ -177,12 +186,12 @@ Rules:
   2026-09-13 on a 100-planet/400-turn run and a 120-turn galaxy run; 12-planet
   runs are unaffected). Detach instead:
   ```bash
-  setsid nohup bash -c 'uv run --project /home/timg/code/spacesim2 spacesim2 run --turns 400 --quiet --summary > OUT.txt 2>&1; echo EXIT $? >> OUT.txt' > /dev/null 2>&1 < /dev/null &
+  setsid nohup bash -c '/home/timg/code/spacesim2/.venv-ft/bin/python -m spacesim2.cli.main run --workers 12 --turns 400 --quiet --summary > OUT.txt 2>&1; echo EXIT $? >> OUT.txt' > /dev/null 2>&1 < /dev/null &
   ```
   Watch `OUT.txt` for the `EXIT` line (Monitor, or a bounded polling loop),
   then read the summary JSON. `$!` is the `setsid` wrapper, not the sim; use
-  `pgrep -f "spacesim2 run"` if you need the real PID. A `data/runs/` export
-  directory appearing is not completion, only `EXIT` is.
+  `pgrep -f "spacesim2.cli.main run"` if you need the real PID. A
+  `data/runs/` export directory appearing is not completion, only `EXIT` is.
 - Any run past the 12-planet routine loop, and any A/B (`sim-ab-testing`),
   should go to a subagent (`simulation-analyst` or general-purpose) so the
   lead session's foreground and context are not tied up and a harness kill

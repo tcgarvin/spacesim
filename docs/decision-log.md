@@ -40,6 +40,29 @@ Audit for division by a zero attribute found no unguarded site.
 `sample_coefficient` returns the mean directly when it is exactly 0 or 1,
 and the migration land terms and the JSON exports only add and compare.
 
+## 2026-09-13 - Sims run free-threaded with --workers 12 by default
+
+Sim runs and `dev ab` now use the free-threaded side venv
+(`.venv-ft/bin/python -m spacesim2.cli.main run --workers 12`) instead of
+serial `uv run spacesim2 run`, for speed. 12 is the dev laptop's physical
+core count, the cap so other loads on the box keep headroom.
+
+| Check | Result |
+|---|---|
+| KPI drift, 12 planets x 450 turns, 4 reps, three pairings | 0 of 24 rows flagged |
+| KPI drift, 100 planets x 300 turns, 6 reps | 0 of 24 rows flagged |
+| Speed, 12 planets x 200 turns | 70 s -> 16 s |
+| Speed, 100 planets x 60 turns | 204 s -> 68 s |
+
+`dev ab` gained `--python` and `--workers`; both arms run under one
+interpreter and import their own source through PYTHONPATH. A thread-safety
+audit found the navigator's fuel scan could be built on a worker thread
+from other planets' live books, writing quote caches of markets that thread
+does not own; `_warm_shared_caches` now builds it before the shards start.
+pyarrow joined `.venv-ft`, so export runs work there; polars has no
+free-threaded wheel, so analysis scripts stay on `uv run`. Details and
+tables in `docs/performance.md`, "Drift check".
+
 ## 2026-09-13 - Ship fuel burn cut 10x, tank in millifuel
 
 Motivation, measured 2026-09-13 at 100 planets over 400 turns: fuel spend

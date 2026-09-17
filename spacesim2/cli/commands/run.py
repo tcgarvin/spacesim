@@ -24,6 +24,9 @@ except ImportError:
     ANALYSIS_AVAILABLE = False
 
 OUTPUT_DIR = Path("data/runs")
+
+# Printed when --workers > 1 runs with the GIL on; `dev ab` scans run logs for it.
+GIL_ENABLED_WARNING = "GIL is enabled"
 NOTEBOOK_PATH = Path("notebooks/analysis_template.py")
 
 
@@ -189,7 +192,7 @@ def execute(args: argparse.Namespace) -> int:
         print(f"  Actor phase: {args.workers} threads")
         if sys._is_gil_enabled():
             print_warning(
-                "GIL is enabled: --workers runs correctly but gives no "
+                f"{GIL_ENABLED_WARNING}: --workers runs correctly but gives no "
                 "speedup. Use a free-threaded interpreter (e.g. 3.14t); "
                 "see docs/performance.md"
             )

@@ -10,13 +10,14 @@ A turn-based economic simulation of interplanetary trade with actors, markets, a
 uv sync                              # Install dependencies
 uv sync --extra analysis             # Install with analysis features
 uv run spacesim2 ui                  # Interactive UI (Pygame)
+# Every `run` flag below works the same with `.venv-ft/bin/python -m spacesim2.cli.main run --workers 12`, the preferred form.
 uv run spacesim2 run                 # Headless sim with progress bar (default)
 uv run spacesim2 run --quiet         # Suppress all output
 uv run spacesim2 run --no-export     # Quick run without data export
 uv run spacesim2 run --log-actors all  # Detailed per-actor logging (also: N, or an actor name)
 uv run spacesim2 run --planets 12    # Smaller galaxy (defaults: 100 planets, 100 actors, 2 makers, 2 operators, 1 ship, 1000 turns)
 uv run spacesim2 run --operators 2   # Spaceport operators per planet (default 2)
-uv run spacesim2 run --workers 12    # Thread the actor phase (needs free-threaded CPython)
+.venv-ft/bin/python -m spacesim2.cli.main run --workers 12  # Preferred headless run: free-threaded 3.14t, threaded actor phase (setup in docs/performance.md)
 uv run spacesim2 run --arms 4 --lane-density 0.3  # Spiral arm count / extra star lanes beyond the spanning tree
 uv run spacesim2 run --lands-per-planet 200  # Land pool per planet (default 200); must exceed --actors so migrants can settle
 
@@ -34,7 +35,7 @@ uv run spacesim2 dev graph -f png      # Alternative formats: svg (default), png
 uv run spacesim2 dev analyze FILE.py   # Run a Tier-1 analysis script against latest run
 uv run spacesim2 dev check             # Umbrella: format+lint+types+pytest+short sim run
 uv run spacesim2 dev check --fast      # Skip the slower types and sim stages
-uv run spacesim2 dev ab --base <ref>   # A/B a change against a baseline ref (see sim-ab-testing skill)
+uv run spacesim2 dev ab --base <ref> --python .venv-ft/bin/python --workers 12  # A/B against a baseline ref, threaded (see sim-ab-testing skill)
 ```
 
 ## The Dev Loop
@@ -43,12 +44,21 @@ Change, then verify:
 
 ```bash
 uv run pytest -q                                                  # 1. unit tests (~2s)
-uv run spacesim2 run --turns 200 --planets 12 --no-export --quiet --summary    # 2. macro behavior (~30s)
+.venv-ft/bin/python -m spacesim2.cli.main run --workers 12 --turns 200 --planets 12 --no-export --quiet --summary   # 2. macro behavior (~16 s)
 # 3. read JSON between ===SUMMARY_BEGIN=== / ===SUMMARY_END=== (verdict + KPIs)
 ```
 
-Use `--planets 12` for the routine loop: measured 31 s with verdict PASS on
-2026-09-05, and the summary has the same structure as a full run. Drop
+Run sims on the free-threaded side venv with `--workers 12`, from the repo
+root. 12 is the dev laptop's physical core count; never set `--workers` above
+the physical core count (see `docs/performance.md`). The threaded actor phase gives the same KPIs as a serial stock run
+within noise (`docs/performance.md`, "Drift check") and is about 3x faster
+at 100 planets and 4x at 12. `.venv-ft` is gitignored; create it once with
+the commands in `docs/performance.md`. Fall back to `uv run spacesim2 run`
+(stock 3.13, serial) when `.venv-ft` is missing. pytest, mypy, ruff, the UI,
+`dev analyze` and `dev check` stay on `uv run`.
+
+Use `--planets 12` for the routine loop: 16 s threaded with verdict PASS on
+2026-09-13, and the summary has the same structure as a full run. Drop
 `--planets` (100-planet default) only when the question is about the galaxy:
 fleet mobility, interplanetary trade, fuel geography. Those KPIs mean nothing
 at 12 planets.
@@ -56,19 +66,28 @@ at 12 planets.
 ### What a run costs
 
 Defaults are 100 planets x 100 actors x 2 makers x 2 operators x 1 ship, and
-`--turns` defaults to 1000. Measured serial on the dev laptop:
+`--turns` defaults to 1000. Measured on the dev laptop with nothing else
+running:
 
-| Config | Rate | 200 turns | 450 turns |
-|--------|------|-----------|-----------|
-| `--planets 12` | ~0.15 s/turn | ~30 s | ~70 s |
-| default 100 planets | ~2 s/turn | ~7 min | ~15 min |
-| 100 planets + `--log-actors all` + export | ~4 s/turn | ~15 min | ~35 min |
+| Config | `uv run spacesim2 run` (3.13, serial) | `.venv-ft`, `--workers 12` |
+|--------|------|------|
+| `--planets 12`, 200 turns | 70 s | 16 s |
+| `--planets 12`, 450 turns | | 66 s |
+| 100 planets, 60 turns | 204 s | 68 s |
+| 100 planets, 300 turns | | 340 s |
 
-The Bash tool's default timeout is 120 s (max 600 s). Anything above the
-first row needs detaching from the harness's task tracker (see "Long runs"
-below), never a bare `run_in_background: true`. `--workers N` threads the
-actor phase but only helps on a free-threaded interpreter; see
-`docs/performance.md`.
+Measured 2026-09-13, `--no-export --quiet`. A threaded 100-planet run
+costs about 1.1 s/turn over 300 turns, so 450 turns take about 9 minutes.
+Export and `--log-actors all` add to these figures and were not
+re-measured.
+
+The Bash tool's default timeout is 120 s (max 600 s). A threaded 12-planet
+run of up to 450 turns fits in the foreground with an explicit `timeout`.
+Any 100-planet run needs detaching from the harness's task tracker (see
+"Long runs" below). Never use a bare `run_in_background: true` for a long
+run. `--workers` only speeds
+runs up on the free-threaded interpreter; under `uv run` it runs correctly
+at serial speed.
 
 `dev check`'s sim stage is separate and cheap: 5 planets x 100 actors x 200
 turns, run in-process.
@@ -81,15 +100,15 @@ even with memory to spare (observed 2026-09-13: 100 planets/400 turns, and a
 past the 12-planet routine loop runs detached instead:
 
 ```bash
-setsid nohup bash -c 'uv run --project /home/timg/code/spacesim2 spacesim2 run --turns 400 --quiet --summary > OUT.txt 2>&1; echo EXIT $? >> OUT.txt' > /dev/null 2>&1 < /dev/null &
+setsid nohup bash -c '/home/timg/code/spacesim2/.venv-ft/bin/python -m spacesim2.cli.main run --workers 12 --turns 400 --quiet --summary > OUT.txt 2>&1; echo EXIT $? >> OUT.txt' > /dev/null 2>&1 < /dev/null &
 ```
 
 Watch `OUT.txt` for the `EXIT` line (Monitor, or a bounded polling loop in a
 background Bash), then read the `===SUMMARY_BEGIN===`/`===SUMMARY_END===`
 JSON. `$!` is the `setsid` wrapper's PID, not the sim; use
-`pgrep -f "spacesim2 run"` to find the process. The `data/runs/` export
-directory appears at start, so its presence is not completion — only `EXIT`
-is. Send A/B runs (`dev ab`, which is 100-planet-scale by default) and any
+`pgrep -f "spacesim2.cli.main run"` to find the process. The `data/runs/`
+export directory appears at start, so its presence is not completion — only
+`EXIT` is. Send A/B runs (`dev ab`, which is 100-planet-scale by default) and any
 galaxy-scale probe to a subagent (`simulation-analyst` or general-purpose) so
 the lead session's context and foreground stay free and a harness kill does
 not cost the lead's work; the subagent uses the same detached pattern.
@@ -422,8 +441,8 @@ human-facing dashboard.
 
 ```bash
 uv run spacesim2 run --notebook          # export and open notebooks/analysis_template.py
-# or
-uv run spacesim2 run
+# or export on the faster threaded path, then open the notebook
+.venv-ft/bin/python -m spacesim2.cli.main run --workers 12
 uv run marimo edit --no-token notebooks/analysis_template.py   # finds the latest run via SPACESIM_RUN_PATH
 ```
 

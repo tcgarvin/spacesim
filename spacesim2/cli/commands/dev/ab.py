@@ -4,10 +4,12 @@ The baseline is a detached ``git worktree`` at ``--base``, never a stash, so
 it is safe while other agents edit the tree. Runs alternate between the two
 arms (before_1, after_1, before_2, ...) so machine drift lands on both. Each
 run writes its KPI summary JSON to ``--out``; a rep whose JSON already exists
-is skipped unless ``--fresh``, so an interrupted batch resumes. When every run
-is in, the command prints one table of per-KPI means with a variance-aware
-verdict and writes ``manifest.json``, ``table.txt`` and ``done`` (holding the
-exit code) to ``--out`` so a background caller can wait on the sentinel.
+is skipped unless ``--fresh``, so an interrupted batch resumes. ``--python``
+runs both arms under one interpreter, such as the free-threaded side venv,
+and ``--workers`` threads each run's actor phase. When every run is in, the
+command prints one table of per-KPI means with a variance-aware verdict and
+writes ``manifest.json``, ``table.txt`` and ``done`` (holding the exit code)
+to ``--out`` so a background caller can wait on the sentinel.
 
 The aggregation and verdict functions are pure and unit-tested against
 hand-written summary dicts; the KPI list is data-driven (dotted paths into the
@@ -30,7 +32,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
 
-from spacesim2.cli.output import print_error, print_success
+from spacesim2.cli.commands.run import GIL_ENABLED_WARNING
+from spacesim2.cli.output import print_error, print_success, print_warning
 
 ARMS = ("before", "after")
 
@@ -119,6 +122,22 @@ def add_parser(subparsers: argparse._SubParsersAction) -> argparse.ArgumentParse
     )
     parser.add_argument(
         "--planets", type=int, default=100, help="Planets per run (default 100)"
+    )
+    parser.add_argument(
+        "--python",
+        type=str,
+        default="",
+        metavar="PATH",
+        help="Interpreter for both arms, run as `PATH -m spacesim2.cli.main` "
+        "with PYTHONPATH set to each arm's source, e.g. .venv-ft/bin/python "
+        "for free-threaded runs. Default: `uv run` in each arm's own venv.",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Actor-phase threads per run, passed to `spacesim2 run --workers` "
+        "(default 1, serial). Speeds runs up only on a free-threaded --python.",
     )
     parser.add_argument(
         "--out",
@@ -357,12 +376,13 @@ def baseline_worktree_path(sha: str) -> Path:
     return tmp / f"spacesim2_base_{sha[:8]}"
 
 
-def ensure_baseline_worktree(root: Path, sha: str) -> Path:
-    """Materialize a detached worktree at ``sha`` and sync its venv, once.
+def ensure_baseline_worktree(root: Path, sha: str, sync: bool) -> Path:
+    """Materialize a detached worktree at ``sha`` and, if ``sync``, its venv.
 
     An existing directory is reused as is. ``.python-version`` is gitignored,
     so it is copied in; without it the baseline could run on another
-    interpreter than the working tree.
+    interpreter than the working tree. ``sync`` is False when an explicit
+    ``--python`` runs the arms, since the worktree's own venv is then unused.
     """
     worktree = baseline_worktree_path(sha)
     if worktree.exists():
@@ -371,33 +391,58 @@ def ensure_baseline_worktree(root: Path, sha: str) -> Path:
     python_version = root / ".python-version"
     if python_version.exists():
         shutil.copy(python_version, worktree / ".python-version")
-    sync = subprocess.run(
+    if not sync:
+        return worktree
+    synced = subprocess.run(
         ["uv", "sync", "--project", str(worktree), "-q"],
         capture_output=True,
         text=True,
     )
-    if sync.returncode != 0:
-        raise AbSetupError(f"uv sync of baseline failed: {sync.stderr.strip()}")
+    if synced.returncode != 0:
+        raise AbSetupError(f"uv sync of baseline failed: {synced.stderr.strip()}")
     return worktree
 
 
-def supports_summary_json(project: Path) -> bool:
-    """Whether ``spacesim2 run`` in ``project`` accepts ``--summary-json``.
+def spacesim_command(project: Path, python: Path | None) -> list[str]:
+    """Argv prefix that runs the spacesim2 CLI from ``project``'s source.
 
-    An older baseline predates the flag; those runs fall back to slicing the
-    JSON out of stdout between the summary delimiters.
+    With no ``python`` the CLI runs through ``uv run`` in the project's own
+    venv. With ``python`` it runs as ``python -m spacesim2.cli.main``, and
+    ``run_env`` points PYTHONPATH at ``project`` so the arm imports its own
+    code rather than whatever that interpreter has installed.
+    """
+    if python is None:
+        return ["uv", "run", "--project", str(project), "spacesim2"]
+    return [str(python), "-m", "spacesim2.cli.main"]
+
+
+def run_env(project: Path, python: Path | None) -> dict[str, str]:
+    """Environment for a run in ``project``; sets PYTHONPATH under ``python``."""
+    env = os.environ.copy()
+    if python is not None:
+        env["PYTHONPATH"] = str(project)
+    return env
+
+
+def run_help(project: Path, python: Path | None) -> str:
+    """The ``spacesim2 run --help`` text of ``project``'s source.
+
+    Used to detect flags an older baseline predates: without
+    ``--summary-json`` a run falls back to slicing the JSON out of stdout,
+    and without ``--workers`` a threaded batch cannot run that arm.
     """
     result = subprocess.run(
-        ["uv", "run", "--project", str(project), "spacesim2", "run", "--help"],
+        [*spacesim_command(project, python), "run", "--help"],
         capture_output=True,
         text=True,
         cwd=project,
+        env=run_env(project, python),
     )
     if result.returncode != 0:
         raise AbSetupError(
             f"`spacesim2 run --help` failed in {project}: {result.stderr.strip()}"
         )
-    return "--summary-json" in result.stdout
+    return result.stdout
 
 
 def extract_summary(stdout: str) -> str:
@@ -418,21 +463,21 @@ def run_one(
     json_path: Path,
     log_path: Path,
     use_summary_json: bool,
+    python: Path | None = None,
+    workers: int = 1,
 ) -> float:
     """Run one sim in ``project`` and leave its summary at ``json_path``.
 
     Returns wall seconds. Combined stdout and stderr go to ``log_path``.
+    A threaded run whose interpreter kept the GIL still completes, with a
+    warning, because the GIL costs speed and not correctness.
 
     The sim loads ``data/`` relative to the current directory, so the run
     is launched from ``project``; without that the baseline arm ran its own
     code against the working tree's YAML.
     """
     cmd = [
-        "uv",
-        "run",
-        "--project",
-        str(project),
-        "spacesim2",
+        *spacesim_command(project, python),
         "run",
         "--turns",
         str(turns),
@@ -441,14 +486,25 @@ def run_one(
         "--no-export",
         "--quiet",
     ]
+    if workers > 1:
+        cmd += ["--workers", str(workers)]
     if use_summary_json:
         cmd += ["--summary-json", str(json_path)]
     else:
         cmd.append("--summary")
     start = time.monotonic()
-    result = subprocess.run(cmd, capture_output=True, text=True, cwd=project)
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        cwd=project,
+        env=run_env(project, python),
+    )
     elapsed = time.monotonic() - start
-    log_path.write_text((result.stdout or "") + (result.stderr or ""))
+    output = (result.stdout or "") + (result.stderr or "")
+    log_path.write_text(output)
+    if workers > 1 and GIL_ENABLED_WARNING in output:
+        print_warning(f"GIL was enabled in {log_path.name}; threads gave no speedup")
     if result.returncode != 0:
         raise AbSetupError(f"run failed with exit {result.returncode}; see {log_path}")
     if not use_summary_json:
@@ -480,11 +536,23 @@ def execute(args: argparse.Namespace) -> int:
     if done.exists():
         done.unlink()
 
+    if args.workers < 1:
+        print_error(f"--workers must be at least 1, got {args.workers}")
+        return 1
+    # absolute(), not resolve(): a venv's bin/python is a symlink to the base
+    # interpreter, and following it would drop the venv's site-packages.
+    python = Path(args.python).absolute() if args.python else None
+    if python is not None and not python.is_file():
+        print_error(f"--python interpreter not found: {python}")
+        return 1
+
     manifest: dict[str, object] = {
         "base_ref": args.base,
         "turns": args.turns,
         "planets": args.planets,
         "reps": args.reps,
+        "python": str(python) if python is not None else "uv run",
+        "workers": args.workers,
         "kpis": list(args.kpi),
         "runs": {},
     }
@@ -497,12 +565,18 @@ def execute(args: argparse.Namespace) -> int:
         manifest["base_sha"] = base_sha
         manifest["head_sha"] = _git(root, "rev-parse", "HEAD")
         manifest["head_dirty"] = bool(_git(root, "status", "--porcelain"))
-        worktree = ensure_baseline_worktree(root, base_sha)
+        worktree = ensure_baseline_worktree(root, base_sha, sync=python is None)
         manifest["base_worktree"] = str(worktree)
         projects = {"before": worktree, "after": root}
-        summary_json_ok = {
-            arm: supports_summary_json(project) for arm, project in projects.items()
-        }
+        helps = {arm: run_help(project, python) for arm, project in projects.items()}
+        summary_json_ok = {arm: "--summary-json" in text for arm, text in helps.items()}
+        if args.workers > 1:
+            for arm, text in helps.items():
+                if "--workers" not in text:
+                    raise AbSetupError(
+                        f"the {arm} arm's `spacesim2 run` has no --workers flag; "
+                        "rerun with --workers 1"
+                    )
     except AbSetupError as exc:
         print_error(str(exc))
         return _finish(out, manifest, 1)
@@ -526,6 +600,8 @@ def execute(args: argparse.Namespace) -> int:
                     json_path,
                     out / f"{name}.log",
                     summary_json_ok[arm],
+                    python,
+                    args.workers,
                 )
             except AbSetupError as exc:
                 print_error(f"{name}: {exc}")
@@ -554,6 +630,7 @@ def execute(args: argparse.Namespace) -> int:
     print(table)
     print_success(
         f"{args.base} ({base_sha[:8]}) vs HEAD, {args.reps} reps x "
-        f"{args.turns} turns x {args.planets} planets; table at {out / 'table.txt'}"
+        f"{args.turns} turns x {args.planets} planets, workers {args.workers}; "
+        f"table at {out / 'table.txt'}"
     )
     return _finish(out, manifest, 0)

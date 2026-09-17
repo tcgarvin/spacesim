@@ -30,12 +30,13 @@ modify project source code outside of `notebooks/`.
   sims regardless of actual free memory:
 
   ```bash
-  setsid nohup bash -c 'uv run --project /home/timg/code/spacesim2 spacesim2 run --turns 400 --quiet --summary > OUT.txt 2>&1; echo EXIT $? >> OUT.txt' > /dev/null 2>&1 < /dev/null &
+  setsid nohup bash -c '/home/timg/code/spacesim2/.venv-ft/bin/python -m spacesim2.cli.main run --workers 12 --turns 400 --quiet --summary > OUT.txt 2>&1; echo EXIT $? >> OUT.txt' > /dev/null 2>&1 < /dev/null &
   ```
 
   Then wait on the `EXIT` line in OUT.txt with a bounded `until grep -q
   "^EXIT" OUT.txt` loop in a background Bash call, or a Monitor. `$!` is
-  the `setsid` wrapper, not the sim; `pgrep -f "spacesim2 run"` finds it.
+  the `setsid` wrapper, not the sim; `pgrep -f "spacesim2.cli.main run"`
+  finds it.
   The export directory under `data/runs/` appears at start, so a new
   directory is not a finished run; the `EXIT` line is.
 - Never take measurements in a git worktree. A worktree baseline once
@@ -47,13 +48,16 @@ modify project source code outside of `notebooks/`.
 State your run budget (planet count, turns, number of runs, expected wall
 time) before you start.
 
+Threaded on `.venv-ft` with `--workers 12` and `--no-export --quiet`,
+measured 2026-09-13. A serial `uv run` takes about 3-4x as long.
+
 | Run | Wall time |
 |-----|-----------|
-| 12 planets, 200 turns, `--no-export --quiet` | ~30 s (~0.15 s/turn) |
-| 100 planets, 200 turns, `--no-export --quiet` | ~7 min (~2 s/turn) |
-| 100 planets, 450 turns | ~15 min |
-| 100 planets with export and `--log-actors all` | ~4 s/turn |
-| `dev check` sim stage (5 planets, 200 turns) | ~25 s |
+| 12 planets, 200 turns | ~16 s |
+| 12 planets, 450 turns | ~66 s |
+| 100 planets, 300 turns | ~6 min (~1.1 s/turn) |
+| 100 planets, 450 turns | ~9 min |
+| `dev check` sim stage (5 planets, 200 turns, stock serial) | ~25 s |
 
 Anything over about 2 minutes runs detached (see Harness Rules). Use `--planets 12` unless the question is about fleet
 geography or lane structure; for those, prefer one 450-turn 100-planet run
@@ -64,8 +68,16 @@ over three short ones.
 ### Tier 0 — KPI summary ("is it broken / is the economy healthy?")
 
 ```bash
-uv run spacesim2 run --turns 200 --no-export --quiet --summary
+.venv-ft/bin/python -m spacesim2.cli.main run --workers 12 --turns 200 --no-export --quiet --summary
 ```
+
+Run every sim this way: the free-threaded side venv (`.venv-ft`, setup in
+`docs/performance.md`) with a threaded actor phase, from the repo root. Its
+KPIs match serial `uv run spacesim2 run` within noise and it is about 3x
+faster at 100 planets and 4x at 12. Fall back to `uv run spacesim2 run` with
+the same flags only when `.venv-ft` is missing. Tier-1b probes stay serial: a
+monkeypatched brain method runs on the worker threads, and a shared counter
+updated with `+=` is not atomic across threads.
 
 Read the JSON between `===SUMMARY_BEGIN===` / `===SUMMARY_END===`: money
 distribution, per-drive health/debt/deprivation, inventories, mean prices,
@@ -76,7 +88,7 @@ every question.
 ### Tier 1a — export analysis (questions over logged history)
 
 ```bash
-uv run spacesim2 run --turns 300                       # exports Parquet to data/runs/
+.venv-ft/bin/python -m spacesim2.cli.main run --workers 12 --turns 300   # exports Parquet to data/runs/
 cp notebooks/scratch_template.py notebooks/my_question.py
 # edit: load_run() from spacesim2.analysis.loading -> Polars frames
 uv run spacesim2 dev analyze notebooks/my_question.py  # runs it, relays stdout
@@ -122,7 +134,8 @@ committed examples of the genre.
 ### Before/after questions
 
 "Did my fix move KPI Y, or is that noise?" is the `sim-ab-testing` skill
-(`uv run spacesim2 dev ab --base <ref>`), which runs replicates on both
+(`uv run spacesim2 dev ab --base <ref> --python .venv-ft/bin/python
+--workers 12`), which runs replicates on both
 sides. Do not answer it from one run per side.
 
 ### Interpreting results

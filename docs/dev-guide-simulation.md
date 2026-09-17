@@ -27,8 +27,9 @@ Start with the KPI summary and Tier-1 analysis scripts (see the
 `sim-evaluation` skill):
 
 ```bash
-# Compact KPI summary with PASS/WARN/FAIL verdict
-uv run spacesim2 run --turns 200 --no-export --quiet --summary
+# Compact KPI summary with PASS/WARN/FAIL verdict, on the free-threaded
+# side venv with a threaded actor phase (setup in docs/performance.md)
+.venv-ft/bin/python -m spacesim2.cli.main run --workers 12 --turns 200 --no-export --quiet --summary
 
 # Run an ad-hoc analysis script against the latest exported run
 uv run spacesim2 dev analyze my_probe.py

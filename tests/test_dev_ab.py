@@ -1,7 +1,10 @@
-"""Tests for the `dev ab` aggregation and verdict logic.
+"""Tests for the `dev ab` aggregation, verdict, and run-launch logic.
 
 Pure functions against hand-written summary dicts; no simulation runs.
 """
+
+import subprocess
+from pathlib import Path
 
 from spacesim2.cli.commands.dev.ab import (
     Direction,
@@ -15,6 +18,9 @@ from spacesim2.cli.commands.dev.ab import (
     judge,
     known_direction,
     lookup,
+    run_env,
+    run_one,
+    spacesim_command,
 )
 from spacesim2.cli.main import create_parser
 
@@ -169,3 +175,90 @@ def test_dev_ab_is_registered():
     assert args.base == "HEAD"
     assert args.reps == 3
     assert args.kpi == ["a.b", "c.d"]
+
+
+class TestRunLaunch:
+    def test_default_runs_through_uv_in_the_arm_project(self):
+        project = Path("/repo/base")
+        assert spacesim_command(project, None) == [
+            "uv",
+            "run",
+            "--project",
+            "/repo/base",
+            "spacesim2",
+        ]
+        assert run_env(project, None).get("PYTHONPATH") != "/repo/base"
+
+    def test_explicit_python_imports_the_arm_source_via_pythonpath(self):
+        project = Path("/repo/base")
+        python = Path("/repo/.venv-ft/bin/python")
+        assert spacesim_command(project, python) == [
+            "/repo/.venv-ft/bin/python",
+            "-m",
+            "spacesim2.cli.main",
+        ]
+        assert run_env(project, python)["PYTHONPATH"] == "/repo/base"
+
+    def test_run_one_passes_workers_python_and_cwd(self, tmp_path, monkeypatch):
+        calls: list[dict[str, object]] = []
+
+        def fake_run(cmd, **kwargs):
+            calls.append({"cmd": cmd, **kwargs})
+            return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        python = Path("/venv/bin/python")
+        run_one(
+            tmp_path,
+            turns=10,
+            planets=12,
+            json_path=tmp_path / "after_1.json",
+            log_path=tmp_path / "after_1.log",
+            use_summary_json=True,
+            python=python,
+            workers=12,
+        )
+        (call,) = calls
+        cmd = call["cmd"]
+        assert isinstance(cmd, list)
+        assert cmd[:3] == ["/venv/bin/python", "-m", "spacesim2.cli.main"]
+        assert cmd[cmd.index("--workers") + 1] == "12"
+        assert call["cwd"] == tmp_path
+        env = call["env"]
+        assert isinstance(env, dict)
+        assert env["PYTHONPATH"] == str(tmp_path)
+
+    def test_serial_run_omits_workers_flag(self, tmp_path, monkeypatch):
+        commands: list[list[str]] = []
+
+        def fake_run(cmd, **kwargs):
+            commands.append(cmd)
+            return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        run_one(
+            tmp_path,
+            turns=10,
+            planets=12,
+            json_path=tmp_path / "before_1.json",
+            log_path=tmp_path / "before_1.log",
+            use_summary_json=True,
+        )
+        assert "--workers" not in commands[0]
+
+
+def test_dev_ab_accepts_python_and_workers():
+    args = create_parser().parse_args(
+        [
+            "dev",
+            "ab",
+            "--base",
+            "HEAD",
+            "--python",
+            ".venv-ft/bin/python",
+            "--workers",
+            "12",
+        ]
+    )
+    assert args.python == ".venv-ft/bin/python"
+    assert args.workers == 12

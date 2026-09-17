@@ -43,14 +43,71 @@ runs; the UI stays on the stock interpreter:
 ```bash
 uv python install 3.14t
 uv venv --python 3.14t .venv-ft
-uv pip install --python .venv-ft/bin/python pyyaml tqdm numpy typing-extensions
+uv pip install --python .venv-ft/bin/python --only-binary :all: pyyaml tqdm numpy typing-extensions pyarrow
 .venv-ft/bin/python -m spacesim2.cli.main run --turns 200 --no-export --workers 12
 ```
 
-`.venv-ft` is gitignored. Add pandas and pyarrow to the install list if you
-need export, and verify free-threaded wheels resolve. Importing any C
-extension without free-threaded support silently re-enables the GIL; the
-CLI checks `sys._is_gil_enabled()` and warns.
+Run it from the repo root: `data/` loads relative to the working directory
+and `-m` imports the package from there. `.venv-ft` is gitignored.
+
+pyarrow is the only export dependency and has a free-threaded wheel, so
+export runs work here too. polars has no free-threaded wheel and would build
+from Rust source, so `dev analyze` scripts and notebooks stay on `uv run`
+and read the exported Parquet. `--only-binary :all:` makes a missing wheel
+fail instead of starting that build. Importing any C extension without
+free-threaded support silently re-enables the GIL; the CLI checks
+`sys._is_gil_enabled()` and warns, and `dev ab` repeats the warning per run.
+
+This is the default way to run sims (see `CLAUDE.md`). The KPI comparison
+against stock serial runs is under "Drift check" below.
+
+Set `--workers` to the machine's physical core count, never the logical CPU
+count, so a sim leaves headroom for other work on the box. The dev laptop has
+12 physical cores (4 P-cores with hyperthreading, 8 E-cores) and 16 logical
+CPUs, hence `--workers 12`. Ships and matching run serially on the main
+thread while the pool is idle, so a run never has more than 12 busy
+threads. On another machine:
+
+```bash
+lscpu -p=CORE,SOCKET | grep -v '^#' | sort -u | wc -l
+```
+
+## Drift check
+
+Measured 2026-09-13 at 62db50d plus the warm-up fix below, `--no-export`,
+the default KPI set of `dev ab` (24 rows), verdict rule
+`|delta| > 2 x pooled sd`.
+
+| Comparison | Config | Reps per arm | Flagged rows |
+|---|---|---|---|
+| stock 3.13 serial vs 3.14t serial | 12 planets, 450 turns | 4 | 0 |
+| stock 3.13 serial vs 3.14t `--workers 12` | 12 planets, 450 turns | 4 | 0 |
+| 3.14t serial vs 3.14t `--workers 12` | 12 planets, 450 turns | 4 | 0 |
+| stock 3.13 serial vs 3.14t `--workers 12` | 100 planets, 300 turns | 6 | 0 |
+
+At 3 reps per arm the 100-planet comparison flagged `trade.ship_fuel_price`
+(37.6 vs 34.3) because the threaded arm's three runs happened to agree
+closely. Three more reps per arm put it at 36.4 ± 1.6 vs 34.7 ± 1.4, which
+is neutral. Every run in both arms passed the verdict.
+
+Wall time, machine otherwise idle:
+
+| Config | stock 3.13 serial | 3.14t serial | 3.14t `--workers 12` |
+|---|---|---|---|
+| 12 planets, 200 turns | 70 s | | 16 s |
+| 100 planets, 60 turns | 204 s | 185 s | 68 s |
+| 100 planets, 300 turns | | | 340 s |
+
+The audit behind this check found one thread-safety gap added after dccfa12,
+now fixed. The navigator's galaxy-wide fuel scan
+(`Navigator._fuel_market_scan`) is built lazily and read by migrating actors
+for passage fares and by spaceport operators for fuel delivery bids. When no
+ship had built it in the previous ship phase, a worker built it inside the
+actor phase: it read other planets' live books and wrote their
+`Market._quote_cache` from a thread that does not own the market.
+`_warm_shared_caches` now builds the scan, and the no-producer fallback ask
+depths, before the shards start.
+`test_fuel_scan_is_never_built_on_a_worker_thread` covers it.
 
 ## What is cached and why it is exact
 

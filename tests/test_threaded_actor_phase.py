@@ -4,8 +4,11 @@ The threaded path also runs correctly, without speedup, on GIL-enabled
 interpreters, so these tests run everywhere.
 """
 
+import threading
+
 import pytest
 
+from spacesim2.core.navigation import Navigator, get_navigator
 from spacesim2.core.parallel import run_actor_phase_threaded
 from spacesim2.core.simulation import Simulation
 
@@ -81,3 +84,25 @@ def test_single_worker_rejected() -> None:
     sim = _setup(workers=1)
     with pytest.raises(ValueError):
         run_actor_phase_threaded(sim, 1)
+
+
+def test_fuel_scan_is_never_built_on_a_worker_thread(monkeypatch) -> None:
+    """The galaxy-wide fuel scan reads every planet's books, so a worker
+    building it would race the owner threads of those markets."""
+    builders: list[str] = []
+    original = Navigator._fuel_market_scan
+
+    def recording_scan(self: Navigator):
+        if self._fuel_scan is None:
+            builders.append(threading.current_thread().name)
+        return original(self)
+
+    monkeypatch.setattr(Navigator, "_fuel_market_scan", recording_scan)
+    sim = _setup(workers=2)
+    navigator = get_navigator(sim)
+    for _ in range(5):
+        # Forced refresh: the scan is missing when the actor phase starts.
+        navigator.refresh_market_facts()
+        sim.run_turn()
+    assert builders, "wrapper never saw a scan build"
+    assert all(name == threading.main_thread().name for name in builders)
