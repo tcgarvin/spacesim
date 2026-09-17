@@ -13,13 +13,20 @@ class CommodityDefinition:
     id, so identity is the right equality. ``eq=False`` keeps ``object``'s
     identity ``__hash__``/``__eq__``. These objects are dict keys on hot paths
     (inventories, order books, price histories), and a field-based hash would
-    rehash all four fields on every lookup.
+    rehash all fields on every lookup.
+
+    ``transportable`` is whether a ship can carry the good between planets.
+    ``tradable`` is whether it can be bought and sold on a planet market at
+    all; it defaults to ``transportable`` when the YAML omits it. The two
+    differ only for a good too large to ship but still sold where it is made,
+    such as ``ship_hull``. Facilities are neither.
     """
 
     id: str
     name: str
     transportable: bool
     description: str
+    tradable: bool = True
 
     def __str__(self) -> str:
         return self.name
@@ -36,22 +43,32 @@ class CommodityRegistry:
         self._all_cache: Optional[List[CommodityDefinition]] = None
 
     def load_from_file(self, filepath: str | Path) -> None:
-        """Load commodity definitions from a YAML file."""
-        try:
-            with open(filepath, "r") as f:
-                commodities_data = yaml.safe_load(f)
+        """Load commodity definitions from a YAML file.
 
-            for commodity_data in commodities_data:
-                commodity_def = CommodityDefinition(
-                    id=commodity_data["id"],
-                    name=commodity_data["name"],
-                    transportable=commodity_data["transportable"],
-                    description=commodity_data["description"],
+        Raises ``ValueError`` on a malformed entry: a commodity the rest of
+        the simulation cannot price or carry is not something to continue
+        past.
+        """
+        with open(filepath, "r") as f:
+            commodities_data = yaml.safe_load(f)
+
+        for commodity_data in commodities_data:
+            transportable = commodity_data["transportable"]
+            tradable = commodity_data.get("tradable", transportable)
+            if transportable and not tradable:
+                raise ValueError(
+                    f"Commodity {commodity_data['id']!r} is transportable but "
+                    "not tradable; ships buy and sell everything they carry."
                 )
-                self._commodities[commodity_def.id] = commodity_def
-            self._all_cache = None
-        except Exception as e:
-            print(f"Error loading commodities from {filepath}: {e}")
+            commodity_def = CommodityDefinition(
+                id=commodity_data["id"],
+                name=commodity_data["name"],
+                transportable=transportable,
+                description=commodity_data["description"],
+                tradable=tradable,
+            )
+            self._commodities[commodity_def.id] = commodity_def
+        self._all_cache = None
 
     def add_commodity(self, commodity_def: CommodityDefinition) -> None:
         """Add a commodity definition to the registry."""

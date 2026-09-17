@@ -61,7 +61,7 @@ def _categorize_commodities(
     categories: Dict[str, str] = {}
     for thing in things:
         thing_id = thing["id"]
-        if not thing.get("transportable", True):
+        if not thing.get("tradable", thing.get("transportable", True)):
             categories[thing_id] = "facility"
         elif thing_id in tools_used:
             categories[thing_id] = "tool"

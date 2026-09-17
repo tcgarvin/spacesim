@@ -6,9 +6,23 @@ Commodities and production processes are data: `data/commodities.yaml` and
 ## Commodities
 
 Each entry has `id`, `name`, `transportable` (can ships carry it; false for
-facilities) and `description`. `CommodityRegistry` (`core/commodity.py`)
-loads them. Everywhere in the codebase a commodity is a
+facilities), an optional `tradable`, and `description`. `CommodityRegistry`
+(`core/commodity.py`) loads them. Everywhere in the codebase a commodity is a
 `CommodityDefinition` object, never a string id.
+
+`tradable` is whether the good can be bought and sold on a planet market at
+all. It defaults to `transportable`, so only a good that breaks the two apart
+has to say so. `ship_hull` is the only one: too large to load as cargo, but
+sold on the market of the planet that built it. A transportable good that is
+not tradable is rejected at load time, since ships buy and sell everything
+they carry.
+
+The market itself enforces nothing here: `place_buy_order` and
+`place_sell_order` accept any commodity. What keeps facilities off the book is
+the brains, which skip an untradable good when they list surplus stock, and
+value an untradable recipe output at `FACILITY_NOTIONAL_VALUE` instead of a
+market price. Market makers and ship brains iterate the transportable goods,
+so neither quotes nor hauls a hull.
 
 ## Processes
 
@@ -54,7 +68,10 @@ Facilities are commodities with `transportable: false` that appear in a
 process's `facilities_required`. They are not consumed when the process runs.
 The tier-2 facilities are `textile_mill`, `chemistry_lab`, `chemical_plant`,
 `precision_forge`, `electronics_workshop` and `farm`; each has a `build_*`
-process taking simple building materials and tier-1 inputs.
+process taking simple building materials and tier-1 inputs. The tier-3
+facilities are `advanced_factory`, `shipyard` and the operator-owned
+`spaceport`. Only the spaceport has a maintenance drive; a facility an
+industrialist builds for itself has no upkeep.
 
 `heavy_machinery` is a tier-1-to-2 industrial good, transportable and
 consumed, not a facility itself: `build_chemical_plant` and `build_farm` both
@@ -85,6 +102,25 @@ a computer does not help pick berries. `IndustrialistBrain` keeps 1 unit of
 each capital good its chosen recipe lists, bids for it at the extra output
 over its expected life (`_capital_willingness_to_pay`), and never lists that
 unit for sale. Colonists do not buy computers.
+
+## Shipbuilding
+
+A starship hull is assembled in two stages, so no single run has to be funded
+in one lump:
+
+| Recipe | Facility | Inputs | Imputed cost |
+|--------|----------|--------|--------------|
+| `make_ship_hull_section` | `advanced_factory` | 3 advanced_building_materials, 4 common_metal, 2 precision_parts, 1 electronics | 652 |
+| `make_ship_hull` | `shipyard` | 5 ship_hull_section, 2 ship_components, 1 computers, 2 heavy_machinery | 5531 |
+| `build_shipyard` | none | 10 simple_building_materials, 8 advanced_building_materials, 2 heavy_machinery, simple_tools | 918 |
+
+Costs are imputed at the 100-planet trade prices (computers 502, electronics
+194, heavy_machinery 138, common_metal 31, simple_building_materials 12) with
+sections at 780 and ship_components at 420. A hull therefore clears the
+industrialist's 1.2x entry margin against a bid of about 6,600 and up.
+
+`ship_hull_section` is an ordinary transportable good, so sections can be made
+on one planet and shipped to a shipyard on another. The hull cannot.
 
 ## Adding commodities or processes
 

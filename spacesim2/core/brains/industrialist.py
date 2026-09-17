@@ -376,10 +376,10 @@ class IndustrialistBrain(ActorBrain):
         While the actor is leaving, nothing is reserved and nothing is kept
         except need-drive materials: the facility and the stock built up for
         a line the actor is walking away from are worth more as fare money,
-        and non-transportable goods are offered too, since a facility cannot
-        follow its owner. The pantry is exempt because the actor still eats
-        through the intent window and the transit, and it cannot buy its own
-        stock back.
+        and untradable goods are offered too, since a facility cannot follow
+        its owner. The pantry is exempt because the actor still eats through
+        the intent window and the transit, and it cannot buy its own stock
+        back.
         """
         leaving = is_leaving(self)
         reserved = set() if leaving else self._reserved_commodity_ids(actor)
@@ -394,7 +394,7 @@ class IndustrialistBrain(ActorBrain):
         for commodity in actor.sim.commodity_registry.all_commodities():
             if commodity.id in reserved:
                 continue
-            if not commodity.transportable and not leaving:
+            if not commodity.tradable and not leaving:
                 continue
             if leaving and commodity.id not in need_materials:
                 keep = 0
@@ -663,10 +663,10 @@ class IndustrialistBrain(ActorBrain):
 
         total = 0.0
         for commodity, quantity in process.outputs.items():
-            # Non-transportable outputs are facilities for personal use; give
-            # them a notional value for enabling other recipes. A facility is
-            # built for its own use and never listed, so no stock discount.
-            if not commodity.transportable:
+            # Untradable outputs are facilities for personal use; give them
+            # a notional value for enabling other recipes. A facility is built
+            # for its own use and never listed, so no stock discount.
+            if not commodity.tradable:
                 total += FACILITY_NOTIONAL_VALUE * quantity
                 continue
 
@@ -1237,9 +1237,9 @@ class IndustrialistBrain(ActorBrain):
 
         Holds ``keep`` units back, which is how an upkeep good the chosen
         recipe consumes stays in stock even when the recipe also produces it.
-        Skips non-transportable goods; facilities are not tradable.
+        Skips untradable goods; facilities never reach a market.
         """
-        if not commodity.transportable:
+        if not commodity.tradable:
             return []
         available = actor.inventory.get_available_quantity(commodity)
         keep = max(keep, self._keep_levels_by_commodity(actor).get(commodity.id, 0))

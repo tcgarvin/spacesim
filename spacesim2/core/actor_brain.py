@@ -1130,6 +1130,7 @@ class ActorBrain:
             "electronics_workshop": "build_electronics_workshop",
             "advanced_factory": "build_advanced_factory",
             "farm": "build_farm",
+            "shipyard": "build_shipyard",
         }
         return facility_to_process.get(facility.id)
 

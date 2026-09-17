@@ -761,3 +761,61 @@
   description: Manufactures advanced integrated ship modules with electronic control systems.
   capital:
     computers: 0.25
+- id: make_ship_hull_section
+  name: Make Ship Hull Section
+  inputs:
+    advanced_building_materials: 3
+    common_metal: 4
+    precision_parts: 2
+    electronics: 1
+  outputs:
+    ship_hull_section: 1
+  tools_required: []
+  facilities_required:
+    - advanced_factory
+  labor: 3
+  relevant_skills:
+    - advanced_manufacturing
+    - aerospace
+  description: Fabricates a prefabricated hull segment from composites, metal, and control electronics.
+  capital:
+    computers: 0.25
+
+# === Shipbuilding ===
+
+- id: build_shipyard
+  name: Build Shipyard
+  inputs:
+    simple_building_materials: 10
+    advanced_building_materials: 8
+    heavy_machinery: 2
+  outputs:
+    shipyard: 1
+  tools_required:
+    - simple_tools
+  facilities_required: []
+  labor: 10
+  relevant_skills:
+    - advanced_manufacturing
+    - aerospace
+  description: Constructs an assembly hall with the gantries and cranes a starship hull needs.
+
+- id: make_ship_hull
+  name: Make Ship Hull
+  inputs:
+    ship_hull_section: 5
+    ship_components: 2
+    computers: 1
+    heavy_machinery: 2
+  outputs:
+    ship_hull: 1
+  tools_required: []
+  facilities_required:
+    - shipyard
+  labor: 6
+  relevant_skills:
+    - advanced_manufacturing
+    - aerospace
+  description: Fits hull sections, modules, and avionics into a complete starship hull.
+  capital:
+    computers: 0.25

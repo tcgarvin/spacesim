@@ -463,7 +463,7 @@ class ColonistBrain(ActorBrain):
     ) -> List[MarketCommand]:
         """Sell inventory above keep levels, floored at replacement cost.
 
-        While the actor is leaving, the sweep also offers non-transportable
+        While the actor is leaving, the sweep also offers untradable
         goods and drops every working buffer: a facility is worth nothing
         once the actor is off-planet, and tools and raw stock are worth more
         as fare than as a hedge against work the actor will not do here.
@@ -482,7 +482,7 @@ class ColonistBrain(ActorBrain):
         commands: List[MarketCommand] = []
         keep_levels = self._keep_levels_by_commodity(actor)
         for commodity in actor.sim.commodity_registry.all_commodities():
-            if not commodity.transportable and not leaving:
+            if not commodity.tradable and not leaving:
                 continue
             if leaving and commodity.id not in need_materials:
                 keep = 0

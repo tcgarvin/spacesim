@@ -23,6 +23,8 @@ How to edit the simulation's commodities and production processes.
 - id: commodity_id           # snake_case, unique identifier
   name: Display Name         # Human-readable name
   transportable: true/false  # Can ships carry this? (false for facilities)
+  tradable: true/false       # Optional; can a market trade it. Defaults to
+                             # transportable. Only ship_hull sets it apart.
   description: Text          # What is this commodity?
 ```
 

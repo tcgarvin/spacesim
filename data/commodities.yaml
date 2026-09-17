@@ -196,6 +196,17 @@
   transportable: true
   description: Advanced integrated ship modules with electronic control systems.
 
+- id: ship_hull_section
+  name: Ship Hull Section
+  transportable: true
+  description: Prefabricated hull segment; several are fitted together into a starship hull.
+
+- id: ship_hull
+  name: Ship Hull
+  transportable: false
+  tradable: true
+  description: A complete starship hull. Too large to carry as cargo, so it trades only on the market of the planet that built it.
+
 # --- Tier 3 Facilities ---
 
 - id: advanced_factory
@@ -207,6 +218,11 @@
   name: Spaceport
   transportable: false
   description: Ground spaceport with fuel storage and landing pads.
+
+- id: shipyard
+  name: Shipyard
+  transportable: false
+  description: Heavy assembly hall for fitting starship hulls out of prefabricated sections.
 
 # --- Tier 3 Advanced Goods ---
 
