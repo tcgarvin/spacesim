@@ -63,3 +63,29 @@ MARKET_SNAPSHOTS_SCHEMA = pa.schema(
         ("scarcity_pressure", pa.float64()),  # unmet-import escalation signal
     ]
 )
+
+
+# Ship state per turn, one row per ship.
+SHIP_TURNS_SCHEMA = pa.schema(
+    [
+        ("simulation_id", pa.string()),
+        ("turn", pa.int32()),
+        ("ship_name", pa.string()),
+        # "TRAVELING" while in flight; the docked planet otherwise.
+        ("planet_name", pa.string()),
+        # Where the ship is flying; empty while docked.
+        ("destination_name", pa.string()),
+        ("status", pa.string()),
+        ("money", pa.int64()),
+        ("reserved_money", pa.int64()),
+        ("fuel", pa.int64()),  # millifuel; see FUEL_MILLI in core/ship.py
+        ("cargo_units", pa.int32()),
+        ("cargo_capacity", pa.int32()),
+        ("contract_hold_units", pa.int32()),
+        # Cumulative since the run started.
+        ("departures", pa.int32()),
+        ("refuel_stops", pa.int32()),
+        ("pickup_stops", pa.int32()),
+        ("last_departure_turn", pa.int32()),
+    ]
+)

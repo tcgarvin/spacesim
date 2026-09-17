@@ -101,8 +101,8 @@ uv run spacesim2 dev analyze notebooks/my_question.py  # runs it, relays stdout
 
 `dev analyze` uses the most recent run under `data/runs/`; pass `--run DIR`
 for another. `load_run()` (from `spacesim2.analysis.loading`) exposes
-`.actor_turns`, `.actor_drives`, `.market_transactions`, `.market_snapshots`
-as Polars frames.
+`.actor_turns`, `.actor_drives`, `.market_transactions`,
+`.market_snapshots`, `.ship_turns` as Polars frames.
 
 **Output contract, which keeps tokens bounded:**
 - PRINT small aggregates only: `.describe()`, grouped means, `.head(N)`.

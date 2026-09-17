@@ -1,13 +1,18 @@
-"""Tests for the exporter's single-pass per-turn transaction/volume helpers."""
+"""Tests for the exporter's per-turn helpers and the ship table."""
 
 from unittest.mock import Mock
 
+import pyarrow.parquet as pq
+
 from spacesim2.analysis.export.exporter import (
+    SimulationExporter,
     transactions_for_turn,
     volume_by_commodity,
 )
+from spacesim2.analysis.export.schema import SHIP_TURNS_SCHEMA
 from spacesim2.core.commodity import CommodityDefinition
 from spacesim2.core.market import Market, Transaction
+from spacesim2.core.simulation import Simulation
 
 
 def _commodity(cid: str) -> CommodityDefinition:
@@ -92,3 +97,36 @@ def test_volume_matches_old_full_history_scan() -> None:
             if tx.turn == turn and tx.commodity_type == commodity
         )
         assert volumes.get(commodity, 0) == old_scan
+
+
+def test_ship_turns_exported_for_every_ship_each_turn(tmp_path) -> None:
+    """The ship table has one row per ship per turn with the expected columns."""
+    sim = Simulation()
+    sim.setup_simple(
+        num_planets=2, num_regular_actors=4, num_market_makers=1, num_ships=2
+    )
+    exporter = SimulationExporter(tmp_path / "run", "test-run")
+    exporter.setup(sim)
+    turns = 3
+    for _ in range(turns):
+        sim.run_turn()
+        exporter.export_turn(sim, sim.current_turn)
+    exporter.finalize(sim)
+
+    table = pq.read_table(tmp_path / "run" / "ship_turns.parquet")
+    assert table.num_rows == turns * len(sim.ships)
+    assert table.column_names == [field.name for field in SHIP_TURNS_SCHEMA]
+
+    rows = table.to_pylist()
+    assert {row["ship_name"] for row in rows} == {ship.name for ship in sim.ships}
+    assert sorted({row["turn"] for row in rows}) == list(range(1, turns + 1))
+    for row in rows:
+        assert row["simulation_id"] == "test-run"
+        assert row["cargo_capacity"] > 0
+        assert 0 <= row["cargo_units"] <= row["cargo_capacity"]
+        assert row["fuel"] >= 0
+        assert row["status"] in ("docked", "traveling", "needs_maintenance")
+        if row["status"] == "traveling":
+            assert row["planet_name"] == "TRAVELING"
+        else:
+            assert row["destination_name"] == ""

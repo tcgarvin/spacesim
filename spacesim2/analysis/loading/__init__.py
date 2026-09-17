@@ -17,8 +17,8 @@ def load_run(run_path: Optional[Path | str] = None) -> SimulationData:
     Resolves the run path in this order: explicit ``run_path``, the
     ``SPACESIM_RUN_PATH`` env var, then the most recent run. Returns a
     lazily-loading ``SimulationData`` exposing ``.actor_turns``,
-    ``.actor_drives``, ``.market_transactions``, and ``.market_snapshots`` as
-    Polars frames.
+    ``.actor_drives``, ``.market_transactions``, ``.market_snapshots``, and
+    ``.ship_turns`` as Polars frames.
     """
     if run_path is None:
         run_path = get_run_path_with_fallback()

@@ -110,6 +110,7 @@ def compute_summary(sim: Simulation) -> Dict[str, object]:
         "population": len(regular_actors) + actors_aboard,
         "service_actors": _summarize_service_actors(service_actors),
         "ships": len(sim.ships),
+        "fleet": _summarize_fleet(sim),
         "money": _summarize_money(regular_actors),
         "drives": drives,
         "prosperity": prosperity,
@@ -488,6 +489,46 @@ def _summarize_trade(sim: Simulation) -> Dict[str, object]:
         "ship_delivered_units": delivered,
         "ship_delivered_total": sum(delivered.values()),
         "ship_share_of_volume": share,
+    }
+
+
+def _percentile(sorted_values: List[int], fraction: float) -> float:
+    """Linear-interpolated percentile of an ascending list; 0.0 when empty."""
+    if not sorted_values:
+        return 0.0
+    position = fraction * (len(sorted_values) - 1)
+    low = int(position)
+    high = min(low + 1, len(sorted_values) - 1)
+    weight = position - low
+    return sorted_values[low] * (1 - weight) + sorted_values[high] * weight
+
+
+def _summarize_fleet(sim: Simulation) -> Dict[str, object]:
+    """Fleet size, the ship money distribution, and the idle share.
+
+    The money quartiles separate a fleet whose median ship is solvent but
+    whose bottom quarter is broke from one where every ship is alike.
+    ``ship_idle_share`` repeats ``trade.idle_ship_share`` so the whole fleet
+    picture reads from one block. ``by_owner`` is where per-owner figures go
+    once ships have owners; it is empty until then.
+    """
+    ship_count = len(sim.ships)
+    ship_money = sorted(ship.money for ship in sim.ships)
+    cutoff = sim.current_turn - _ACTIVITY_WINDOW_TURNS
+    idle_ships = sum(
+        1
+        for ship in sim.ships
+        if ship.status == ShipStatus.DOCKED and ship.last_departure_turn < cutoff
+    )
+    return {
+        "fleet_size": ship_count,
+        "ship_money_p25": round(_percentile(ship_money, 0.25), 1),
+        "ship_money_median": (
+            float(statistics.median(ship_money)) if ship_money else 0.0
+        ),
+        "ship_money_p75": round(_percentile(ship_money, 0.75), 1),
+        "ship_idle_share": round(idle_ships / ship_count, 3) if ship_count else 0.0,
+        "by_owner": {},
     }
 
 

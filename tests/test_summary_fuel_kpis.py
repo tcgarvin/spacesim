@@ -1,4 +1,4 @@
-"""Tests for the fleet fuel KPIs in the summary's `trade` section."""
+"""Tests for the fleet KPIs in the summary's `trade` and `fleet` sections."""
 
 from typing import Dict
 
@@ -84,3 +84,27 @@ def test_idle_ships_counts_never_departed_but_not_recently_departed() -> None:
 
     assert trade["idle_ships"] == 1
     assert trade["idle_ship_share"] == 0.5
+
+
+def test_fleet_block_reports_money_quartiles_and_idle_share() -> None:
+    """The `fleet` block carries fleet size, money quartiles, and idle share."""
+    sim = Simulation()
+    sim.setup_simple(
+        num_planets=3, num_regular_actors=6, num_market_makers=1, num_ships=2
+    )
+    for _ in range(5):
+        sim.run_turn()
+
+    summary = compute_summary(sim)
+    fleet_obj = summary["fleet"]
+    assert isinstance(fleet_obj, dict)
+    fleet: Dict[str, object] = fleet_obj
+
+    assert fleet["fleet_size"] == len(sim.ships) == summary["ships"]
+    p25 = float(fleet["ship_money_p25"])  # type: ignore[arg-type]
+    median = float(fleet["ship_money_median"])  # type: ignore[arg-type]
+    p75 = float(fleet["ship_money_p75"])  # type: ignore[arg-type]
+    idle_share = float(fleet["ship_idle_share"])  # type: ignore[arg-type]
+    assert p25 <= median <= p75
+    assert 0.0 <= idle_share <= 1.0
+    assert fleet["by_owner"] == {}

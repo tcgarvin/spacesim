@@ -90,6 +90,11 @@ Each run under `data/runs/run_TIMESTAMP/` contains Parquet files:
 - `actor_drives.parquet`: drive metrics (health, debt, buffer, urgency)
 - `market_transactions.parquet`: individual trades
 - `market_snapshots.parquet`: market state per turn (prices, volumes, orders)
+- `ship_turns.parquet`: ship state per turn, every ship: `turn`, `ship_name`,
+  `planet_name` (`"TRAVELING"` in flight), `destination_name`, `status`,
+  `money`, `reserved_money`, `fuel` (millifuel), `cargo_units`,
+  `cargo_capacity`, `contract_hold_units`, and the cumulative counters
+  `departures`, `refuel_stops`, `pickup_stops`, `last_departure_turn`
 
 plus `metadata.json`, `planet_attributes.json` and `galaxy.json`. Load the
 Parquet files with `from spacesim2.analysis.loading import load_run`.

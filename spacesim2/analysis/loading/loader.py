@@ -18,6 +18,7 @@ class SimulationData:
         self._actor_drives: Optional[pl.DataFrame] = None
         self._market_transactions: Optional[pl.DataFrame] = None
         self._market_snapshots: Optional[pl.DataFrame] = None
+        self._ship_turns: Optional[pl.DataFrame] = None
 
     @property
     def actor_turns(self) -> pl.DataFrame:
@@ -50,6 +51,13 @@ class SimulationData:
                 self.run_path / "market_snapshots.parquet"
             )
         return self._market_snapshots
+
+    @property
+    def ship_turns(self) -> pl.DataFrame:
+        """Ship state per turn."""
+        if self._ship_turns is None:
+            self._ship_turns = pl.read_parquet(self.run_path / "ship_turns.parquet")
+        return self._ship_turns
 
     def __repr__(self) -> str:
         return f"SimulationData(run_path='{self.run_path}', simulation_id='{self.simulation_id}')"

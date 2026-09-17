@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from spacesim2.analysis.export import schema
 from spacesim2.analysis.export.streaming_writer import StreamingParquetWriter
+from spacesim2.core.ship import ShipStatus
 
 if TYPE_CHECKING:
     from spacesim2.core.commodity import CommodityDefinition
@@ -78,12 +79,20 @@ class SimulationExporter:
             batch_size=500,
         )
 
+        self.writers["ship_turns"] = StreamingParquetWriter(
+            self.output_dir / "ship_turns.parquet",
+            schema.SHIP_TURNS_SCHEMA,
+            batch_size=1000,
+        )
+
         self._export_planet_attributes(simulation)
         self._export_lands(simulation)
         self._export_galaxy(simulation)
 
     def export_turn(self, simulation: "Simulation", turn: int) -> None:
-        """Export one turn: logged actors' state and every planet's market."""
+        """Export one turn: logged actors, every ship, and every market."""
+        self._export_ship_turns(simulation, turn)
+
         for actor in simulation.data_logger.get_all_logged_actors():
             inventory_dict = {
                 commodity.id: actor.inventory.get_quantity(commodity)
@@ -176,6 +185,43 @@ class SimulationExporter:
                         ),
                     }
                 )
+
+    def _export_ship_turns(self, simulation: "Simulation", turn: int) -> None:
+        """Write one row per ship: where it is, what it holds, what it has done.
+
+        Every ship every turn, unlike actors, which are exported only when
+        logged: the fleet is small enough that the whole of it fits.
+        """
+        for ship in simulation.ships:
+            traveling = ship.status is ShipStatus.TRAVELING
+            destination = ship.destination
+            if traveling:
+                planet_name = "TRAVELING"
+            else:
+                planet_name = ship.planet.name if ship.planet else "None"
+
+            self.writers["ship_turns"].write_row(
+                {
+                    "simulation_id": self.simulation_id,
+                    "turn": turn,
+                    "ship_name": ship.name,
+                    "planet_name": planet_name,
+                    "destination_name": (
+                        destination.name if traveling and destination else ""
+                    ),
+                    "status": ship.status.value,
+                    "money": ship.money,
+                    "reserved_money": ship.reserved_money,
+                    "fuel": ship.fuel,
+                    "cargo_units": ship.cargo.get_total_quantity(),
+                    "cargo_capacity": ship.cargo_capacity,
+                    "contract_hold_units": ship.contract_hold_units(),
+                    "departures": len(ship.departure_turns),
+                    "refuel_stops": ship.refuel_stops,
+                    "pickup_stops": ship.pickup_stops,
+                    "last_departure_turn": ship.last_departure_turn,
+                }
+            )
 
     def finalize(self, simulation: "Simulation") -> None:
         """Close all writers, rewrite lands.json, and write metadata.json.
