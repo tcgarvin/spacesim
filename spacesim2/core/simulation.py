@@ -47,6 +47,7 @@ from spacesim2.core.ship import (
     Ship,
     fuel_capacity_for,
     initial_fuel_for,
+    retained_capital_for,
     starting_capital,
 )
 from spacesim2.core.skill import SkillsRegistry
@@ -573,13 +574,15 @@ class Simulation:
             planet = random.choice(self.planets)
 
             fuel_capacity = fuel_capacity_for(mean_distance, efficiency)
+            capital = starting_capital(mean_distance, efficiency)
             ship = Ship(
                 name=f"Trader-{i + 1}",
                 simulation=self,
                 planet=planet,
                 fuel_capacity=fuel_capacity,
                 fuel_efficiency=efficiency,
-                initial_money=starting_capital(mean_distance, efficiency),
+                initial_money=capital,
+                retained_capital=retained_capital_for(capital),
             )
 
             ship.fuel = initial_fuel_for(mean_distance, efficiency)

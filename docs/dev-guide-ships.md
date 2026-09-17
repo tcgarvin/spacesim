@@ -491,6 +491,35 @@ for the galaxy they will fly in, from `Navigator.mean_pair_distance()`:
 
 A `Ship` built directly, as tests do, keeps the constant defaults.
 
+### Ownership and remittance
+
+Every ship has an `owner`. The default is `INDEPENDENT`, the single instance
+of `IndependentOwner` in `core/ship.py`, and a ship it owns keeps everything
+it earns. `Simulation._setup_ships` creates only independent ships today.
+
+An owner is anything satisfying the `ShipOwner` protocol: a `name`, a `money`
+balance to credit, and `receive_remittance(ship, amount)` for per-ship
+bookkeeping.
+
+`Ship.remit_surplus()` runs at the end of `take_turn` and returns what it
+moved. It pays out only when the ship is docked, is not distressed, and has
+an owner other than `INDEPENDENT`; the surplus is
+`money - reserved_money - retained_capital`. Reserved money backs resting
+bids, so it is not surplus, and a ship that departed this turn is no longer
+docked and keeps its cash for the journey. Money moves from ship to owner,
+never created, and `Ship.remitted_total` accumulates what a ship has paid
+out.
+
+`Ship.retained_capital` is the working capital kept back. It is a
+constructor parameter; left unset, it is `retained_capital_for(initial_money)`
+= `SHIP_RETAINED_CAPITAL_MULTIPLE` (3) times the starting purse.
+`_setup_ships` passes the same value explicitly, from the `starting_capital`
+it launched the ship with.
+
+The ship phase runs serially on the main thread - only the actor phase is
+sharded across worker threads (`docs/performance.md`) - so crediting an owner
+on another planet needs no synchronization.
+
 ### Distress: the exit from bankruptcy
 
 Bankruptcy used to be absorbing. `_pair_economics` needs cash for

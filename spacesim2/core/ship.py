@@ -2,7 +2,7 @@ import enum
 import math
 import random
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Protocol, Sequence, Tuple, Union
 
 from spacesim2.core.commodity import CommodityDefinition, Inventory
 from spacesim2.core.contracts import (
@@ -194,6 +194,15 @@ SHIP_CAPITAL_ROUND_TRIPS = 3
 SHIP_CAPITAL_FUEL_PRICE_REFERENCE = 40
 SHIP_CAPITAL_RESERVE_FRACTION = 0.25
 SHIP_CAPITAL_FLOOR = 1000
+
+# Working capital an owned ship keeps before remitting, as a multiple of the
+# capital it launched with. A ship that remitted down to its launch purse
+# would have nothing left to grow a position with, and one that never
+# remitted would accumulate cash its owner could be spending on hulls.
+SHIP_RETAINED_CAPITAL_MULTIPLE = 3
+# Ship(retained_capital=...) default: derive the retained capital from the
+# ship's starting money.
+RETAINED_CAPITAL_FROM_CAPITAL = -1
 
 # Tank size. The tank is separate from the hold, so it costs no cargo space
 # and is sized for several mean round trips: a ship can bunker where fuel is
@@ -518,6 +527,40 @@ class _OriginAcquisition:
     # the recent per-turn flow over ACCUMULATION_PATIENCE turns. Caps the
     # planned quantity, so a plan is sized by what the origin can supply.
     acquirable: int
+
+
+class ShipOwner(Protocol):
+    """Whoever a ship remits its surplus cash to.
+
+    An owner holds money of its own and is told about each remittance, so it
+    can keep per-ship bookkeeping alongside its balance.
+    """
+
+    name: str
+    money: int
+
+    def receive_remittance(self, ship: "Ship", amount: int) -> None:
+        """Record ``amount`` credits just added to this owner's money."""
+        ...
+
+
+class IndependentOwner:
+    """Sentinel owner for a ship that keeps everything it earns.
+
+    The single instance is INDEPENDENT. Its money is never credited: a ship
+    it owns skips remittance entirely, so an independent ship behaves as if
+    ownership did not exist.
+    """
+
+    def __init__(self) -> None:
+        self.name = "Independent"
+        self.money = 0
+
+    def receive_remittance(self, ship: "Ship", amount: int) -> None:
+        return None
+
+
+INDEPENDENT = IndependentOwner()
 
 
 class ShipStatus(enum.Enum):
@@ -4142,10 +4185,23 @@ class Ship:
         fuel_capacity: int = BASE_FUEL_CAPACITY,
         fuel_efficiency: float = 1.0,
         initial_money: int = 1000,
+        owner: ShipOwner = INDEPENDENT,
+        retained_capital: int = RETAINED_CAPITAL_FROM_CAPITAL,
     ) -> None:
         self.name = name
         self.money = initial_money
         self.reserved_money = 0
+        self.owner = owner
+        # Cash the ship keeps for itself; everything above it is remitted to
+        # the owner at the end of a docked turn. INDEPENDENT ships never
+        # remit, so this is inert for them.
+        self.retained_capital = (
+            retained_capital_for(initial_money)
+            if retained_capital == RETAINED_CAPITAL_FROM_CAPITAL
+            else retained_capital
+        )
+        # Credits remitted to the owner over this ship's life.
+        self.remitted_total = 0
         self.planet = planet
         self.destination: Optional[Planet] = None  # None while docked
         # Lane route being flown: origin first, destination last, every
@@ -4767,6 +4823,30 @@ class Ship:
         for contract in undelivered:
             strand_contract(self, contract, planet)
 
+    def remit_surplus(self) -> int:
+        """Pay cash above the retained capital to the owner; returns the amount.
+
+        Only a docked ship that is not in distress remits, and reserved money
+        is committed to resting bids, so it is not surplus. Money moves; none
+        is created.
+
+        The ship phase runs serially on the main thread - only the actor
+        phase is sharded across workers (docs/performance.md) - so crediting
+        an owner that lives on another planet needs no synchronization.
+        """
+        if self.owner is INDEPENDENT:
+            return 0
+        if self.status != ShipStatus.DOCKED or self.brain.is_distressed:
+            return 0
+        surplus = self.money - self.reserved_money - self.retained_capital
+        if surplus <= 0:
+            return 0
+        self.money -= surplus
+        self.owner.money += surplus
+        self.remitted_total += surplus
+        self.owner.receive_remittance(self, surplus)
+        return surplus
+
     def take_turn(self) -> None:
         """Perform actions for this turn.
 
@@ -4813,6 +4893,10 @@ class Ship:
             if destination:
                 resuming = destination is self.stop_resume
                 self.start_journey(destination, resuming=resuming)
+
+        # After the turn's trading and any departure: a ship that left is no
+        # longer docked and keeps its cash for the journey.
+        self.remit_surplus()
 
 
 def _cumulative_lane_distances(
@@ -4861,6 +4945,11 @@ def mean_round_trip_fuel(mean_pair_distance: float, fuel_efficiency: float) -> i
     from :meth:`Navigator.mean_pair_distance`.
     """
     return 2 * fuel_needed_for(mean_pair_distance, fuel_efficiency)
+
+
+def retained_capital_for(starting_capital: int) -> int:
+    """Working capital an owned ship keeps before remitting to its owner."""
+    return SHIP_RETAINED_CAPITAL_MULTIPLE * starting_capital
 
 
 def starting_capital(mean_pair_distance: float, fuel_efficiency: float) -> int:
