@@ -3,6 +3,24 @@
 Genuinely open work only. Closed postmortems live in `docs/decision-log.md`;
 perf levers live in `docs/performance.md`.
 
+## Organizations: trading companies and ship building (2026-09-16)
+
+`TradingCompanyBrain`, ownership, and the hull chain are landing; see
+`docs/organizations-design.md` and the decision log entry of the same date.
+Open:
+
+- Ship deletion or scrapping: nothing removes a ship from `sim.ships`, so a
+  company cannot shrink a fleet that overshot.
+- Companies on planets without a `shipyard` facility have no source of
+  hulls to bid on.
+- The endowment and starting fuel tank for a newly spawned ship are not
+  yet decided.
+- Tuning `SHIP_VALUE_HORIZON_TURNS` and `SHIP_RAMP_DISCOUNT` against
+  measured payback times (about 215 turns on a 5k hull, about 430 on a
+  20k hull).
+- A 100-planet A/B of organizations against the fixed fleet size has not
+  been run.
+
 ## Fleet capacity is the food-import limit (2026-09-16, evening)
 
 After the flow-credit fix (2f1a616) and the hand-food break-even gate

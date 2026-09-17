@@ -4,6 +4,27 @@ Append-only record of closed decisions, postmortems, and landed campaigns.
 Newest first. Open work lives in `TODO.md`; current reference docs live
 alongside this file.
 
+## 2026-09-16 - Ship ownership, trading companies, and the hull chain
+
+Fleet size was a fixed CLI knob (`--ships`); `TODO.md` names fleet capacity
+as the current limit on food imports. The user made three decisions:
+
+- Ships are priced and traded in goods, not a new abstract currency: a hull
+  costs the commodities and labor `make_ship_hull` already specifies.
+- One trading company per planet, and each company owns one ship at a time
+  rather than pooling a fleet — the simplest ownership unit that still lets
+  fleet size respond to trade volume.
+- The company is a pure fleet owner: no cargo trading, no drives, judged
+  only on its ships' solvency and remittances.
+
+Landed: `Ship.owner`, `Ship.retained_capital`, `Ship.remitted_total`, and
+`Ship.remit_surplus()` (`core/ship.py`), and the `ship_hull` commodity plus
+its four-step production chain (`make_ship_hull_section`,
+`make_ship_components`, `build_shipyard`, `make_ship_hull` in
+`data/processes.yaml`). `TradingCompanyBrain`, the hull-buying valuation
+rule, and the spawn queue are landing alongside this entry; see
+`docs/organizations-design.md`.
+
 ## 2026-09-16 - Some planets cannot feed themselves
 
 The user wants planets that cannot grow their own food. The biomass planet

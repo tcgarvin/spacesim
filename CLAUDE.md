@@ -209,6 +209,7 @@ committing on the default branch" behavior.
 | A/B comparison | `.claude/skills/sim-ab-testing/` | Did a change move a KPI beyond noise |
 | Open work | `TODO.md` | What is unfinished |
 | Prose style | `docs/style.md` | Writing or rewriting comments, docstrings, docs |
+| Organizations | `docs/organizations-design.md` | Trading companies and ship building |
 
 ## Key Architecture Facts
 
@@ -216,6 +217,7 @@ committing on the default branch" behavior.
 - **Brain pattern**: actors and ships delegate decisions to pluggable `Brain` classes.
 - **Core files**: `core/simulation.py` (main loop), `core/actor.py`, `core/ship.py`, `core/market.py`.
 - **Star-lane galaxy**: `core/galaxy.py` builds a spiral layout and a connected planar lane graph. `core/navigation.py` routes along lanes, so distance is always the shortest lane route. Ships fuel a whole route at departure and fly past intermediate planets, except for an opportunistic refuel stop where fuel is cheap (`docs/dev-guide-ships.md`). Default is 100 planets (`--planets`, `--arms`, `--lane-density`). Ship fuel is tracked as integer millifuel, thousandths of a market unit of `nova_fuel` (`Ship.fuel`, `FUEL_MILLI` in `core/ship.py`); market purchases stay in whole units.
+- **Ship ownership**: every `Ship` has an `owner` (`docs/dev-guide-ships.md`, "Ownership and remittance"); a ship remits surplus above its retained capital to its owner each docked turn. Fleet size grows in-sim through hull purchases by trading companies (`docs/organizations-design.md`).
 
 ## Common Implementation Patterns
 
@@ -225,6 +227,9 @@ Defined in `data/commodities.yaml`:
 - id: commodity_name
   name: Display Name
   transportable: true/false
+  tradable: true/false  # defaults to transportable; set true on a non-transportable
+                         # good to let it trade on its own planet's market only,
+                         # e.g. ship_hull
   description: Text description
 ```
 

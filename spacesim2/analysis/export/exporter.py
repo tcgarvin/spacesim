@@ -220,6 +220,9 @@ class SimulationExporter:
                     "refuel_stops": ship.refuel_stops,
                     "pickup_stops": ship.pickup_stops,
                     "last_departure_turn": ship.last_departure_turn,
+                    "owner_name": ship.owner.name,
+                    "retained_capital": ship.retained_capital,
+                    "remitted_total": ship.remitted_total,
                 }
             )
 

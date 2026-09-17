@@ -24,7 +24,7 @@ from spacesim2.core.drives.prosperity_drive import (
 )
 from spacesim2.core.drives.shelter_drive import PREFAB_HOUSING_NAME
 from spacesim2.core.navigation import get_navigator
-from spacesim2.core.ship import FUEL_MILLI, Ship, ShipStatus
+from spacesim2.core.ship import FUEL_MILLI, INDEPENDENT, Ship, ShipStatus
 from spacesim2.core.simulation import Simulation
 
 # Verdict thresholds are catastrophe floors, not targets: a healthy run sits
@@ -504,13 +504,32 @@ def _percentile(sorted_values: List[int], fraction: float) -> float:
 
 
 def _summarize_fleet(sim: Simulation) -> Dict[str, object]:
-    """Fleet size, the ship money distribution, and the idle share.
+    """Fleet size, the ship money distribution, ownership, and hull supply.
 
     The money quartiles separate a fleet whose median ship is solvent but
     whose bottom quarter is broke from one where every ship is alike.
     ``ship_idle_share`` repeats ``trade.idle_ship_share`` so the whole fleet
-    picture reads from one block. ``by_owner`` is where per-owner figures go
-    once ships have owners; it is empty until then.
+    picture reads from one block.
+
+    Ownership: ``owned_ships`` and ``independent_ships`` split the fleet by
+    whether ``ship.owner`` is the ``INDEPENDENT`` sentinel (`core/ship.py`).
+    ``remitted_total`` sums ``Ship.remitted_total`` across the fleet, the
+    running total moved from ships to their owners.
+
+    ``ships_built`` counts ships whose name contains ``" Trading Co-"``,
+    the naming pattern for ships a trading company builds in-sim; there is
+    no setup-vs-built counter on ``Simulation``, so this substring match is
+    the fleet-growth proxy until one exists.
+
+    Hull supply: ``hull_bids_open`` counts open (uncancelled) buy orders for
+    ``ship_hull`` across every planet market, the trading companies' pending
+    demand. There is no per-process production counter, so ``hulls_built``
+    is the current population-wide ``ship_hull`` inventory (a stock, not a
+    cumulative count) and ``shipyards`` is the current ``shipyard`` facility
+    inventory, both read the same way as ``_summarize_inventory``.
+
+    ``company_money_median`` is the median money of actors whose brain class
+    is named ``TradingCompanyBrain``, 0.0 when none exist yet.
     """
     ship_count = len(sim.ships)
     ship_money = sorted(ship.money for ship in sim.ships)
@@ -520,6 +539,37 @@ def _summarize_fleet(sim: Simulation) -> Dict[str, object]:
         for ship in sim.ships
         if ship.status == ShipStatus.DOCKED and ship.last_departure_turn < cutoff
     )
+    owned_ships = sum(1 for ship in sim.ships if ship.owner is not INDEPENDENT)
+    ships_built = sum(1 for ship in sim.ships if " Trading Co-" in ship.name)
+    remitted_total = sum(ship.remitted_total for ship in sim.ships)
+
+    hull_commodity = sim.commodity_registry.get_commodity("ship_hull")
+    hull_bids_open = 0
+    if hull_commodity is not None:
+        hull_bids_open = sum(
+            sum(
+                1
+                for order in planet.market.buy_orders.get(hull_commodity, [])
+                if not order.cancelled
+            )
+            for planet in sim.planets
+        )
+
+    hulls_built = 0
+    shipyards = 0
+    shipyard_commodity = sim.commodity_registry.get_commodity("shipyard")
+    for actor in sim.actors:
+        if hull_commodity is not None:
+            hulls_built += actor.inventory.get_quantity(hull_commodity)
+        if shipyard_commodity is not None:
+            shipyards += actor.inventory.get_quantity(shipyard_commodity)
+
+    company_money = sorted(
+        float(a.money)
+        for a in sim.actors
+        if type(a.brain).__name__ == "TradingCompanyBrain"
+    )
+
     return {
         "fleet_size": ship_count,
         "ship_money_p25": round(_percentile(ship_money, 0.25), 1),
@@ -528,7 +578,16 @@ def _summarize_fleet(sim: Simulation) -> Dict[str, object]:
         ),
         "ship_money_p75": round(_percentile(ship_money, 0.75), 1),
         "ship_idle_share": round(idle_ships / ship_count, 3) if ship_count else 0.0,
-        "by_owner": {},
+        "owned_ships": owned_ships,
+        "independent_ships": ship_count - owned_ships,
+        "ships_built": ships_built,
+        "remitted_total": remitted_total,
+        "hull_bids_open": hull_bids_open,
+        "hulls_built": hulls_built,
+        "shipyards": shipyards,
+        "company_money_median": (
+            statistics.median(company_money) if company_money else 0.0
+        ),
     }
 
 

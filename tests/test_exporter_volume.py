@@ -130,3 +130,6 @@ def test_ship_turns_exported_for_every_ship_each_turn(tmp_path) -> None:
             assert row["planet_name"] == "TRAVELING"
         else:
             assert row["destination_name"] == ""
+        assert row["owner_name"]
+        assert row["retained_capital"] > 0
+        assert row["remitted_total"] >= 0

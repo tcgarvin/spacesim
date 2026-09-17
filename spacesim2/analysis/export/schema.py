@@ -87,5 +87,8 @@ SHIP_TURNS_SCHEMA = pa.schema(
         ("refuel_stops", pa.int32()),
         ("pickup_stops", pa.int32()),
         ("last_departure_turn", pa.int32()),
+        ("owner_name", pa.string()),
+        ("retained_capital", pa.int64()),
+        ("remitted_total", pa.int64()),
     ]
 )

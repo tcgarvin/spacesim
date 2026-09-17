@@ -3,7 +3,7 @@
 from typing import Dict
 
 from spacesim2.analysis.summary import _ACTIVITY_WINDOW_TURNS, compute_summary
-from spacesim2.core.ship import ShipStatus
+from spacesim2.core.ship import INDEPENDENT, ShipStatus
 from spacesim2.core.simulation import Simulation
 
 
@@ -107,4 +107,61 @@ def test_fleet_block_reports_money_quartiles_and_idle_share() -> None:
     idle_share = float(fleet["ship_idle_share"])  # type: ignore[arg-type]
     assert p25 <= median <= p75
     assert 0.0 <= idle_share <= 1.0
-    assert fleet["by_owner"] == {}
+    for key in (
+        "owned_ships",
+        "independent_ships",
+        "ships_built",
+        "remitted_total",
+        "hull_bids_open",
+        "hulls_built",
+        "shipyards",
+        "company_money_median",
+    ):
+        assert key in fleet, f"missing fleet key: {key}"
+    owned = int(fleet["owned_ships"])  # type: ignore[call-overload]
+    independent = int(fleet["independent_ships"])  # type: ignore[call-overload]
+    assert owned + independent == fleet["fleet_size"]
+    assert isinstance(fleet["ships_built"], int) and fleet["ships_built"] >= 0
+    assert isinstance(fleet["remitted_total"], int) and fleet["remitted_total"] >= 0
+    assert isinstance(fleet["hull_bids_open"], int) and fleet["hull_bids_open"] >= 0
+    assert isinstance(fleet["hulls_built"], int) and fleet["hulls_built"] >= 0
+    assert isinstance(fleet["shipyards"], int) and fleet["shipyards"] >= 0
+    assert isinstance(fleet["company_money_median"], float)
+    assert fleet["company_money_median"] >= 0.0
+
+
+class _FakeOwner:
+    """Minimal ShipOwner protocol implementation for tests."""
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.money = 0
+
+    def receive_remittance(self, ship: object, amount: int) -> None:
+        self.money += amount
+
+
+def test_fleet_block_counts_owned_ships_and_remittances() -> None:
+    """`owned_ships`/`independent_ships` split on the owner sentinel, and
+    `remitted_total` sums `Ship.remitted_total` across the fleet."""
+    sim = Simulation()
+    sim.setup_simple(
+        num_planets=2, num_regular_actors=4, num_market_makers=1, num_ships=2
+    )
+
+    owner = _FakeOwner("Test Trading Co")
+    owned_ship = sim.ships[0]
+    owned_ship.owner = owner
+    owned_ship.remitted_total += 250
+
+    expected_owned = sum(1 for ship in sim.ships if ship.owner is not INDEPENDENT)
+    expected_remitted = sum(ship.remitted_total for ship in sim.ships)
+
+    summary = compute_summary(sim)
+    fleet_obj = summary["fleet"]
+    assert isinstance(fleet_obj, dict)
+    fleet: Dict[str, object] = fleet_obj
+
+    assert fleet["owned_ships"] == expected_owned
+    assert fleet["independent_ships"] == len(sim.ships) - expected_owned
+    assert fleet["remitted_total"] == expected_remitted
