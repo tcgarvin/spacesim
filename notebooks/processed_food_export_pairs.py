@@ -1,29 +1,29 @@
-"""Per-destination trace of why processed_food never leaves the plant planets.
+"""Per-destination trace of why processed_food never leaves the cheap planets.
 
-Tier-1b in-process probe, derived from ``notebooks/processed_food_export_probe.py``.
-The parent probe aggregated across destinations and only reported the first
-gate that blocked *any* plan. This one keeps one row per sampled
-``(origin, destination)`` pair for ``processed_food``, so a destination with a
-deep bid book can be followed all the way to the gate that rejects it.
+Tier-1b in-process probe. One row per sampled ``(origin, destination)`` pair
+for ``processed_food``, where the origins are the planets whose resting
+processed_food ask is cheap and where trader ships are docked, and the
+destinations are the highest-priced processed_food markets in the galaxy at
+that sample turn, united with ``Navigator.candidate_destinations``.
 
-Per pair it records the destination book, the planner's flow value and flow
-quantity, whether the destination is in ``Navigator.candidate_destinations``,
-which of the three ``TraderBrain._pair_economics`` exits it takes (with the
-fuel and cash values behind that exit), and, when the pair passes, the plan
-the planner builds and whether ``_plan_acceptable`` takes it.
-
-``_pair_economics`` is re-implemented here rather than edited in ship.py; the
-re-implementation's verdict is cross-checked against the real method on every
-pair and any disagreement is counted in ``pair_trace_mismatches``.
+Each pair is walked through the planner's real gates, in order, by calling
+the real methods (``_trip_fuel_economics``, ``_pair_economics``,
+``_origin_acquisition``, ``_evaluate_trade_opportunity``,
+``_plan_acceptable``, ``_best_plan_from``). Nothing in ship.py is
+re-implemented for the verdict; the probe only recomputes the intermediate
+*numbers* behind each gate so the rejection can be read. When the real
+method disagrees with the probe's sub-gate attribution, the pair is counted
+in ``gate_attribution_mismatches``.
 
 Per sampled origin it also records the plan ``_best_plan_from`` actually
-returns across *all* commodities, so what beats the staple is visible.
+returns across all commodities, so what outranks the staple is visible.
 
-Run:
+Run (threaded actor phase, free-threaded interpreter):
 
-    uv run --project /home/timg/code/spacesim2 python pf_probe_dest.py \
-        --turns 400 --planets 100 --warmup 150 --sample-every 50 \
-        --out tmp/pf_probe_dest.json
+    /home/timg/code/spacesim2/.venv-ft/bin/python \
+        /home/timg/code/spacesim2/notebooks/processed_food_export_pairs.py \
+        --turns 400 --planets 50 --ships 1 --warmup 150 --sample-every 50 \
+        --workers 6 --out /home/timg/code/spacesim2/tmp/pf_pairs.json
 """
 
 import argparse
@@ -52,18 +52,20 @@ from spacesim2.core.ship import (
     TradePlan,
     TraderBrain,
     milli_to_units_ceil,
+    milli_to_units_floor,
     units_to_milli,
 )
 from spacesim2.core.simulation import Simulation
 
 STAPLE_ID = "processed_food"
-DEFAULT_STOCK_THRESHOLD = 300
+DEFAULT_CHEAP_ASK_MAX = 2
+DEFAULT_TOP_DESTINATIONS = 8
 
 ship_purchases: Counter[str] = Counter()
 ship_sales: Counter[str] = Counter()
 arrivals: Counter[str] = Counter()
 patch_calls: Counter[str] = Counter()
-pair_trace_mismatches: Counter[str] = Counter()
+gate_attribution_mismatches: Counter[str] = Counter()
 
 
 def install_patches() -> None:
@@ -110,111 +112,106 @@ def _book(market: Market, commodity: CommodityDefinition) -> Dict[str, Any]:
     }
 
 
-def trace_pair_economics(
+def trip_diagnostics(
     brain: TraderBrain, origin: Planet, destination: Planet
 ) -> Dict[str, Any]:
-    """Re-implementation of ``TraderBrain._pair_economics`` that reports its exit.
+    """Every number ``_trip_fuel_economics`` and ``_pair_economics`` turn on.
 
-    Mirrors spacesim2/core/ship.py:1029-1128 statement for statement. Returns
-    the exit label ("no_fuel_commodity", "fuel_not_buyable_at_origin",
-    "destination_not_fuel_safe", "no_money_for_trading", "ok") plus every
-    value the exits turn on.
+    Recomputed from the ship's own helper methods so the rejection can be
+    read; the verdict itself always comes from the real methods.
     """
-    out: Dict[str, Any] = {"exit": "ok"}
     ship = brain.ship
+    out: Dict[str, Any] = {}
     fuel_commodity = brain._fuel_commodity()
     if fuel_commodity is None:
-        out["exit"] = "no_fuel_commodity"
+        out["fuel_commodity"] = None
         return out
 
     distance = brain._nav.distance(origin, destination)
     fuel_one_way = ship.fuel_required(distance)
     fuel_round_trip = fuel_one_way * 2
 
-    origin_market = origin.market
-    _, fuel_ask = origin_market.get_bid_ask_spread(fuel_commodity)
+    _, fuel_ask = origin.market.get_bid_ask_spread(fuel_commodity)
     fuel_price = (
         fuel_ask
         if fuel_ask is not None
-        else origin_market.get_avg_price(fuel_commodity)
+        else origin.market.get_avg_price(fuel_commodity)
     )
     if fuel_price is None or fuel_price <= 0:
         fuel_price = 10
-    reference = brain._fuel_value_reference()
-    fuel_reference_price = math.ceil(reference) if reference else fuel_price
 
     current_fuel = ship.fuel
-    cargo_space = ship.cargo_capacity - ship.cargo.get_total_quantity()
     round_trip_shortfall = max(0, fuel_round_trip - current_fuel)
-    fuel_purchasable = brain._fuel_purchasable_at(origin)
-
-    out.update(
-        {
-            "distance": round(distance, 3),
-            # Market units, so these compare with fuel_price/money below.
-            "fuel_one_way": milli_to_units_ceil(fuel_one_way),
-            "fuel_round_trip": milli_to_units_ceil(fuel_round_trip),
-            "fuel_price_at_origin": fuel_price,
-            "fuel_ask_at_origin": fuel_ask,
-            "fuel_reference_price": fuel_reference_price,
-            "ship_money": ship.money,
-            "ship_fuel": milli_to_units_ceil(current_fuel),
-            "ship_fuel_capacity": milli_to_units_ceil(ship.fuel_capacity),
-            "cargo_space": cargo_space,
-            "round_trip_shortfall": milli_to_units_ceil(round_trip_shortfall),
-            "fuel_purchasable_at_origin": fuel_purchasable,
-            "ship_is_distressed": brain.is_distressed,
-        }
-    )
-
-    if round_trip_shortfall > 0 and not fuel_purchasable:
-        out["exit"] = "fuel_not_buyable_at_origin"
-        return out
-
-    # fuel_to_buy is market units (what the ship actually orders); the rest
-    # of this function's arithmetic stays in millifuel to match core.
-    fuel_to_buy = milli_to_units_ceil(round_trip_shortfall)
-    fuel_cost = fuel_to_buy * fuel_price
-    fuel_after_arrival = current_fuel + units_to_milli(fuel_to_buy) - fuel_one_way
     arrival_requirement = brain._arrival_fuel_requirement(destination, origin)
-    out.update(
-        {
-            "fuel_to_buy": fuel_to_buy,
-            "fuel_cost": fuel_cost,
-            "fuel_after_arrival": milli_to_units_ceil(fuel_after_arrival),
-            "arrival_fuel_requirement": milli_to_units_ceil(arrival_requirement),
-            "fuel_purchasable_at_destination": brain._fuel_purchasable_at(destination),
-        }
+    fuel_wanted = max(fuel_round_trip, fuel_one_way + arrival_requirement)
+    tank_room = ship.fuel_capacity - current_fuel
+    fuel_to_buy = min(
+        milli_to_units_ceil(min(fuel_wanted - current_fuel, tank_room)),
+        milli_to_units_floor(tank_room),
     )
-    if not brain._fuel_safe_destination(destination, origin, fuel_after_arrival):
-        out["exit"] = "destination_not_fuel_safe"
-        return out
-
+    fuel_after_arrival = current_fuel + units_to_milli(fuel_to_buy) - fuel_one_way
+    fuel_cost = fuel_to_buy * fuel_price
     maintenance_cost = math.ceil(
         2 * MAINTENANCE_CHANCE * MAINTENANCE_FUEL_MILLI * fuel_price / FUEL_MILLI
     )
     fuel_left_after_trip = max(current_fuel, fuel_round_trip) - fuel_round_trip
     reserve_need = brain._fuel_reserve_need()
     refuel_shortfall = max(0, reserve_need - fuel_left_after_trip)
-    refuel_shortfall_units = milli_to_units_ceil(refuel_shortfall)
-    refuel_floor = refuel_shortfall_units * fuel_price
+    refuel_floor = milli_to_units_ceil(refuel_shortfall) * fuel_price
     money_for_trading = int(
         (ship.money - fuel_cost - refuel_floor - maintenance_cost) * 0.9
     )
+
     out.update(
         {
+            "distance": round(distance, 3),
+            "fuel_one_way": milli_to_units_ceil(fuel_one_way),
+            "fuel_round_trip": milli_to_units_ceil(fuel_round_trip),
+            "fuel_price_at_origin": fuel_price,
+            "fuel_ask_at_origin": fuel_ask,
+            "ship_money": ship.money,
+            "ship_fuel": milli_to_units_ceil(current_fuel),
+            "ship_fuel_capacity": milli_to_units_ceil(ship.fuel_capacity),
+            "cargo_space": ship.cargo_capacity - ship.cargo.get_total_quantity(),
+            "round_trip_shortfall": milli_to_units_ceil(round_trip_shortfall),
+            "arrival_fuel_requirement": milli_to_units_ceil(arrival_requirement),
+            "fuel_to_buy": fuel_to_buy,
+            "fuel_cost": fuel_cost,
+            "fuel_after_arrival": milli_to_units_ceil(fuel_after_arrival),
+            "fuel_purchasable_at_origin": brain._fuel_purchasable_at(origin),
+            "fuel_purchasable_at_destination": brain._fuel_purchasable_at(destination),
+            "local_fuel_bunkerable": brain._local_fuel_bunkerable(origin),
+            "can_reach_station": brain._can_reach_station(),
+            "fuel_safe_destination": brain._fuel_safe_destination(
+                destination, origin, fuel_after_arrival
+            ),
             "maintenance_cost": maintenance_cost,
             "fuel_reserve_need": milli_to_units_ceil(reserve_need),
-            "fuel_left_after_trip": milli_to_units_ceil(fuel_left_after_trip),
-            "refuel_shortfall": refuel_shortfall_units,
             "refuel_floor": refuel_floor,
             "money_for_trading": money_for_trading,
-            "max_by_cargo": cargo_space,
+            "ship_is_distressed": brain.is_distressed,
         }
     )
-    if money_for_trading <= 0:
-        out["exit"] = "no_money_for_trading"
     return out
+
+
+def attribute_trip_gate(diag: Dict[str, Any]) -> str:
+    """Which ``_trip_fuel_economics`` gate rejected the pair, from ``diag``."""
+    if diag.get("fuel_commodity", "present") is None:
+        return "no_fuel_commodity"
+    if diag["round_trip_shortfall"] > 0 and not diag["fuel_purchasable_at_origin"]:
+        return "fuel_not_buyable_at_origin"
+    if diag["fuel_to_buy"] > 0 and not diag["fuel_purchasable_at_origin"]:
+        return "fuel_not_buyable_at_origin"
+    if (
+        diag["fuel_to_buy"] > 0
+        and not diag["local_fuel_bunkerable"]
+        and diag["can_reach_station"]
+    ):
+        return "fuel_spiked_prefer_station"
+    if not diag["fuel_safe_destination"]:
+        return "destination_not_fuel_safe"
+    return "unattributed_trip_gate"
 
 
 def destination_demand(
@@ -223,10 +220,7 @@ def destination_demand(
     commodity: CommodityDefinition,
     entry_price: int,
 ) -> Dict[str, Any]:
-    """Destination-side demand exactly as ``_evaluate_trade_opportunity`` sees it.
-
-    Mirrors spacesim2/core/ship.py:1238-1266.
-    """
+    """Destination-side demand exactly as ``_evaluate_trade_opportunity`` sees it."""
     market = destination.market
     all_bid_levels = market.get_bid_levels(commodity)
     qualifying = [(p, q) for p, q in all_bid_levels if p > entry_price]
@@ -264,12 +258,42 @@ def destination_demand(
     }
 
 
+def staple_price(market: Market, commodity: CommodityDefinition) -> float:
+    """What a seller could get here: best resting bid, else the clearing price."""
+    best_bid, _ = market.get_bid_ask_spread(commodity)
+    avg = market.get_avg_price(commodity) if market.has_price_signal(commodity) else 0
+    return float(max(best_bid or 0, avg or 0))
+
+
+def pick_destinations(
+    sim: Simulation,
+    origin: Planet,
+    commodity: CommodityDefinition,
+    nav: Navigator,
+    top_n: int,
+) -> Tuple[List[Planet], set]:
+    """The ``top_n`` priciest staple markets, united with the planner shortlist."""
+    candidates = set(nav.candidate_destinations(origin, commodity))
+    priced = sorted(
+        (p for p in sim.planets if p is not origin),
+        key=lambda p: -staple_price(p.market, commodity),
+    )
+    chosen: List[Planet] = [p for p in priced[:top_n]]
+    chosen_set = set(chosen)
+    for planet in candidates:
+        if planet is not origin and planet not in chosen_set:
+            chosen.append(planet)
+            chosen_set.add(planet)
+    return chosen, candidates
+
+
 def sample_origin(
     brain: TraderBrain,
     nav: Navigator,
     origin: Planet,
     commodity: CommodityDefinition,
     sim: Simulation,
+    top_n: int,
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """Rows for every sampled destination from ``origin``, plus the origin summary."""
     summary: Dict[str, Any] = {
@@ -281,9 +305,15 @@ def sample_origin(
         "bid_price": None,
         "flow_price": None,
         "n_candidate_destinations": 0,
+        "staple_in_shortlist_count": 0,
         "best_plan_any_commodity": None,
     }
-    # What the planner actually returns from here, across every commodity.
+    listing_here = {
+        order.commodity_type
+        for order in origin.market.get_actor_orders(brain.ship)["sell"]
+    }
+    summary["ship_listing_staple_here"] = commodity in listing_here
+
     overall = brain._best_plan_from(origin)
     if overall is not None:
         summary["best_plan_any_commodity"] = {
@@ -295,30 +325,22 @@ def sample_origin(
             "purchase_price": overall.purchase_price_per_unit,
             "sell_price": overall.expected_sell_price_per_unit,
         }
-    if not summary["has_any_trade_signal"] or not summary["exportable_here"]:
+    if not summary["has_any_trade_signal"]:
+        return [], summary
+    if not summary["exportable_here"]:
+        summary["blocked"] = "staple_not_exportable_here"
         return [], summary
 
     acquisition = brain._origin_acquisition(origin, commodity)
     if acquisition is None:
-        summary["acquisition"] = "none"
+        summary["blocked"] = "staple_not_acquirable_here"
         return [], summary
     summary["entry_price"] = acquisition.entry_price
     summary["bid_price"] = acquisition.bid_price
     summary["flow_price"] = acquisition.flow_price
 
-    candidates = nav.candidate_destinations(origin, commodity)
-    candidate_set = set(candidates)
-    summary["n_candidate_destinations"] = len(candidates)
-
-    # Sample every candidate destination plus every other planet that holds a
-    # resting bid for the commodity: the deep-bid planets the aggregate probe
-    # could not distinguish from planets the planner never looked at.
-    sampled = list(candidates)
-    for planet in sim.planets:
-        if planet is origin or planet in candidate_set:
-            continue
-        if any(q for _, q in planet.market.get_bid_levels(commodity)):
-            sampled.append(planet)
+    sampled, candidate_set = pick_destinations(sim, origin, commodity, nav, top_n)
+    summary["n_candidate_destinations"] = len(candidate_set)
 
     rows: List[Dict[str, Any]] = []
     for destination in sampled:
@@ -337,16 +359,24 @@ def sample_origin(
         row.update(
             destination_demand(brain, destination, commodity, acquisition.entry_price)
         )
-        trace = trace_pair_economics(brain, origin, destination)
-        row["pair"] = trace
+        diag = trip_diagnostics(brain, origin, destination)
+        row["pair"] = diag
 
-        real_pair = brain._pair_economics(origin, destination)
-        if (real_pair is None) != (trace["exit"] != "ok"):
-            pair_trace_mismatches[trace["exit"]] += 1
-            row["pair_trace_mismatch"] = True
+        trip = brain._trip_fuel_economics(origin, destination)
+        if trip is None:
+            gate = attribute_trip_gate(diag)
+            if gate == "unattributed_trip_gate":
+                gate_attribution_mismatches["trip_none"] += 1
+            row["outcome"] = gate
+            row["plan"] = None
+            rows.append(row)
+            continue
 
-        if real_pair is None:
-            row["outcome"] = trace["exit"]
+        pair = brain._pair_economics(origin, destination)
+        if pair is None:
+            if diag["money_for_trading"] > 0:
+                gate_attribution_mismatches["pair_none_but_money_positive"] += 1
+            row["outcome"] = "no_money_for_trading"
             row["plan"] = None
             rows.append(row)
             continue
@@ -355,7 +385,7 @@ def sample_origin(
             origin=origin,
             destination=destination,
             commodity=commodity,
-            pair=real_pair,
+            pair=pair,
             acquisition=acquisition,
         )
         if plan is None:
@@ -383,63 +413,111 @@ def sample_origin(
             "return_leg_fuel_cost": plan.return_leg_fuel_cost,
             "accepted": accepted,
         }
-        row["outcome"] = "plan_accepted" if accepted else "plan_margin_rejected"
+        if not accepted:
+            row["outcome"] = "plan_margin_rejected"
+        elif commodity in listing_here:
+            row["outcome"] = "skipped_ship_lists_staple_here"
+        elif not row["in_candidate_destinations"]:
+            row["outcome"] = "accepted_but_not_shortlisted"
+        else:
+            winner = summary["best_plan_any_commodity"]
+            if (
+                winner is not None
+                and winner["commodity"] == commodity.id
+                and winner["destination"] == destination.name
+            ):
+                row["outcome"] = "plan_won"
+            else:
+                row["outcome"] = "plan_lost_ranking"
+                row["winner"] = winner
         rows.append(row)
+
+    summary["staple_in_shortlist_count"] = sum(
+        1 for r in rows if r["in_candidate_destinations"]
+    )
     return rows, summary
+
+
+def cheap_origins(
+    sim: Simulation, staple: CommodityDefinition, nav: Navigator, cheap_ask_max: int
+) -> List[Tuple[Planet, int, int]]:
+    """Planets the staple can be acquired at, cheapest entry price first.
+
+    Returns ``(planet, entry_price, resting ask depth)``. Planets whose entry
+    price is at or under ``cheap_ask_max`` come first; the rest follow in
+    price order, so a run where nothing rests at 1.0 still yields the
+    cheapest sources instead of no rows at all.
+    """
+    rows: List[Tuple[Planet, int, int]] = []
+    for planet in sim.planets:
+        if staple not in nav.exportable_commodities(planet):
+            continue
+        _, ask = planet.market.get_bid_ask_spread(staple)
+        depth = sum(q for _, q in planet.market.get_ask_levels(staple))
+        avg = planet.market.get_avg_price(staple)
+        entry = ask if ask is not None and ask > 0 else (avg or 0)
+        if entry <= 0:
+            continue
+        rows.append((planet, int(entry), depth))
+    rows.sort(key=lambda row: (row[1] > cheap_ask_max, row[1], -row[2]))
+    return rows
 
 
 def pick_evaluator(sim: Simulation) -> Optional[Ship]:
     """A representative docked ship: median money among docked ships."""
-    docked = [s for s in sim.ships if s.status is ShipStatus.DOCKED]
-    pool = docked if docked else list(sim.ships)
+    docked = [
+        s
+        for s in sim.ships
+        if s.status is ShipStatus.DOCKED and isinstance(s.brain, TraderBrain)
+    ]
+    pool = (
+        docked if docked else [s for s in sim.ships if isinstance(s.brain, TraderBrain)]
+    )
     if not pool:
         return None
     pool.sort(key=lambda s: s.money)
     return pool[len(pool) // 2]
 
 
-def surplus_planets(
-    sim: Simulation, staple: CommodityDefinition, threshold: int
-) -> List[Tuple[Planet, int]]:
-    rows: List[Tuple[Planet, int]] = []
-    for planet in sim.planets:
-        stock = sum(
-            actor.inventory.get_quantity(staple)
-            for actor in sim.actors
-            if actor.planet is planet
-        )
-        if stock >= threshold:
-            rows.append((planet, stock))
-    return rows
-
-
 def sample(
-    sim: Simulation, staple: CommodityDefinition, threshold: int
+    sim: Simulation,
+    staple: CommodityDefinition,
+    cheap_ask_max: int,
+    top_n: int,
+    max_origins: int,
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-    ship = pick_evaluator(sim)
-    if ship is None:
+    fallback = pick_evaluator(sim)
+    if fallback is None:
         return [], []
-    brain = ship.brain
-    if not isinstance(brain, TraderBrain):
-        return [], []
-    fuel = sim.commodity_registry.get_commodity("nova_fuel")
     nav = get_navigator(sim)
+    fuel = sim.commodity_registry.get_commodity("nova_fuel")
     pair_rows: List[Dict[str, Any]] = []
     origin_rows: List[Dict[str, Any]] = []
-    for planet, stock in surplus_planets(sim, staple, threshold):
-        # A ship docked at the surplus planet, if any: it carries this
-        # planet's real fuel and cash situation.
+
+    origins = cheap_origins(sim, staple, nav, cheap_ask_max)
+    with_ships = [
+        row
+        for row in origins
+        if any(
+            s.status is ShipStatus.DOCKED and isinstance(s.brain, TraderBrain)
+            for s in row[0].ships
+        )
+    ]
+    selected = (with_ships or origins)[:max_origins]
+
+    for planet, entry_seen, depth in selected:
         local_ships = [
             s
             for s in planet.ships
             if s.status is ShipStatus.DOCKED and isinstance(s.brain, TraderBrain)
         ]
         local = max(local_ships, key=lambda s: s.money) if local_ships else None
-        evaluator = local.brain if local is not None else brain
-        rows, summary = sample_origin(evaluator, nav, planet, staple, sim)
+        evaluator = local.brain if local is not None else fallback.brain
+        rows, summary = sample_origin(evaluator, nav, planet, staple, sim, top_n)
         summary.update(
             {
-                "stock": stock,
+                "ask_depth": depth,
+                "origin_entry_seen": entry_seen,
                 "ships_docked": len(planet.ships),
                 "evaluator_is_local": local is not None,
                 "evaluator_money": evaluator.ship.money,
@@ -454,7 +532,7 @@ def sample(
             }
         )
         for row in rows:
-            row["origin_stock"] = stock
+            row["origin_ask_depth"] = depth
             row["evaluator_is_local"] = local is not None
         pair_rows.extend(rows)
         origin_rows.append(summary)
@@ -465,14 +543,22 @@ def run_probe(
     turns: int,
     planets: int,
     actors: int,
+    ships: int,
     sample_every: int,
     warmup: int,
-    threshold: int,
+    cheap_ask_max: int,
+    top_n: int,
+    max_origins: int,
+    workers: int,
 ) -> Dict[str, Any]:
     if turns < 1 or planets < 1 or sample_every < 1 or warmup < 0:
         raise ValueError("invalid probe parameters")
     install_patches()
-    sim = create_and_setup_simulation(planets=planets, actors=actors, makers=2)
+    sim = create_and_setup_simulation(
+        planets=planets, actors=actors, makers=2, ships=ships
+    )
+    if workers > 1:
+        sim.parallel_workers = workers
     staple = sim.commodity_registry.get_commodity(STAPLE_ID)
     if staple is None:
         raise ValueError(f"{STAPLE_ID} missing from the commodity registry")
@@ -484,12 +570,12 @@ def run_probe(
     for _ in range(max(0, turns - warmup)):
         sim.run_turn()
         if sim.current_turn % sample_every == 0:
-            pairs, origins = sample(sim, staple, threshold)
+            pairs, origins = sample(sim, staple, cheap_ask_max, top_n, max_origins)
             pair_rows.extend(pairs)
             origin_rows.extend(origins)
             outcomes = Counter(r["outcome"] for r in pairs)
             print(
-                f"turn {sim.current_turn}: {len(origins)} surplus planets, "
+                f"turn {sim.current_turn}: {len(origins)} cheap origins, "
                 f"{len(pairs)} pairs, outcomes {dict(outcomes)}",
                 flush=True,
             )
@@ -497,7 +583,8 @@ def run_probe(
     if patch_calls["execute"] == 0 or patch_calls["update_journey"] == 0:
         raise RuntimeError(f"monkeypatches never fired: {dict(patch_calls)}")
 
-    surplus_names = {r["origin"] for r in origin_rows}
+    origin_names = {r["origin"] for r in origin_rows}
+    dest_names = {r["destination"] for r in pair_rows}
     return {
         "params": {
             "turns": turns,
@@ -505,7 +592,10 @@ def run_probe(
             "actors": actors,
             "sample_every": sample_every,
             "warmup": warmup,
-            "stock_threshold": threshold,
+            "cheap_ask_max": cheap_ask_max,
+            "top_destinations": top_n,
+            "max_origins": max_origins,
+            "workers": workers,
             "ships": len(sim.ships),
             "commodity": STAPLE_ID,
         },
@@ -514,12 +604,11 @@ def run_probe(
         "ship_purchases": dict(ship_purchases.most_common()),
         "ship_sales": dict(ship_sales.most_common()),
         "arrivals_total": sum(arrivals.values()),
-        "arrivals_at_surplus_planets": sum(arrivals[name] for name in surplus_names),
-        "surplus_planets_ever": sorted(surplus_names),
-        "surplus_planets_visited": sorted(
-            name for name in surplus_names if arrivals[name] > 0
-        ),
-        "pair_trace_mismatches": dict(pair_trace_mismatches),
+        "arrivals_at_origins": sum(arrivals[name] for name in origin_names),
+        "arrivals_at_destinations": sum(arrivals[name] for name in dest_names),
+        "cheap_origins_ever": sorted(origin_names),
+        "destinations_ever": sorted(dest_names),
+        "gate_attribution_mismatches": dict(gate_attribution_mismatches),
         "patch_calls": dict(patch_calls),
     }
 
@@ -542,9 +631,9 @@ def print_table(result: Dict[str, Any]) -> None:
     outcomes = Counter(r["outcome"] for r in pairs)
     total = sum(outcomes.values())
     print("\npair outcomes")
-    print(f"{'outcome':>30} {'count':>6} {'share':>6}")
+    print(f"{'outcome':>32} {'count':>6} {'share':>6}")
     for outcome, count in outcomes.most_common():
-        print(f"{outcome:>30} {count:>6} {100.0 * count / total:>5.0f}%")
+        print(f"{outcome:>32} {count:>6} {100.0 * count / total:>5.0f}%")
 
     in_cand = [r for r in pairs if r["in_candidate_destinations"]]
     print(
@@ -554,34 +643,52 @@ def print_table(result: Dict[str, Any]) -> None:
     out_cand = [r for r in pairs if not r["in_candidate_destinations"]]
     if out_cand:
         print(
-            f"outside candidate_destinations: {len(out_cand)}; median bid depth "
-            f"{_median([r['dest_bid_depth_total'] for r in out_cand])}, median best bid "
-            f"{_median([r['dest_best_bid'] for r in out_cand])}"
+            f"outside the shortlist: {len(out_cand)}; median best bid "
+            f"{_median([r['dest_best_bid'] for r in out_cand])}, median avg price "
+            f"{_median([r['dest_avg_price'] for r in out_cand])}, median bid depth "
+            f"{_median([r['dest_bid_depth_total'] for r in out_cand])}"
         )
 
-    print("\n10 deepest-bid destinations sampled")
+    print("\nsellable sources:", dict(Counter(r["sellable_source"] for r in pairs)))
+    print(
+        "medians: sellable={s} depth_above_entry={d} flow_qty={f} entry={e} "
+        "dest_avg={a}".format(
+            s=_median([r["sellable"] for r in pairs]),
+            d=_median([r["dest_bid_depth_above_entry"] for r in pairs]),
+            f=_median([r["dest_flow_qty"] for r in pairs]),
+            e=_median([r["entry_price"] for r in pairs]),
+            a=_median([r["dest_avg_price"] for r in pairs]),
+        )
+    )
+
+    print("\n12 highest-priced destinations sampled")
     header = (
         f"{'destination':>14} {'origin':>14} {'hops':>4} {'dist':>7} {'bid':>5} "
-        f"{'depth':>6} {'>entry':>6} {'entry':>5} {'sig':>4} {'flowv':>6} "
-        f"{'flowq':>6} {'cand':>5} {'outcome':>28}"
+        f"{'avg':>5} {'depth':>6} {'>entry':>6} {'entry':>5} {'flowv':>6} "
+        f"{'flowq':>6} {'sell':>5} {'cand':>5} {'outcome':>30}"
     )
     print(header)
-    for row in sorted(pairs, key=lambda r: -r["dest_bid_depth_total"])[:10]:
+    for row in sorted(pairs, key=lambda r: -(r["dest_avg_price"] or 0))[:12]:
         print(
             f"{row['destination'][:14]:>14} {row['origin'][:14]:>14} "
             f"{row['lane_hops']:>4} {row['route_distance']:>7.2f} "
-            f"{str(row['dest_best_bid']):>5} {row['dest_bid_depth_total']:>6} "
+            f"{str(row['dest_best_bid']):>5} {str(row['dest_avg_price']):>5} "
+            f"{row['dest_bid_depth_total']:>6} "
             f"{row['dest_bid_depth_above_entry']:>6} {row['entry_price']:>5} "
-            f"{str(row['dest_has_price_signal'])[:4]:>4} "
             f"{str(row['dest_flow_value']):>6} {row['dest_flow_qty']:>6} "
-            f"{str(row['in_candidate_destinations'])[:4]:>5} {row['outcome']:>28}"
+            f"{row['sellable']:>5} "
+            f"{str(row['in_candidate_destinations'])[:4]:>5} {row['outcome']:>30}"
         )
         pair = row["pair"]
         print(
             f"{'':>14}   money={pair.get('ship_money')} fuel={pair.get('ship_fuel')} "
-            f"rt_fuel={pair.get('fuel_round_trip')} fuel_px={pair.get('fuel_price_at_origin')} "
-            f"refuel_floor={pair.get('refuel_floor')} maint={pair.get('maintenance_cost')} "
-            f"money_for_trading={pair.get('money_for_trading')}"
+            f"rt_fuel={pair.get('fuel_round_trip')} buy={pair.get('fuel_to_buy')} "
+            f"fuel_px={pair.get('fuel_price_at_origin')} "
+            f"refuel_floor={pair.get('refuel_floor')} "
+            f"mft={pair.get('money_for_trading')} "
+            f"safe={pair.get('fuel_safe_destination')} "
+            f"bunkerable={pair.get('local_fuel_bunkerable')} "
+            f"station={pair.get('can_reach_station')}"
         )
         if row.get("plan"):
             p = row["plan"]
@@ -590,29 +697,48 @@ def print_table(result: Dict[str, Any]) -> None:
                 f"buy={p['purchase_price']} profit={p['expected_profit']} "
                 f"margin={p['margin']} accepted={p['accepted']}"
             )
-
-    exits = Counter(r["pair"]["exit"] for r in pairs)
-    print(f"\n_pair_economics exits: {dict(exits.most_common())}")
-    print(
-        "medians: money_for_trading={m} round_trip_fuel={f} fuel_price={p} "
-        "refuel_floor={r}".format(
-            m=_median([r["pair"].get("money_for_trading") for r in pairs]),
-            f=_median([r["pair"].get("fuel_round_trip") for r in pairs]),
-            p=_median([r["pair"].get("fuel_price_at_origin") for r in pairs]),
-            r=_median([r["pair"].get("refuel_floor") for r in pairs]),
-        )
-    )
+        if row.get("winner"):
+            w = row["winner"]
+            print(
+                f"{'':>14}   beaten by {w['commodity']} -> {w['destination']} "
+                f"qty={w['quantity']} profit={w['expected_profit']} "
+                f"margin={w['margin']}"
+            )
 
     planned = [r for r in pairs if r.get("plan")]
     if planned:
         print(
-            "plans built={n} accepted={a} median qty={q} sell={s} profit={pr} margin={mg}".format(
+            "\nplans built={n} accepted={a} median qty={q} sell={s} profit={pr} "
+            "margin={mg}".format(
                 n=len(planned),
                 a=sum(1 for r in planned if r["plan"]["accepted"]),
                 q=_median([r["plan"]["quantity"] for r in planned]),
                 s=_median([r["plan"]["sell_price"] for r in planned]),
                 pr=_median([r["plan"]["expected_profit"] for r in planned]),
                 mg=_median([r["plan"]["margin"] for r in planned]),
+            )
+        )
+
+    lost = [r for r in pairs if r["outcome"] == "plan_lost_ranking" and r.get("winner")]
+    if lost:
+        print(f"\nlost-ranking pairs: {len(lost)}")
+        print(
+            f"{'origin':>14} {'staple_dest':>14} {'sqty':>5} {'sprof':>7} "
+            f"{'winner':>20} {'wdest':>14} {'wqty':>5} {'wprof':>7}"
+        )
+        for row in lost[:12]:
+            w = row["winner"]
+            p = row["plan"]
+            print(
+                f"{row['origin'][:14]:>14} {row['destination'][:14]:>14} "
+                f"{p['quantity']:>5} {p['expected_profit']:>7} "
+                f"{w['commodity'][:20]:>20} {w['destination'][:14]:>14} "
+                f"{w['quantity']:>5} {w['expected_profit']:>7}"
+            )
+        print(
+            "  median staple profit={s} vs winner profit={w}".format(
+                s=_median([r["plan"]["expected_profit"] for r in lost]),
+                w=_median([r["winner"]["expected_profit"] for r in lost]),
             )
         )
 
@@ -623,8 +749,8 @@ def print_table(result: Dict[str, Any]) -> None:
     )
     none_count = sum(1 for r in origins if not r["best_plan_any_commodity"])
     print(
-        f"\n_best_plan_from winners across all commodities: {dict(winners.most_common())}; "
-        f"no plan at all: {none_count}/{len(origins)}"
+        f"\n_best_plan_from winners across all commodities: "
+        f"{dict(winners.most_common())}; no plan at all: {none_count}/{len(origins)}"
     )
     profits = [
         r["best_plan_any_commodity"]["expected_profit"]
@@ -637,25 +763,33 @@ def print_table(result: Dict[str, Any]) -> None:
     print("\nship purchases (units, whole run):", result["ship_purchases"])
     print("ship sales (units, whole run):", result["ship_sales"])
     print(
-        "arrivals total={t} at surplus planets={s}; surplus planets {v}/{n} visited".format(
+        "arrivals total={t} at cheap origins={o} at sampled destinations={d}".format(
             t=result["arrivals_total"],
-            s=result["arrivals_at_surplus_planets"],
-            v=len(result["surplus_planets_visited"]),
-            n=len(result["surplus_planets_ever"]),
+            o=result["arrivals_at_origins"],
+            d=result["arrivals_at_destinations"],
         )
     )
-    if result["pair_trace_mismatches"]:
-        print("WARNING pair trace mismatches:", result["pair_trace_mismatches"])
+    if result["gate_attribution_mismatches"]:
+        print(
+            "WARNING gate attribution mismatches:",
+            result["gate_attribution_mismatches"],
+        )
 
 
 def main(argv: List[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
-    parser.add_argument("--turns", type=int, default=450)
-    parser.add_argument("--planets", type=int, default=100)
+    parser.add_argument("--turns", type=int, default=400)
+    parser.add_argument("--planets", type=int, default=50)
     parser.add_argument("--actors", type=int, default=100)
+    parser.add_argument("--ships", type=int, default=1)
     parser.add_argument("--sample-every", type=int, default=50)
     parser.add_argument("--warmup", type=int, default=150)
-    parser.add_argument("--stock-threshold", type=int, default=DEFAULT_STOCK_THRESHOLD)
+    parser.add_argument("--cheap-ask-max", type=int, default=DEFAULT_CHEAP_ASK_MAX)
+    parser.add_argument(
+        "--top-destinations", type=int, default=DEFAULT_TOP_DESTINATIONS
+    )
+    parser.add_argument("--max-origins", type=int, default=8)
+    parser.add_argument("--workers", type=int, default=1)
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
 
@@ -663,9 +797,13 @@ def main(argv: List[str]) -> int:
         turns=args.turns,
         planets=args.planets,
         actors=args.actors,
+        ships=args.ships,
         sample_every=args.sample_every,
         warmup=args.warmup,
-        threshold=args.stock_threshold,
+        cheap_ask_max=args.cheap_ask_max,
+        top_n=args.top_destinations,
+        max_origins=args.max_origins,
+        workers=args.workers,
     )
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(result, indent=2))
