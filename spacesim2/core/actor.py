@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from spacesim2.core.contracts import Contract
     from spacesim2.core.drives.actor_drive import ActorDrive
     from spacesim2.core.process import ProcessDefinition
+    from spacesim2.core.ship import Ship
     from spacesim2.core.simulation import Simulation
 
 
@@ -119,6 +120,15 @@ class Actor:
         """Raise a skill rating by ``amount``."""
         current_rating = self.get_skill_rating(skill_id)
         self.set_skill_rating(skill_id, current_rating + amount)
+
+    def receive_remittance(self, ship: "Ship", amount: int) -> None:
+        """Note a ship surplus just credited to ``self.money``.
+
+        Satisfies the ``ShipOwner`` protocol in core/ship.py. The money has
+        already moved; this is the hook a brain uses to keep its own books.
+        Called from the serial ship phase.
+        """
+        self.brain.on_remittance(self, ship, amount)
 
     def take_turn(self) -> None:
         """Take one turn: an economic action, market actions, then drive ticks."""

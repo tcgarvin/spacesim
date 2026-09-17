@@ -495,7 +495,8 @@ A `Ship` built directly, as tests do, keeps the constant defaults.
 
 Every ship has an `owner`. The default is `INDEPENDENT`, the single instance
 of `IndependentOwner` in `core/ship.py`, and a ship it owns keeps everything
-it earns. `Simulation._setup_ships` creates only independent ships today.
+it earns. `Simulation._setup_ships` gives every ship to its planet's trading
+company, so an independent ship now only appears in a hand-built world.
 
 An owner is anything satisfying the `ShipOwner` protocol: a `name`, a `money`
 balance to credit, and `receive_remittance(ship, amount)` for per-ship
@@ -519,6 +520,51 @@ it launched the ship with.
 The ship phase runs serially on the main thread - only the actor phase is
 sharded across worker threads (`docs/performance.md`) - so crediting an owner
 on another planet needs no synchronization.
+
+### Trading companies
+
+A trading company is a SERVICE actor, one per planet, named
+`f"{planet.name} Trading Co"` and created by
+`Simulation._setup_trading_company`. It owns that planet's ships, produces
+nothing, sells nothing, and never migrates. `TradingCompanyBrain` is in
+`core/brains/trading_company.py`.
+
+Income is remittance only. `Actor.receive_remittance` forwards to
+`ActorBrain.on_remittance`, whose default is a no-op; the company brain banks
+the amount and, at the top of each of its turns, folds it into an EMA of
+credits per owned ship per turn (`REMITTANCE_RATE_ALPHA`, 0.05).
+
+Valuation. A hull is worth
+
+    remittance_rate x SHIP_VALUE_HORIZON_TURNS x SHIP_RAMP_DISCOUNT
+
+= the rate times 200 turns times 0.5, the discount covering the hundred or so
+turns a new ship spends accumulating before anything is surplus. The value is
+0 until the rate has `MIN_REMITTANCE_HISTORY_TURNS` (50) of history. There is
+no nominal hull price: what a company pays is what its own fleet has earned,
+so a fleet that loses money never orders another ship.
+
+Bidding. The company keeps at most one resting bid, for 1 `ship_hull` at that
+value, and only while `cash - endowment - value >= 0`, where the endowment is
+`Simulation.ship_starting_capital` - the cash the new ship will carry. The bid
+is repriced only when the valuation moves more than `BID_REPRICE_FRACTION`
+(5%); otherwise the old bid keeps its place in the book. A company holding a
+hull does not bid.
+
+Spawning. `ship_hull` is tradable but not transportable, so a filled bid puts
+the hull in the company's inventory on its own planet. The actor phase is
+threaded, so the brain does not create the ship: it removes the hull, debits
+the endowment from its own money, and files a `ShipSpawn` on
+`Simulation.pending_ship_spawns` (`core/ship_spawn.py`, a list behind a lock).
+`Simulation._spawn_pending_ships` drains the queue serially between the actor
+and ship phases, so a ship bought this turn flies this turn. It is built with
+`ship_fuel_capacity`, a fuel efficiency drawn over the same 0.8-1.2 range as
+setup, the endowment as its money, `retained_capital_for(endowment)`, and an
+empty tank - it buys fuel like any other docked ship. Credits are conserved:
+the endowment moves from company to ship, and the hull price went to the
+seller through the market. Built ships are named
+`f"{company.name}-{n}"`, which is what separates them from the `Trader-N`
+ships a galaxy starts with.
 
 ### Distress: the exit from bankruptcy
 

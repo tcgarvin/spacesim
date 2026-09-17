@@ -9,6 +9,7 @@ from spacesim2.core.brains import (
     IndustrialistBrain,
     MarketMakerBrain,
     SpaceportOperatorBrain,
+    TradingCompanyBrain,
 )
 from spacesim2.core.commodity import CommodityRegistry
 from spacesim2.core.contracts import ContractStatus, PassengerPayload
@@ -44,12 +45,15 @@ from spacesim2.core.planet import Planet
 from spacesim2.core.planet_attributes import PlanetAttributes
 from spacesim2.core.process import ProcessRegistry
 from spacesim2.core.ship import (
+    BASE_FUEL_CAPACITY,
+    SHIP_CAPITAL_FLOOR,
     Ship,
     fuel_capacity_for,
     initial_fuel_for,
     retained_capital_for,
     starting_capital,
 )
+from spacesim2.core.ship_spawn import ShipSpawnQueue
 from spacesim2.core.skill import SkillsRegistry
 
 if TYPE_CHECKING:
@@ -127,6 +131,14 @@ MARKET_MAKER_CAPITAL_PER_MARKET = 100
 # ``Planet`` default. See core/land.py.
 DEFAULT_LANDS_PER_PLANET = 200
 
+# Cargo hold of a ship a trading company builds, matching the ``Ship`` default
+# every ship in a set-up galaxy carries.
+SPAWNED_SHIP_CARGO_CAPACITY = 100
+
+# Fuel efficiency of a ship a trading company builds, drawn per ship over the
+# same range setup uses.
+SPAWNED_SHIP_EFFICIENCY_RANGE = (0.8, 1.2)
+
 
 class Simulation:
     """Main simulation controller."""
@@ -142,6 +154,16 @@ class Simulation:
         self.galaxy_size: Tuple[float, float] = (100.0, 100.0)
         self.actors: List[Actor] = []
         self.ships: List[Ship] = []
+        # Ships trading companies bought this turn, built serially between the
+        # actor and ship phases. See core/ship_spawn.py.
+        self.pending_ship_spawns = ShipSpawnQueue()
+        # Galaxy-derived ship sizing, fixed once the layout exists: what a new
+        # ship launches with and how big its tank is. _setup_ships records
+        # them at mean efficiency so the spawn path need not recompute the
+        # galaxy geometry. The defaults are the small-galaxy baselines, for a
+        # hand-built world that never calls _setup_ships.
+        self.ship_starting_capital: int = SHIP_CAPITAL_FLOOR
+        self.ship_fuel_capacity: int = BASE_FUEL_CAPACITY
         self.current_turn = 0
         # Conservation check: no actor is ever created or destroyed after
         # setup, only moved between ``self.actors`` and a ship's hold (see
@@ -504,6 +526,36 @@ class Simulation:
             actor_name_prefix=actor_name_prefix,
         )
 
+        self._setup_trading_company(planet)
+
+    def _setup_trading_company(self, planet: Planet) -> Actor:
+        """Create the planet's one trading company, owner of its ships.
+
+        It starts with no money and no goods: its whole income is what its
+        ships remit. See core/brains/trading_company.py.
+        """
+        company = Actor(
+            name=f"{planet.name} Trading Co",
+            sim=self,
+            planet=planet,
+            drives=[],
+            actor_type=ActorType.SERVICE,
+            brain=TradingCompanyBrain(),
+            initial_money=0,
+        )
+        self.actors.append(company)
+        planet.add_actor(company)
+        return company
+
+    @staticmethod
+    def _trading_company_on(planet: Planet) -> Tuple[Actor, TradingCompanyBrain]:
+        """The planet's trading company and its brain."""
+        for actor in planet.actors:
+            brain = actor.brain
+            if isinstance(brain, TradingCompanyBrain):
+                return actor, brain
+        raise ValueError(f"{planet.name} has no trading company")
+
     def _setup_spaceport_operators(
         self,
         planet: Planet,
@@ -555,11 +607,9 @@ class Simulation:
         }
 
     def _setup_ships(self, num_ships: int) -> None:
-        """Create ``num_ships`` ships per planet, at random start planets."""
+        """Give every planet ``num_ships`` ships, owned by its trading company."""
         if not self.planets:
             return
-
-        total_ships = num_ships * len(self.planets)
 
         # Capital and tank scale with the galaxy: a trade in a 100-planet
         # galaxy burns roughly six times the fuel of one in a five-planet
@@ -567,28 +617,66 @@ class Simulation:
         # of the planner entirely. Geometry is fixed after setup, so this is
         # computed once.
         mean_distance = get_navigator(self).mean_pair_distance()
+        self.ship_starting_capital = starting_capital(mean_distance, 1.0)
+        self.ship_fuel_capacity = fuel_capacity_for(mean_distance, 1.0)
 
-        for i in range(total_ships):
-            efficiency = random.uniform(0.8, 1.2)
+        # Ships the galaxy starts with keep the flat "Trader-N" naming. Only a
+        # ship a company builds carries the company's name, which is what
+        # separates the two in exports and in the summary's fleet block.
+        hull_number = 0
+        for planet in self.planets:
+            company, brain = self._trading_company_on(planet)
+            for _ in range(num_ships):
+                hull_number += 1
+                efficiency = random.uniform(*SPAWNED_SHIP_EFFICIENCY_RANGE)
+                capital = starting_capital(mean_distance, efficiency)
+                ship = Ship(
+                    name=f"Trader-{hull_number}",
+                    simulation=self,
+                    planet=planet,
+                    fuel_capacity=fuel_capacity_for(mean_distance, efficiency),
+                    fuel_efficiency=efficiency,
+                    initial_money=capital,
+                    owner=company,
+                    retained_capital=retained_capital_for(capital),
+                )
+                brain.register_ship(ship)
+                ship.fuel = initial_fuel_for(mean_distance, efficiency)
 
-            planet = random.choice(self.planets)
+                self.ships.append(ship)
+                planet.add_ship(ship)
 
-            fuel_capacity = fuel_capacity_for(mean_distance, efficiency)
-            capital = starting_capital(mean_distance, efficiency)
+    def _spawn_pending_ships(self) -> None:
+        """Build the ships trading companies bought during the actor phase.
+
+        Runs serially between the actor and ship phases, so a ship bought this
+        turn flies this turn. The endowment already left the buyer's money; it
+        arrives here, so the pair conserves credits. A new ship launches with
+        an empty tank and buys fuel like any other docked ship.
+        """
+        for spawn in self.pending_ship_spawns.drain():
+            brain = spawn.owner.brain
+            if not isinstance(brain, TradingCompanyBrain):
+                raise TypeError(
+                    f"{spawn.owner.name} filed a ship spawn but is not a "
+                    f"trading company (brain {type(brain).__name__})"
+                )
+            efficiency = random.uniform(*SPAWNED_SHIP_EFFICIENCY_RANGE)
             ship = Ship(
-                name=f"Trader-{i + 1}",
+                name="",
                 simulation=self,
-                planet=planet,
-                fuel_capacity=fuel_capacity,
+                planet=spawn.planet,
+                cargo_capacity=SPAWNED_SHIP_CARGO_CAPACITY,
+                fuel_capacity=self.ship_fuel_capacity,
                 fuel_efficiency=efficiency,
-                initial_money=capital,
-                retained_capital=retained_capital_for(capital),
+                initial_money=spawn.endowment,
+                owner=spawn.owner,
+                retained_capital=retained_capital_for(spawn.endowment),
             )
-
-            ship.fuel = initial_fuel_for(mean_distance, efficiency)
-
+            ship.name = f"{spawn.owner.name}-{brain.register_ship(ship)}"
+            ship.fuel = 0
             self.ships.append(ship)
-            planet.add_ship(ship)
+            spawn.planet.add_ship(ship)
 
     def actors_aboard(self) -> int:
         """Regular actors currently riding a ship as a loaded passenger.
@@ -654,6 +742,9 @@ class Simulation:
 
             for actor in self.actors:
                 actor.take_turn()
+
+        # Ships bought during the actor phase join the fleet before it runs.
+        self._spawn_pending_ships()
 
         random.shuffle(self.ships)
 

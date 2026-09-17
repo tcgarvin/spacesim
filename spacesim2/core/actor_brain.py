@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from spacesim2.core.drives.actor_drive import ActorDrive
     from spacesim2.core.market import Market
     from spacesim2.core.process import ProcessDefinition
+    from spacesim2.core.ship import Ship
 
 # Wage for a turn of government work. It is the opportunity cost of labor and
 # the labor component of replacement cost when self-producing a good.
@@ -311,6 +312,14 @@ class ActorBrain:
         on the common path (check a cooldown before scoring anything).
         """
         return NO_MIGRATION
+
+    def on_remittance(self, actor: "Actor", ship: "Ship", amount: int) -> None:
+        """Called when a ship the actor owns remits ``amount`` credits.
+
+        The money is already on ``actor.money``; this is bookkeeping only.
+        Most brains own no ships, so the default does nothing.
+        """
+        return None
 
     def on_relocated(self, actor: "Actor") -> None:
         """Called once after the actor lands on a new planet.
