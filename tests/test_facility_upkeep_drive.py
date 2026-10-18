@@ -4,13 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from spacesim2.core.commodity import CommodityRegistry
-from spacesim2.core.drives.facility_upkeep_drive import (
+from spacesim.core.commodity import CommodityRegistry
+from spacesim.core.drives.facility_upkeep_drive import (
     DEBT_MISS_PENALTY,
     DRIVE_NAME,
     FacilityUpkeepDrive,
 )
-from spacesim2.core.facility import FacilityDefinition, FailureType, UpkeepSpec
+from spacesim.core.facility import FacilityDefinition, FailureType, UpkeepSpec
 from tests.helpers import get_actor
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
@@ -82,7 +82,7 @@ class TestTick:
     def test_no_event_leaves_condition_untouched(
         self, drive, registry, monkeypatch, tmp_path
     ):
-        import spacesim2.core.drives.facility_upkeep_drive as module
+        import spacesim.core.drives.facility_upkeep_drive as module
 
         actor = get_actor()
         actor.inventory.add_commodity(registry["simple_building_materials"], 3)
@@ -103,7 +103,7 @@ class TestTick:
     def test_covered_event_consumes_stock_and_keeps_health_high(
         self, drive, registry, monkeypatch
     ):
-        import spacesim2.core.drives.facility_upkeep_drive as module
+        import spacesim.core.drives.facility_upkeep_drive as module
 
         actor = get_actor()
         actor.inventory.add_commodity(registry["simple_building_materials"], 5)
@@ -124,7 +124,7 @@ class TestTick:
     def test_uncovered_event_raises_debt_and_records_the_failure(
         self, drive, registry, monkeypatch
     ):
-        import spacesim2.core.drives.facility_upkeep_drive as module
+        import spacesim.core.drives.facility_upkeep_drive as module
 
         actor = get_actor()
         actor.inventory.add_commodity(registry["simple_building_materials"], 2)
@@ -146,7 +146,7 @@ class TestTick:
     def test_wrong_material_does_not_cover_a_failure(
         self, drive, registry, monkeypatch
     ):
-        import spacesim2.core.drives.facility_upkeep_drive as module
+        import spacesim.core.drives.facility_upkeep_drive as module
 
         actor = get_actor()
         actor.inventory.add_commodity(registry["simple_building_materials"], 10)
@@ -160,7 +160,7 @@ class TestTick:
     def test_repair_clears_last_unmet_and_decays_debt(
         self, drive, registry, monkeypatch
     ):
-        import spacesim2.core.drives.facility_upkeep_drive as module
+        import spacesim.core.drives.facility_upkeep_drive as module
 
         actor = get_actor()
         _force(monkeypatch, module, event=True, failure=MECHANICAL)
@@ -177,7 +177,7 @@ class TestTick:
         assert actor.inventory.get_available_quantity(registry["common_metal"]) == 0
 
     def test_repeated_misses_drive_condition_down(self, drive, monkeypatch):
-        import spacesim2.core.drives.facility_upkeep_drive as module
+        import spacesim.core.drives.facility_upkeep_drive as module
 
         actor = get_actor()
         _force(monkeypatch, module, event=True, failure=TOOLING)
@@ -189,7 +189,7 @@ class TestTick:
         assert drive.metrics.get_score() == pytest.approx(1 - drive.metrics.debt)
 
     def test_buffer_rises_with_stock(self, drive, registry, monkeypatch):
-        import spacesim2.core.drives.facility_upkeep_drive as module
+        import spacesim.core.drives.facility_upkeep_drive as module
 
         actor = get_actor()
         _force(monkeypatch, module, event=False)

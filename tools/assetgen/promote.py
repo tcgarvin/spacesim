@@ -1,6 +1,6 @@
 """Promote approved candidate sprites into the shipped runtime asset tree.
 
-Copies staging/candidates/<id>.png -> spacesim2/ui/live/assets/<category>s/<id>.png
+Copies staging/candidates/<id>.png -> spacesim/ui/live/assets/<category>s/<id>.png
 for every manifest entry with ``status: approved``, rewrites the per-category
 index the runtime loader reads, and records provenance in ATTRIBUTION.md.
 
@@ -21,7 +21,7 @@ from typing import Any
 import yaml
 
 _HERE = Path(__file__).resolve().parent
-_ASSET_ROOT = _HERE.parents[1] / "spacesim2" / "ui" / "live" / "assets"
+_ASSET_ROOT = _HERE.parents[1] / "spacesim" / "ui" / "live" / "assets"
 
 
 def promote(manifest: dict, candidates_dir: Path, asset_root: Path) -> None:

@@ -20,12 +20,12 @@ import sys
 from collections import Counter, defaultdict
 from typing import Any, Dict, List, Tuple
 
-from spacesim2.core.actor import Actor, ActorType
-from spacesim2.core.brains.colonist import ColonistBrain
-from spacesim2.core.brains.industrialist import IndustrialistBrain
-from spacesim2.core.commands import GOVERNMENT_WAGE, ProcessCommand
-from spacesim2.core.market import Market
-from spacesim2.core.simulation import Simulation
+from spacesim.core.actor import Actor, ActorType
+from spacesim.core.brains.colonist import ColonistBrain
+from spacesim.core.brains.industrialist import IndustrialistBrain
+from spacesim.core.commands import GOVERNMENT_WAGE, ProcessCommand
+from spacesim.core.market import Market
+from spacesim.core.simulation import Simulation
 
 STATE: Dict[str, Any] = {"turn": 0, "sim": None}
 CALLS: Counter = Counter()

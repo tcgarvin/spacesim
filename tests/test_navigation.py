@@ -2,17 +2,17 @@
 
 import math
 
-from spacesim2.core.commodity import CommodityDefinition, CommodityRegistry
-from spacesim2.core.galaxy import StarLaneNetwork
-from spacesim2.core.market import Market
-from spacesim2.core.navigation import (
+from spacesim.core.commodity import CommodityDefinition, CommodityRegistry
+from spacesim.core.galaxy import StarLaneNetwork
+from spacesim.core.market import Market
+from spacesim.core.navigation import (
     DESTINATION_NEAREST_M,
     DESTINATION_TOP_K,
     Navigator,
     get_navigator,
 )
-from spacesim2.core.planet import Planet
-from spacesim2.core.ship import Ship
+from spacesim.core.planet import Planet
+from spacesim.core.ship import Ship
 
 
 def _make_world(planet_specs):

@@ -16,8 +16,8 @@ import math
 import random
 from collections import Counter
 
-from spacesim2.cli.common import create_and_setup_simulation
-from spacesim2.core.actor import ActorType
+from spacesim.cli.common import create_and_setup_simulation
+from spacesim.core.actor import ActorType
 
 TURNS = 300
 PLANETS = 3

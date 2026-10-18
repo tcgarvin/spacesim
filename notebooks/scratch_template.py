@@ -2,7 +2,7 @@
 
 Copy this, edit the analysis, and run it:
 
-    uv run spacesim2 dev analyze notebooks/my_question.py
+    uv run spacesim dev analyze notebooks/my_question.py
 
 Contract, which keeps agent token cost bounded:
   * Print small aggregates only: .describe(), grouped means, .head(N).
@@ -17,7 +17,7 @@ and open it with `marimo edit`.
 
 import polars as pl
 
-from spacesim2.analysis.loading import load_run
+from spacesim.analysis.loading import load_run
 
 r = load_run()  # most recent run, or $SPACESIM_RUN_PATH
 print(f"run: {r.simulation_id}")

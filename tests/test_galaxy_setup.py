@@ -5,17 +5,17 @@ import random
 
 import pytest
 
-from spacesim2.core.galaxy import (
+from spacesim.core.galaxy import (
     MIN_PLANET_DISTANCE,
     StarLaneNetwork,
     crossing_lane_pairs,
     generate_spiral_layout,
     is_connected,
 )
-from spacesim2.core.market import Market
-from spacesim2.core.navigation import Navigator, get_navigator
-from spacesim2.core.planet import Planet
-from spacesim2.core.simulation import Simulation
+from spacesim.core.market import Market
+from spacesim.core.navigation import Navigator, get_navigator
+from spacesim.core.planet import Planet
+from spacesim.core.simulation import Simulation
 
 
 def _min_pairwise_distance(positions: list[tuple[float, float]]) -> float:

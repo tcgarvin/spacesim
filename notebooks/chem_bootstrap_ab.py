@@ -10,13 +10,13 @@ the good has never traded. Source is untouched; the patch lives here.
 import math
 from collections import Counter
 
-from spacesim2.core.actor import ActorType
-from spacesim2.core.brains.industrialist import (
+from spacesim.core.actor import ActorType
+from spacesim.core.brains.industrialist import (
     PROCUREMENT_BOOTSTRAP_MARGIN,
     IndustrialistBrain,
 )
-from spacesim2.core.commands import PlaceBuyOrderCommand
-from spacesim2.core.simulation import Simulation
+from spacesim.core.commands import PlaceBuyOrderCommand
+from spacesim.core.simulation import Simulation
 
 TURNS = 500
 PLANETS = 16

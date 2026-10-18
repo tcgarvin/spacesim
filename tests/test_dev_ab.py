@@ -6,7 +6,7 @@ Pure functions against hand-written summary dicts; no simulation runs.
 import subprocess
 from pathlib import Path
 
-from spacesim2.cli.commands.dev.ab import (
+from spacesim.cli.commands.dev.ab import (
     Direction,
     Kpi,
     build_row,
@@ -22,7 +22,7 @@ from spacesim2.cli.commands.dev.ab import (
     run_one,
     spacesim_command,
 )
-from spacesim2.cli.main import create_parser
+from spacesim.cli.main import create_parser
 
 
 def _summary(idle: int, status: str = "PASS", health: float = 0.9) -> dict:
@@ -185,7 +185,7 @@ class TestRunLaunch:
             "run",
             "--project",
             "/repo/base",
-            "spacesim2",
+            "spacesim",
         ]
         assert run_env(project, None).get("PYTHONPATH") != "/repo/base"
 
@@ -195,7 +195,7 @@ class TestRunLaunch:
         assert spacesim_command(project, python) == [
             "/repo/.venv-ft/bin/python",
             "-m",
-            "spacesim2.cli.main",
+            "spacesim.cli.main",
         ]
         assert run_env(project, python)["PYTHONPATH"] == "/repo/base"
 
@@ -221,7 +221,7 @@ class TestRunLaunch:
         (call,) = calls
         cmd = call["cmd"]
         assert isinstance(cmd, list)
-        assert cmd[:3] == ["/venv/bin/python", "-m", "spacesim2.cli.main"]
+        assert cmd[:3] == ["/venv/bin/python", "-m", "spacesim.cli.main"]
         assert cmd[cmd.index("--workers") + 1] == "12"
         assert call["cwd"] == tmp_path
         env = call["env"]

@@ -27,11 +27,11 @@ All wrappers call through unchanged; their call counts are asserted non-zero.
 
 Run:
 
-    PYTHONPATH=/home/timg/code/spacesim2 \
-    /home/timg/code/spacesim2/.venv-ft/bin/python \
-        /home/timg/code/spacesim2/notebooks/plan_claim_probe.py \
+    PYTHONPATH=/home/timg/code/spacesim \
+    /home/timg/code/spacesim/.venv-ft/bin/python \
+        /home/timg/code/spacesim/notebooks/plan_claim_probe.py \
         --turns 400 --planets 50 --warmup 100 \
-        --workers 12 --out /home/timg/code/spacesim2/tmp/plan_claim.json
+        --workers 12 --out /home/timg/code/spacesim/tmp/plan_claim.json
 """
 
 import argparse
@@ -44,8 +44,8 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from spacesim2.core.market import Market
-from spacesim2.core.ship import (
+from spacesim.core.market import Market
+from spacesim.core.ship import (
     DISTANCE_PER_TURN,
     LIQUIDATION_FLOOR,
     Ship,
@@ -53,7 +53,7 @@ from spacesim2.core.ship import (
     TraderBrain,
 )
 
-from spacesim2.cli.common import create_and_setup_simulation  # isort: skip
+from spacesim.cli.common import create_and_setup_simulation  # isort: skip
 
 FOOD_IDS = ("food", "processed_food")
 

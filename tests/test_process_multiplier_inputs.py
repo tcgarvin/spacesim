@@ -10,9 +10,9 @@ from unittest.mock import patch
 
 import pytest
 
-from spacesim2.core.actor import ActorType
-from spacesim2.core.commands import ProcessCommand
-from spacesim2.core.simulation import Simulation
+from spacesim.core.actor import ActorType
+from spacesim.core.commands import ProcessCommand
+from spacesim.core.simulation import Simulation
 
 
 @pytest.fixture
@@ -36,8 +36,8 @@ def cook():
 
 def _run_doubled(actor) -> bool:
     with (
-        patch("spacesim2.core.skill.SkillCheck.success_check", return_value=True),
-        patch("spacesim2.core.skill.SkillCheck.multiplier_check", return_value=True),
+        patch("spacesim.core.skill.SkillCheck.success_check", return_value=True),
+        patch("spacesim.core.skill.SkillCheck.multiplier_check", return_value=True),
     ):
         return ProcessCommand("make_food").execute(actor)
 

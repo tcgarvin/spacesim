@@ -2,12 +2,12 @@
 
 from unittest.mock import MagicMock, patch
 
-from spacesim2.core.commands import ProcessCommand
-from spacesim2.core.commodity import CommodityDefinition, CommodityRegistry
-from spacesim2.core.market import Market
-from spacesim2.core.planet import Planet
-from spacesim2.core.process import ProcessDefinition, ProcessRegistry
-from spacesim2.core.simulation import Simulation
+from spacesim.core.commands import ProcessCommand
+from spacesim.core.commodity import CommodityDefinition, CommodityRegistry
+from spacesim.core.market import Market
+from spacesim.core.planet import Planet
+from spacesim.core.process import ProcessDefinition, ProcessRegistry
+from spacesim.core.simulation import Simulation
 
 from .helpers import get_actor
 
@@ -65,7 +65,7 @@ def test_tool_not_consumed_on_successful_process():
     actor.inventory.add_commodity("simple_tools", 3)
 
     with patch(
-        "spacesim2.core.commands.random.random", return_value=0.5
+        "spacesim.core.commands.random.random", return_value=0.5
     ):  # above the 0.01 break threshold
         command = ProcessCommand("test_process")
         result = command.execute(actor)
@@ -86,7 +86,7 @@ def test_tool_breaks_when_random_below_threshold():
     actor.inventory.add_commodity("simple_tools", 3)
 
     with patch(
-        "spacesim2.core.commands.random.random", return_value=0.005
+        "spacesim.core.commands.random.random", return_value=0.005
     ):  # below the 0.01 break threshold
         command = ProcessCommand("test_process")
         result = command.execute(actor)
@@ -110,7 +110,7 @@ def test_tool_break_logged_when_data_logger_present():
     actor.inventory.add_commodity("simple_tools", 3)
 
     with patch(
-        "spacesim2.core.commands.random.random", return_value=0.005
+        "spacesim.core.commands.random.random", return_value=0.005
     ):  # below the 0.01 break threshold
         command = ProcessCommand("test_process")
         result = command.execute(actor)
@@ -135,7 +135,7 @@ def test_tool_degradation_only_after_successful_process():
     actor.inventory.add_commodity("simple_tools", 3)
 
     with patch(
-        "spacesim2.core.commands.random.random", return_value=0.005
+        "spacesim.core.commands.random.random", return_value=0.005
     ):  # would break a tool if rolled
         command = ProcessCommand("test_process")
         result = command.execute(actor)
@@ -199,7 +199,7 @@ def test_tool_degradation_probability_is_independent_per_tool():
     # Both rolls are below the threshold, so both tools break.
     random_values = iter([0.005, 0.005])
     with patch(
-        "spacesim2.core.commands.random.random", side_effect=lambda: next(random_values)
+        "spacesim.core.commands.random.random", side_effect=lambda: next(random_values)
     ):
         command = ProcessCommand("multi_tool_process")
         result = command.execute(actor)

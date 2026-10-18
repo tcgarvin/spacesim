@@ -6,13 +6,13 @@ ActorType so future brains are added deliberately rather than silently
 falling on the wrong side of the split.
 """
 
-from spacesim2.core.actor import ActorType
-from spacesim2.core.brains.colonist import ColonistBrain
-from spacesim2.core.brains.industrialist import IndustrialistBrain
-from spacesim2.core.brains.market_maker_2 import MarketMakerBrain
-from spacesim2.core.brains.spaceport_operator import SpaceportOperatorBrain
-from spacesim2.core.brains.trading_company import TradingCompanyBrain
-from spacesim2.core.simulation import Simulation
+from spacesim.core.actor import ActorType
+from spacesim.core.brains.colonist import ColonistBrain
+from spacesim.core.brains.industrialist import IndustrialistBrain
+from spacesim.core.brains.market_maker_2 import MarketMakerBrain
+from spacesim.core.brains.spaceport_operator import SpaceportOperatorBrain
+from spacesim.core.brains.trading_company import TradingCompanyBrain
+from spacesim.core.simulation import Simulation
 
 # Brain class -> expected ActorType. Add new brains here as they're introduced.
 _EXPECTED_ACTOR_TYPE: dict[type, ActorType] = {

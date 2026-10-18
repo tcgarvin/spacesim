@@ -10,12 +10,12 @@ import math
 
 import pytest
 
-from spacesim2.core.actor import ActorType
-from spacesim2.core.brains.colonist import ColonistBrain
-from spacesim2.core.brains.industrialist import IndustrialistBrain
-from spacesim2.core.commands import ProcessCommand
-from spacesim2.core.drives.food_drive import FoodDrive, food_pantry_units
-from spacesim2.core.simulation import Simulation
+from spacesim.core.actor import ActorType
+from spacesim.core.brains.colonist import ColonistBrain
+from spacesim.core.brains.industrialist import IndustrialistBrain
+from spacesim.core.commands import ProcessCommand
+from spacesim.core.drives.food_drive import FoodDrive, food_pantry_units
+from spacesim.core.simulation import Simulation
 
 
 @pytest.fixture(scope="module")

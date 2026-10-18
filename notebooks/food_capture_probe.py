@@ -4,12 +4,12 @@ Tier-1 export analysis. Splits food purchases into consumption vs
 processing by identifying actors who ever sold processed_food, then
 reports per-planet food / processed_food prices and the top food buyers.
 
-    uv run spacesim2 dev analyze notebooks/food_capture_probe.py
+    uv run spacesim dev analyze notebooks/food_capture_probe.py
 """
 
 import polars as pl
 
-from spacesim2.analysis.loading import load_run
+from spacesim.analysis.loading import load_run
 
 r = load_run()
 print(f"run: {r.simulation_id}")

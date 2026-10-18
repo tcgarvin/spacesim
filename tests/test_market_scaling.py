@@ -10,8 +10,8 @@ import random
 
 import pytest
 
-from spacesim2.core.commodity import CommodityRegistry
-from spacesim2.core.market import (
+from spacesim.core.commodity import CommodityRegistry
+from spacesim.core.market import (
     HISTORY_KEEP,
     HISTORY_TRIM_THRESHOLD,
     ORDER_EVENTS_PER_ACTOR,

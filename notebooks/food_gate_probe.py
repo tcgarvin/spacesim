@@ -13,11 +13,11 @@ import sys
 from collections import Counter
 from typing import Any, Dict, List
 
-from spacesim2.core.actor import Actor, ActorType
-from spacesim2.core.brains.colonist import ColonistBrain
-from spacesim2.core.brains.industrialist import IndustrialistBrain
-from spacesim2.core.commands import ProcessCommand
-from spacesim2.core.simulation import Simulation
+from spacesim.core.actor import Actor, ActorType
+from spacesim.core.brains.colonist import ColonistBrain
+from spacesim.core.brains.industrialist import IndustrialistBrain
+from spacesim.core.commands import ProcessCommand
+from spacesim.core.simulation import Simulation
 
 STATE: Dict[str, Any] = {"turn": 0}
 CALLS: Counter = Counter()

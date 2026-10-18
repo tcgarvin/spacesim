@@ -10,9 +10,9 @@ both arms run the same source. Arm "after" is the code as written.
 import sys
 from collections import Counter
 
-from spacesim2.core.actor import ActorType
-from spacesim2.core.brains.industrialist import IndustrialistBrain
-from spacesim2.core.simulation import Simulation
+from spacesim.core.actor import ActorType
+from spacesim.core.brains.industrialist import IndustrialistBrain
+from spacesim.core.simulation import Simulation
 
 TURNS = 500
 PLANETS = 16

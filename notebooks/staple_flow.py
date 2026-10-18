@@ -1,11 +1,11 @@
 """Does processed_food move by ship, and what does the destination book look like?
 
-uv run spacesim2 dev analyze staple_flow.py --run data/runs/<dir>
+uv run spacesim dev analyze staple_flow.py --run data/runs/<dir>
 """
 
 import polars as pl
 
-from spacesim2.analysis.loading import load_run
+from spacesim.analysis.loading import load_run
 
 pl.Config.set_tbl_cols(-1)
 pl.Config.set_tbl_width_chars(200)

@@ -2,7 +2,7 @@
 
 import polars as pl
 
-from spacesim2.analysis.loading import load_run
+from spacesim.analysis.loading import load_run
 
 r = load_run()
 print(f"run: {r.simulation_id}")

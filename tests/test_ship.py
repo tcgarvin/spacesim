@@ -1,10 +1,10 @@
 import unittest
 
-from spacesim2.core.commodity import CommodityDefinition, CommodityRegistry
-from spacesim2.core.galaxy import StarLaneNetwork
-from spacesim2.core.market import Market
-from spacesim2.core.planet import Planet
-from spacesim2.core.ship import Ship, ShipStatus
+from spacesim.core.commodity import CommodityDefinition, CommodityRegistry
+from spacesim.core.galaxy import StarLaneNetwork
+from spacesim.core.market import Market
+from spacesim.core.planet import Planet
+from spacesim.core.ship import Ship, ShipStatus
 
 
 class TestShip(unittest.TestCase):

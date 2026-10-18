@@ -8,9 +8,9 @@ import threading
 
 import pytest
 
-from spacesim2.core.navigation import Navigator, get_navigator
-from spacesim2.core.parallel import run_actor_phase_threaded
-from spacesim2.core.simulation import Simulation
+from spacesim.core.navigation import Navigator, get_navigator
+from spacesim.core.parallel import run_actor_phase_threaded
+from spacesim.core.simulation import Simulation
 
 
 def _setup(workers: int) -> Simulation:

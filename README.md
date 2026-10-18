@@ -1,4 +1,4 @@
-# SpaceSim2
+# SpaceSim
 
 A turn-based economic simulation of interplanetary trade with actors,
 markets, and ships.
@@ -25,29 +25,29 @@ uv sync --extra analysis
 
 ```bash
 # Live galaxy view (Pygame)
-uv run spacesim2 ui
+uv run spacesim ui
 
 # Headless run with data export
-uv run spacesim2 run --turns 200
+uv run spacesim run --turns 200
 
 # Compact KPI summary with PASS/WARN/FAIL verdict
-uv run spacesim2 run --turns 200 --no-export --quiet --summary
+uv run spacesim run --turns 200 --no-export --quiet --summary
 
 # Same run on the free-threaded side venv with a threaded actor phase
 # (faster, same KPIs; setup in docs/performance.md)
-.venv-ft/bin/python -m spacesim2.cli.main run --workers 12 --turns 200 --no-export --quiet --summary
+.venv-ft/bin/python -m spacesim.cli.main run --workers 12 --turns 200 --no-export --quiet --summary
 
 # Run an ad-hoc analysis script against the latest exported run
-uv run spacesim2 dev analyze notebooks/healthcheck_probe.py
+uv run spacesim dev analyze notebooks/healthcheck_probe.py
 
 # Run with data export and open the Marimo dashboard notebook
-uv run spacesim2 run --notebook
+uv run spacesim run --notebook
 
 # Generate commodity/process dependency graph
-uv run spacesim2 dev graph
+uv run spacesim dev graph
 
 # See all commands and options
-uv run spacesim2 --help
+uv run spacesim --help
 ```
 
 Both `ui` and `run` take `--planets`, `--actors`, `--makers`, and `--ships`
@@ -61,5 +61,5 @@ the simulation evaluation loop. Quick start:
 ```bash
 uv sync --all-extras       # dev + analysis dependencies
 uv run pytest              # tests
-uv run spacesim2 dev check # full verify: format, lint, types, tests, sim run
+uv run spacesim dev check # full verify: format, lint, types, tests, sim run
 ```

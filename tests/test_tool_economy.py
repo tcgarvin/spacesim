@@ -2,8 +2,8 @@
 
 from unittest.mock import patch
 
-from spacesim2.core.commands import ProcessCommand
-from spacesim2.core.simulation import Simulation
+from spacesim.core.commands import ProcessCommand
+from spacesim.core.simulation import Simulation
 
 
 class TestBootstrapPath:
@@ -161,12 +161,12 @@ class TestBootstrapPath:
         actor = sim.actors[0]
 
         # Skill checks always pass and the actor's land is perfect.
-        from spacesim2.core.land import Land
+        from spacesim.core.land import Land
 
         actor.land = Land.default()
         with (
-            patch("spacesim2.core.skill.SkillCheck.success_check", return_value=True),
-            patch("spacesim2.core.commands.random.random", return_value=0.5),
+            patch("spacesim.core.skill.SkillCheck.success_check", return_value=True),
+            patch("spacesim.core.commands.random.random", return_value=0.5),
         ):
             # 4 wood for tools, the rest for building materials.
             for _ in range(20):

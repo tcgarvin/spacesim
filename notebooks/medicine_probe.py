@@ -10,10 +10,10 @@ logged actors. Run directly:
 import statistics
 from collections import defaultdict
 
-from spacesim2.core.actor import ActorType
-from spacesim2.core.actor_brain import ActorBrain, BrainCache
-from spacesim2.core.brains.industrialist import IndustrialistBrain
-from spacesim2.core.simulation import Simulation
+from spacesim.core.actor import ActorType
+from spacesim.core.actor_brain import ActorBrain, BrainCache
+from spacesim.core.brains.industrialist import IndustrialistBrain
+from spacesim.core.simulation import Simulation
 
 TURNS = 500
 PLANETS = 16

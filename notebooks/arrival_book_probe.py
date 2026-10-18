@@ -26,11 +26,11 @@ Each arrival is then classified:
 
 Run:
 
-    PYTHONPATH=/home/timg/code/spacesim2 \
-    /home/timg/code/spacesim2/.venv-ft/bin/python \
-        /home/timg/code/spacesim2/notebooks/arrival_book_probe.py \
+    PYTHONPATH=/home/timg/code/spacesim \
+    /home/timg/code/spacesim/.venv-ft/bin/python \
+        /home/timg/code/spacesim/notebooks/arrival_book_probe.py \
         --turns 400 --planets 50 --warmup 100 \
-        --workers 12 --out /home/timg/code/spacesim2/tmp/arrival_book.json
+        --workers 12 --out /home/timg/code/spacesim/tmp/arrival_book.json
 """
 
 import argparse
@@ -43,8 +43,8 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from spacesim2.core.market import Market
-from spacesim2.core.ship import (
+from spacesim.core.market import Market
+from spacesim.core.ship import (
     FUEL_MILLI,
     DEMAND_HORIZON_TURNS,
     FLOW_SHARE_EXTERNAL,
@@ -58,7 +58,7 @@ from spacesim2.core.ship import (
     units_to_milli,
 )
 
-from spacesim2.cli.common import create_and_setup_simulation  # isort: skip
+from spacesim.cli.common import create_and_setup_simulation  # isort: skip
 
 FOOD_IDS = ("food", "processed_food")
 MAX_DOCKED_ROWS = 15

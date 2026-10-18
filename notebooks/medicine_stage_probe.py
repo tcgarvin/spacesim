@@ -3,9 +3,9 @@
 import json
 from collections import Counter, defaultdict
 
-from spacesim2.cli.common import create_and_setup_simulation
-from spacesim2.core import commands as cmd_mod
-from spacesim2.core.brains.industrialist import IndustrialistBrain
+from spacesim.cli.common import create_and_setup_simulation
+from spacesim.core import commands as cmd_mod
+from spacesim.core.brains.industrialist import IndustrialistBrain
 
 TURNS = 200
 PLANETS = 12

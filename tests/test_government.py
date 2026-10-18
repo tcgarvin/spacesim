@@ -6,8 +6,8 @@ accept and fly one by hand.
 
 import math
 
-from spacesim2.core.contracts import GOVERNMENT, ContractStatus
-from spacesim2.core.government import (
+from spacesim.core.contracts import GOVERNMENT, ContractStatus
+from spacesim.core.government import (
     GOVERNMENT_JOB_MARGIN,
     GOVERNMENT_JOB_MAX_HOPS,
     GOVERNMENT_JOB_TTL,
@@ -16,11 +16,11 @@ from spacesim2.core.government import (
     GOVERNMENT_JOBS_PER_PLANET,
     refresh_government_jobs,
 )
-from spacesim2.core.market import Market
-from spacesim2.core.navigation import FUEL_BID_FALLBACK_FLOOR, get_navigator
-from spacesim2.core.planet import Planet
-from spacesim2.core.ship import FUEL_MILLI, Ship
-from spacesim2.core.simulation import Simulation
+from spacesim.core.market import Market
+from spacesim.core.navigation import FUEL_BID_FALLBACK_FLOOR, get_navigator
+from spacesim.core.planet import Planet
+from spacesim.core.ship import FUEL_MILLI, Ship
+from spacesim.core.simulation import Simulation
 
 
 def _chain_sim(planet_count: int) -> Simulation:

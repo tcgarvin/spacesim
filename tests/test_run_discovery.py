@@ -4,7 +4,7 @@ from datetime import datetime
 
 import pytest
 
-from spacesim2.analysis.loading.utils import (
+from spacesim.analysis.loading.utils import (
     NoRunsFoundError,
     find_most_recent_run,
     get_run_path_with_fallback,
@@ -88,7 +88,7 @@ class TestFindMostRecentRun:
             find_most_recent_run(tmp_path)
 
         assert "No valid runs found" in str(exc_info.value)
-        assert "spacesim2 run" in str(exc_info.value)
+        assert "spacesim run" in str(exc_info.value)
 
     def test_nonexistent_directory_raises_exception(self, tmp_path):
         """Raise NoRunsFoundError when runs directory doesn't exist."""

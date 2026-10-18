@@ -1,6 +1,6 @@
 # Actor Needs (Drives)
 
-Actor needs are drives in `spacesim2/core/drives/`. Each drive inherits from
+Actor needs are drives in `spacesim/core/drives/`. Each drive inherits from
 `ActorDrive` (`actor_drive.py`), is attached to one actor, and ticks once per
 turn: it consumes satisfying goods from the actor's inventory and updates a
 `DriveMetrics` record.

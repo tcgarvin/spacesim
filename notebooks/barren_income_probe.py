@@ -22,11 +22,11 @@ The actor phase runs on threads, so both patched counters take a lock.
 
 Run:
 
-    PYTHONPATH=/home/timg/code/spacesim2 \
-    /home/timg/code/spacesim2/.venv-ft/bin/python \
-        /home/timg/code/spacesim2/notebooks/barren_income_probe.py \
+    PYTHONPATH=/home/timg/code/spacesim \
+    /home/timg/code/spacesim/.venv-ft/bin/python \
+        /home/timg/code/spacesim/notebooks/barren_income_probe.py \
         --turns 600 --planets 50 --warmup 100 --sample-every 50 \
-        --workers 6 --out /home/timg/code/spacesim2/tmp/barren_income.json
+        --workers 6 --out /home/timg/code/spacesim/tmp/barren_income.json
 """
 
 import argparse
@@ -38,14 +38,14 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
-from spacesim2.cli.common import create_and_setup_simulation
-from spacesim2.core import migration as migration_module
-from spacesim2.core.actor import Actor, ActorType
-from spacesim2.core.commands import GovernmentWorkCommand, ProcessCommand
-from spacesim2.core.market import Market
-from spacesim2.core.planet_attributes import RESOURCE_ATTRIBUTES
-from spacesim2.core.ship import Ship
-from spacesim2.core.simulation import Simulation
+from spacesim.cli.common import create_and_setup_simulation
+from spacesim.core import migration as migration_module
+from spacesim.core.actor import Actor, ActorType
+from spacesim.core.commands import GovernmentWorkCommand, ProcessCommand
+from spacesim.core.market import Market
+from spacesim.core.planet_attributes import RESOURCE_ATTRIBUTES
+from spacesim.core.ship import Ship
+from spacesim.core.simulation import Simulation
 
 FOOD_IDS = ("food", "processed_food")
 FOOD_DRIVE_NAME = "food"

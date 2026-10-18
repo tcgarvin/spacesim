@@ -2,8 +2,8 @@ import os
 
 import yaml
 
-from spacesim2.core.commodity import CommodityDefinition, CommodityRegistry, Inventory
-from spacesim2.core.process import ProcessRegistry
+from spacesim.core.commodity import CommodityDefinition, CommodityRegistry, Inventory
+from spacesim.core.process import ProcessRegistry
 
 
 def test_commodity_registry_loading() -> None:

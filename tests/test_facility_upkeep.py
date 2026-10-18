@@ -10,13 +10,13 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from spacesim2.core.actor_brain import GOVERNMENT_WAGE, ActorBrain
-from spacesim2.core.commands import PlaceBuyOrderCommand, ProcessCommand
-from spacesim2.core.commodity import CommodityDefinition, CommodityRegistry, Inventory
-from spacesim2.core.market import Market
-from spacesim2.core.planet import Planet
-from spacesim2.core.process import ProcessDefinition, ProcessRegistry
-from spacesim2.core.simulation import Simulation
+from spacesim.core.actor_brain import GOVERNMENT_WAGE, ActorBrain
+from spacesim.core.commands import PlaceBuyOrderCommand, ProcessCommand
+from spacesim.core.commodity import CommodityDefinition, CommodityRegistry, Inventory
+from spacesim.core.market import Market
+from spacesim.core.planet import Planet
+from spacesim.core.process import ProcessDefinition, ProcessRegistry
+from spacesim.core.simulation import Simulation
 
 from .helpers import get_actor
 
@@ -176,7 +176,7 @@ class TestUpkeepExecution:
         actor.inventory.add_commodity(_get(sim, "input_commodity"), 5)
         actor.inventory.add_commodity(_get(sim, "heavy_machinery"), 2)
 
-        with patch("spacesim2.core.commands.random.random", return_value=0.0):
+        with patch("spacesim.core.commands.random.random", return_value=0.0):
             assert ProcessCommand("test_process").execute(actor) is True
 
         assert actor.inventory.get_quantity(_get(sim, "heavy_machinery")) == 1
@@ -189,7 +189,7 @@ class TestUpkeepExecution:
         actor.inventory.add_commodity(_get(sim, "input_commodity"), 5)
         actor.inventory.add_commodity(_get(sim, "heavy_machinery"), 2)
 
-        with patch("spacesim2.core.commands.random.random", return_value=0.9):
+        with patch("spacesim.core.commands.random.random", return_value=0.9):
             assert ProcessCommand("test_process").execute(actor) is True
 
         assert actor.inventory.get_quantity(_get(sim, "heavy_machinery")) == 2
@@ -201,7 +201,7 @@ class TestUpkeepExecution:
         actor = get_actor("Test Actor", sim, planet=Planet("Test Planet", Market()))
         actor.inventory.add_commodity(_get(sim, "input_commodity"), 5)
 
-        with patch("spacesim2.core.commands.random.random", return_value=0.0):
+        with patch("spacesim.core.commands.random.random", return_value=0.0):
             assert ProcessCommand("test_process").execute(actor) is False
 
         assert actor.inventory.get_quantity(_get(sim, "input_commodity")) == 5
@@ -224,7 +224,7 @@ class TestUpkeepExecution:
 
         # 0.0 hits the upkeep draw, passes the skill check, and triggers the
         # output multiplier.
-        with patch("spacesim2.core.commands.random.random", return_value=0.0):
+        with patch("spacesim.core.commands.random.random", return_value=0.0):
             assert ProcessCommand("test_process").execute(actor) is True
 
         assert actor.inventory.get_quantity(_get(sim, "heavy_machinery")) == 1
@@ -283,7 +283,7 @@ class TestUpkeepProcurement:
 
     @staticmethod
     def _brain_and_actor(sim: Simulation):
-        from spacesim2.core.brains.industrialist import IndustrialistBrain
+        from spacesim.core.brains.industrialist import IndustrialistBrain
 
         brain = IndustrialistBrain()
         brain.chosen_recipe_id = "test_process"

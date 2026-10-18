@@ -1,9 +1,9 @@
 """Tests for the live galaxy view's read-only adapters."""
 
-from spacesim2.core.actor import ActorType
-from spacesim2.core.ship import ShipStatus
-from spacesim2.core.simulation import Simulation
-from spacesim2.ui.live.view_model import GalaxyViewModel, planet_wellbeing
+from spacesim.core.actor import ActorType
+from spacesim.core.ship import ShipStatus
+from spacesim.core.simulation import Simulation
+from spacesim.ui.live.view_model import GalaxyViewModel, planet_wellbeing
 
 
 def _small_sim() -> Simulation:

@@ -101,7 +101,7 @@ Money is a debt owed by the government.
 
 Commodities and processes form a directed graph. Brains walk it to find
 opportunities given market prices and inventory. Render it with
-`uv run spacesim2 dev graph`.
+`uv run spacesim dev graph`.
 
 ## Turn execution
 

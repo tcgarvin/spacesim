@@ -13,8 +13,8 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 import pygame  # noqa: E402
 import pytest  # noqa: E402
 
-from spacesim2.ui.live import assets  # noqa: E402
-from spacesim2.ui.live.entities.planet_view import (  # noqa: E402
+from spacesim.ui.live import assets  # noqa: E402
+from spacesim.ui.live.entities.planet_view import (  # noqa: E402
     PULSE_WELLBEING,
     glow_strength,
     tint_alpha,

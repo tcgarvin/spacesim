@@ -8,12 +8,12 @@ rule draws. The premium is quantity times (price - reference): what the
 ship paid over the galaxy-typical price.
 
 Run:
-    uv run spacesim2 dev analyze notebooks/ship_fuel_spike_spend.py
+    uv run spacesim dev analyze notebooks/ship_fuel_spike_spend.py
 """
 
 import polars as pl
 
-from spacesim2.analysis.loading.utils import get_run_path_with_fallback
+from spacesim.analysis.loading.utils import get_run_path_with_fallback
 
 pl.Config.set_tbl_rows(40)
 pl.Config.set_tbl_cols(20)

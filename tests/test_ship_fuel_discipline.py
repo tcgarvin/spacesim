@@ -11,12 +11,12 @@
   round trip.
 """
 
-from spacesim2.core.commodity import CommodityDefinition, CommodityRegistry
-from spacesim2.core.galaxy import StarLaneNetwork
-from spacesim2.core.market import Market
-from spacesim2.core.navigation import FUEL_STATION_MIN_DEPTH, get_navigator
-from spacesim2.core.planet import Planet
-from spacesim2.core.ship import (
+from spacesim.core.commodity import CommodityDefinition, CommodityRegistry
+from spacesim.core.galaxy import StarLaneNetwork
+from spacesim.core.market import Market
+from spacesim.core.navigation import FUEL_STATION_MIN_DEPTH, get_navigator
+from spacesim.core.planet import Planet
+from spacesim.core.ship import (
     MAINTENANCE_FUEL_MILLI,
     Ship,
     milli_to_units_ceil,

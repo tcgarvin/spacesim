@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pre-commit hook for spacesim2.
+# Pre-commit hook for spacesim.
 #
 # Enforces style and types with the project's uv-pinned tools (so versions
 # always match uv.lock):

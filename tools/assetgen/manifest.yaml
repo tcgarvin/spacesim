@@ -2,7 +2,7 @@
 #
 # One entry per asset. `generate.py` reads it, calls the provider, post-processes
 # into staging/candidates/<id>.png. `promote.py` copies approved candidates into
-# spacesim2/ui/live/assets/<category>/ and records provenance.
+# spacesim/ui/live/assets/<category>/ and records provenance.
 #
 # Fields:
 #   id          unique slug (also the output filename stem)

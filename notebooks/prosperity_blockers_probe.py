@@ -20,24 +20,24 @@ import sys
 from collections import Counter, defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
-from spacesim2.core.actor import ActorType
-from spacesim2.core.actor_brain import BrainCache
-from spacesim2.core.actor_brain import GOVERNMENT_WAGE
-from spacesim2.core.brains.industrialist import (
+from spacesim.core.actor import ActorType
+from spacesim.core.actor_brain import BrainCache
+from spacesim.core.actor_brain import GOVERNMENT_WAGE
+from spacesim.core.brains.industrialist import (
     MIN_OUTPUT_DEPTH_UNITS,
     NEVER_TRADED_VALUE_CAP,
     OUTPUT_SALES_HORIZON_RUNS,
     IndustrialistBrain,
 )
-from spacesim2.core.commands import ProcessCommand
-from spacesim2.core.drives.prosperity_drive import (
+from spacesim.core.commands import ProcessCommand
+from spacesim.core.drives.prosperity_drive import (
     PROSPERITY_CATEGORIES,
     GATE_MAX_DEBT,
     GATE_MIN_BUFFER,
     ProsperityDrive,
     prosperity_index,
 )
-from spacesim2.core.simulation import Simulation
+from spacesim.core.simulation import Simulation
 
 DEFAULT_TURNS = 450
 DEFAULT_PLANETS = 12

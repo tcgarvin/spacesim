@@ -7,7 +7,7 @@ alternatives are in `docs/decision-log.md`.
 
 ## Threaded actor phase (`--workers N`)
 
-`spacesim2 run --workers N` runs each turn's actor phase on a shared-memory
+`spacesim run --workers N` runs each turn's actor phase on a shared-memory
 thread pool, sharding planets round-robin (`core/parallel.py`). Ships,
 market matching, and export stay serial.
 
@@ -44,7 +44,7 @@ runs; the UI stays on the stock interpreter:
 uv python install 3.14t
 uv venv --python 3.14t .venv-ft
 uv pip install --python .venv-ft/bin/python --only-binary :all: pyyaml tqdm numpy typing-extensions pyarrow
-.venv-ft/bin/python -m spacesim2.cli.main run --turns 200 --no-export --workers 12
+.venv-ft/bin/python -m spacesim.cli.main run --turns 200 --no-export --workers 12
 ```
 
 Run it from the repo root: `data/` loads relative to the working directory

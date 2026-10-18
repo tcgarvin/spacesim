@@ -8,8 +8,8 @@ evaluation for medicine on the richest arbitrage pair it can find.
 
 from collections import Counter, defaultdict
 
-from spacesim2.core.ship import ShipStatus
-from spacesim2.core.simulation import Simulation
+from spacesim.core.ship import ShipStatus
+from spacesim.core.simulation import Simulation
 
 TURNS = 500
 PLANETS = 16

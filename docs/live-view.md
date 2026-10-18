@@ -1,12 +1,12 @@
 # Live Galaxy View
 
-`uv run spacesim2 ui` opens the live galaxy view. It replaced the static
+`uv run spacesim ui` opens the live galaxy view. It replaced the static
 3-pane inspector; see `docs/decision-log.md` (2026-07-11).
 
 ## Directory map
 
 ```
-spacesim2/ui/live/          shipped renderer
+spacesim/ui/live/          shipped renderer
   app.py                    LiveGalaxyApp: window, main loop, event routing
   worker.py                 SimulationWorker: runs turns on its own thread, publishes TurnFrames
   frame.py                  TurnFrame: the immutable per-turn snapshot the renderer reads

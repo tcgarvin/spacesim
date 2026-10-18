@@ -2,16 +2,16 @@
 
 from typing import List, Sequence
 
-from spacesim2.core.actor import Actor, ActorType
-from spacesim2.core.brains.trading_company import (
+from spacesim.core.actor import Actor, ActorType
+from spacesim.core.brains.trading_company import (
     MIN_REMITTANCE_HISTORY_TURNS,
     REMITTANCE_RATE_ALPHA,
     SHIP_RAMP_DISCOUNT,
     SHIP_VALUE_HORIZON_TURNS,
     TradingCompanyBrain,
 )
-from spacesim2.core.commands import PlaceBuyOrderCommand
-from spacesim2.core.simulation import Simulation
+from spacesim.core.commands import PlaceBuyOrderCommand
+from spacesim.core.simulation import Simulation
 
 
 def _company(sim: Simulation, planet_index: int = 0) -> Actor:

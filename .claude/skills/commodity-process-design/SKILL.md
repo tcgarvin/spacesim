@@ -85,7 +85,7 @@ uv run python -c "import yaml; yaml.safe_load(open('data/commodities.yaml')); ya
 
 ### 3. Generate the dependency graph
 ```bash
-uv run spacesim2 dev graph
+uv run spacesim dev graph
 ```
 
 Outputs `tmp/commodity-graph.svg` and `tmp/commodity-graph.mmd`.

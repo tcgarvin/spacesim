@@ -17,8 +17,8 @@ and the staleness clock must turn on fills, not on the sellable total.
 
 from types import SimpleNamespace
 
-from spacesim2.core.commodity import CommodityDefinition
-from spacesim2.core.ship import (
+from spacesim.core.commodity import CommodityDefinition
+from spacesim.core.ship import (
     DISTRESS_PATIENCE,
     ShipStatus,
     TradePlan,

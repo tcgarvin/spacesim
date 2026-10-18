@@ -4,9 +4,9 @@ Whether to post or accept a contract is brain logic and is tested
 elsewhere; these cover what core does once one exists.
 """
 
-from spacesim2.core.actor import Actor, ActorType
-from spacesim2.core.actor_brain import ActorBrain
-from spacesim2.core.contracts import (
+from spacesim.core.actor import Actor, ActorType
+from spacesim.core.actor_brain import ActorBrain
+from spacesim.core.contracts import (
     GOVERNMENT,
     MIGRANT_CARGO_UNITS,
     ConsignmentPayload,
@@ -15,10 +15,10 @@ from spacesim2.core.contracts import (
     PassengerPayload,
     strand_contract,
 )
-from spacesim2.core.market import Market
-from spacesim2.core.planet import Planet
-from spacesim2.core.ship import Ship
-from spacesim2.core.simulation import Simulation
+from spacesim.core.market import Market
+from spacesim.core.planet import Planet
+from spacesim.core.ship import Ship
+from spacesim.core.simulation import Simulation
 
 
 class StayPutBrain(ActorBrain):
@@ -363,7 +363,7 @@ class TestPassengerLifecycle:
         ship.destination = None
         ship.route = []
         ship.travel_progress = 0.0
-        from spacesim2.core.ship import ShipStatus
+        from spacesim.core.ship import ShipStatus
 
         ship.status = ShipStatus.DOCKED
         waypoint_lands = len(waypoint.free_lands)

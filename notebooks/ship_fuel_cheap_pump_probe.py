@@ -47,11 +47,11 @@ from pathlib import Path
 from statistics import median
 from typing import Any, Optional
 
-from spacesim2.cli.common import create_and_setup_simulation
-from spacesim2.core.market import Market
-from spacesim2.core.navigation import Navigator
-from spacesim2.core.planet import Planet
-from spacesim2.core.ship import (
+from spacesim.cli.common import create_and_setup_simulation
+from spacesim.core.market import Market
+from spacesim.core.navigation import Navigator
+from spacesim.core.planet import Planet
+from spacesim.core.ship import (
     FUEL_BUNKER_PREMIUM,
     Ship,
     TraderBrain,

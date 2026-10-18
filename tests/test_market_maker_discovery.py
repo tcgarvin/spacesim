@@ -8,9 +8,9 @@ holding inventory can never escalate its bid again.
 
 from types import SimpleNamespace
 
-from spacesim2.core.brains.market_maker_2 import MarketMakerBrain, MarketMakerState
-from spacesim2.core.commands import PlaceBuyOrderCommand, PlaceSellOrderCommand
-from spacesim2.core.commodity import CommodityDefinition
+from spacesim.core.brains.market_maker_2 import MarketMakerBrain, MarketMakerState
+from spacesim.core.commands import PlaceBuyOrderCommand, PlaceSellOrderCommand
+from spacesim.core.commodity import CommodityDefinition
 
 _WIDGET = CommodityDefinition(
     id="widget", name="Widget", transportable=True, description="A test good."

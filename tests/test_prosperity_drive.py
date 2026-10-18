@@ -6,19 +6,19 @@ from unittest.mock import patch
 
 import pytest
 
-from spacesim2.analysis.summary import compute_summary
-from spacesim2.core.actor import ActorType
-from spacesim2.core.actor_brain import SURPLUS_DISCOUNT_FLOOR, SURPLUS_REFERENCE_DAYS
-from spacesim2.core.commodity import CommodityRegistry
-from spacesim2.core.drives import ClothingDrive, FoodDrive, HealthDrive, ShelterDrive
-from spacesim2.core.drives.food_drive import (
+from spacesim.analysis.summary import compute_summary
+from spacesim.core.actor import ActorType
+from spacesim.core.actor_brain import SURPLUS_DISCOUNT_FLOOR, SURPLUS_REFERENCE_DAYS
+from spacesim.core.commodity import CommodityRegistry
+from spacesim.core.drives import ClothingDrive, FoodDrive, HealthDrive, ShelterDrive
+from spacesim.core.drives.food_drive import (
     DEBT_DECAY_FACTOR as FOOD_DEBT_DECAY_FACTOR,
 )
-from spacesim2.core.drives.food_drive import (
+from spacesim.core.drives.food_drive import (
     PANTRY_MAX,
     QUALITY_DEBT_DECAY_FACTOR,
 )
-from spacesim2.core.drives.prosperity_drive import (
+from spacesim.core.drives.prosperity_drive import (
     CATEGORY_NAMES,
     DEBT_DECAY_FACTOR,
     DEBT_MISS_PENALTY,
@@ -34,10 +34,10 @@ from spacesim2.core.drives.prosperity_drive import (
     prosperity_index,
     random_tastes,
 )
-from spacesim2.core.market import Market
-from spacesim2.core.planet import Planet
-from spacesim2.core.simulation import Simulation
-from spacesim2.ui.live.view_model import planet_wellbeing
+from spacesim.core.market import Market
+from spacesim.core.planet import Planet
+from spacesim.core.simulation import Simulation
+from spacesim.ui.live.view_model import planet_wellbeing
 from tests.helpers import get_actor
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
@@ -166,7 +166,7 @@ class TestTick:
         assert drive.WELLBEING is False
         assert drive.metrics.get_name() == "prosperity_food"
 
-    @patch("spacesim2.core.drives.prosperity_drive.random.random", return_value=0.0)
+    @patch("spacesim.core.drives.prosperity_drive.random.random", return_value=0.0)
     def test_served_event_consumes_and_raises_coverage(self, _rand, registry):
         """An event with stock removes one unit and moves coverage toward 1."""
         drive = ProsperityDrive(registry, _category("luxury"))
@@ -179,7 +179,7 @@ class TestTick:
         assert metrics.debt == 0.0
         assert 0.0 < metrics.coverage < 1.0
 
-    @patch("spacesim2.core.drives.prosperity_drive.random.random", return_value=0.0)
+    @patch("spacesim.core.drives.prosperity_drive.random.random", return_value=0.0)
     def test_missed_event_adds_debt_and_lowers_coverage(self, _rand, registry):
         """An event with no stock adds the miss penalty and decays coverage."""
         drive = ProsperityDrive(registry, _category("health"))
@@ -193,7 +193,7 @@ class TestTick:
         )
         assert metrics.coverage < 1.0
 
-    @patch("spacesim2.core.drives.prosperity_drive.random.random", return_value=1.0)
+    @patch("spacesim.core.drives.prosperity_drive.random.random", return_value=1.0)
     def test_quiet_turn_holds_debt_and_coverage(self, _rand, registry):
         """Between events nothing is consumed and the EMA does not move."""
         drive = ProsperityDrive(registry, _category("health"))
@@ -207,7 +207,7 @@ class TestTick:
         assert metrics.debt == 0.2
         assert metrics.buffer > 0.0
 
-    @patch("spacesim2.core.drives.prosperity_drive.random.random", return_value=1.0)
+    @patch("spacesim.core.drives.prosperity_drive.random.random", return_value=1.0)
     def test_taste_cancels_in_buffer(self, _rand, registry):
         """Target stock at any taste gives the same buffer reading."""
         cat = _category("clothing")
@@ -361,7 +361,7 @@ class TestNeedDriveMaterialsBasicGoodOnly:
 
 
 class TestGateControlsPurchaseNotConsumption:
-    @patch("spacesim2.core.drives.prosperity_drive.random.random", return_value=0.0)
+    @patch("spacesim.core.drives.prosperity_drive.random.random", return_value=0.0)
     def test_consumption_events_fire_when_gate_is_closed(self, _rand, registry):
         """The gate blocks buy orders only; the drive's own tick still fires."""
         drive = ProsperityDrive(registry, _category("luxury"))

@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from spacesim2.core.data_logger import DataLogger
+from spacesim.core.data_logger import DataLogger
 
 
 def _fake_actor(name: str) -> Mock:

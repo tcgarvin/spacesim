@@ -11,12 +11,12 @@ from unittest.mock import Mock
 
 import pytest
 
-from spacesim2.core.actor import Actor
-from spacesim2.core.actor_brain import GOVERNMENT_WAGE, ActorBrain
-from spacesim2.core.commodity import CommodityDefinition, Inventory
-from spacesim2.core.land import Land
-from spacesim2.core.planet_attributes import PlanetAttributes
-from spacesim2.core.process import ProcessDefinition, ResourceAttribute
+from spacesim.core.actor import Actor
+from spacesim.core.actor_brain import GOVERNMENT_WAGE, ActorBrain
+from spacesim.core.commodity import CommodityDefinition, Inventory
+from spacesim.core.land import Land
+from spacesim.core.planet_attributes import PlanetAttributes
+from spacesim.core.process import ProcessDefinition, ResourceAttribute
 
 
 def _wire_producer_index(sim_mock):

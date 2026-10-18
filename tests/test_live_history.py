@@ -1,7 +1,7 @@
 """Tests for the live view's per-turn history recorder."""
 
-from spacesim2.core.simulation import Simulation
-from spacesim2.ui.live.history import HistoryRecorder
+from spacesim.core.simulation import Simulation
+from spacesim.ui.live.history import HistoryRecorder
 
 
 def _small_sim() -> Simulation:

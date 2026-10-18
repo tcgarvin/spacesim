@@ -34,13 +34,13 @@ import sys
 from collections import Counter, defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
-from spacesim2.core.actor import Actor, ActorType
-from spacesim2.core.actor_brain import ActorBrain
-from spacesim2.core.brains.colonist import ColonistBrain
-from spacesim2.core.brains.industrialist import IndustrialistBrain
-from spacesim2.core.commands import PlaceBuyOrderCommand, ProcessCommand
-from spacesim2.core.market import Market
-from spacesim2.core.simulation import Simulation
+from spacesim.core.actor import Actor, ActorType
+from spacesim.core.actor_brain import ActorBrain
+from spacesim.core.brains.colonist import ColonistBrain
+from spacesim.core.brains.industrialist import IndustrialistBrain
+from spacesim.core.commands import PlaceBuyOrderCommand, ProcessCommand
+from spacesim.core.market import Market
+from spacesim.core.simulation import Simulation
 
 DEFAULT_TURNS = 450
 DEFAULT_PLANETS = 12
@@ -420,7 +420,7 @@ def report(tag: str, turns: int) -> None:
         print("  " + json.dumps(row, sort_keys=True))
 
 
-WAGE = 10  # spacesim2/core/commands.py:142
+WAGE = 10  # spacesim/core/commands.py:142
 
 
 def followup() -> None:

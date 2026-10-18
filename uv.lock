@@ -944,7 +944,7 @@ wheels = [
 ]
 
 [[package]]
-name = "spacesim2"
+name = "spacesim"
 version = "0.2.0"
 source = { editable = "." }
 dependencies = [

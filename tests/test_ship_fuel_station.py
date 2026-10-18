@@ -9,12 +9,12 @@
   and never treats that kit as trade cargo.
 """
 
-from spacesim2.core.commodity import CommodityDefinition, CommodityRegistry
-from spacesim2.core.galaxy import StarLaneNetwork
-from spacesim2.core.market import Market
-from spacesim2.core.navigation import FUEL_STATION_MIN_DEPTH
-from spacesim2.core.planet import Planet
-from spacesim2.core.ship import MAINTENANCE_FUEL_MILLI, Ship
+from spacesim.core.commodity import CommodityDefinition, CommodityRegistry
+from spacesim.core.galaxy import StarLaneNetwork
+from spacesim.core.market import Market
+from spacesim.core.navigation import FUEL_STATION_MIN_DEPTH
+from spacesim.core.planet import Planet
+from spacesim.core.ship import MAINTENANCE_FUEL_MILLI, Ship
 
 MAINTENANCE_GOODS = (
     ("ship_components", "Ship Components"),

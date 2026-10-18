@@ -19,7 +19,7 @@ cmd=$(printf '%s' "$payload" | jq -r '.tool_input.command // empty' 2>/dev/null)
 CD_RE='(^|[;&|(`]|&&|\|\|)[[:space:]]*cd([[:space:]]|$)'
 printf '%s' "$cmd" | grep -qE "$CD_RE" || exit 0
 
-root=${CLAUDE_PROJECT_DIR:-/home/timg/code/spacesim2}
+root=${CLAUDE_PROJECT_DIR:-/home/timg/code/spacesim}
 # `%` is the sed delimiter: the path contains `/` and the alternation contains `|`.
 stripped=$(printf '%s' "$cmd" |
   sed -E "s%^[[:space:]]*cd[[:space:]]+\"?${root}/?\"?[[:space:]]*(&&|;)[[:space:]]*%%") || exit 0

@@ -1,5 +1,5 @@
 [project]
-name = "spacesim2"
+name = "spacesim"
 version = "0.2.0"
 description = "A turn-based economic simulation modeling interplanetary trade"
 readme = "README.md"
@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.scripts]
-spacesim2 = "spacesim2.cli.main:main"
+spacesim = "spacesim.cli.main:main"
 
 [project.optional-dependencies]
 dev = [
@@ -43,12 +43,12 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["spacesim2*"]
+include = ["spacesim*"]
 exclude = ["tests*", "temp*", "data*"]
 
 [tool.setuptools.package-data]
 # Committed live-view sprites, fonts, and their index ship in the wheel.
-"spacesim2.ui.live" = [
+"spacesim.ui.live" = [
     "assets/**/*.png",
     "assets/**/*.json",
     "assets/**/*.ttf",
@@ -66,8 +66,9 @@ disallow_untyped_defs = true
 disallow_incomplete_defs = true
 # Notebooks use marimo's cross-cell variable model, which mypy can't follow
 # (same reason they're exempt from ruff lint). Not an importable package, so
-# they're excluded by path, not module.
-exclude = "^notebooks/"
+# they're excluded by path, not module. oldkotlin/ and oldpython/ are
+# archived earlier versions of the project and are not maintained.
+exclude = "^(notebooks|oldkotlin|oldpython)/"
 
 # Tests aren't held to the annotation bar yet.
 [[tool.mypy.overrides]]
@@ -83,6 +84,8 @@ ignore_missing_imports = true
 [tool.ruff]
 line-length = 88
 target-version = "py313"
+# Archived earlier versions of the project, kept for history only.
+extend-exclude = ["oldkotlin", "oldpython"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]

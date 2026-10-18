@@ -15,15 +15,15 @@ industrialists, including which tier of _output_unit_value fired.
 import math
 from collections import Counter, defaultdict
 
-from spacesim2.core.actor import ActorType
-from spacesim2.core.actor_brain import GOVERNMENT_WAGE, MAX_IMPUTE_DEPTH
-from spacesim2.core.brains.industrialist import (
+from spacesim.core.actor import ActorType
+from spacesim.core.actor_brain import GOVERNMENT_WAGE, MAX_IMPUTE_DEPTH
+from spacesim.core.brains.industrialist import (
     MIN_OUTPUT_DEPTH_UNITS,
     NEVER_TRADED_VALUE_CAP,
     OUTPUT_SALES_HORIZON_RUNS,
     IndustrialistBrain,
 )
-from spacesim2.core.simulation import Simulation
+from spacesim.core.simulation import Simulation
 
 TURNS = 500
 PLANETS = 16

@@ -24,11 +24,11 @@ import sys
 from collections import Counter
 from typing import Any, Dict, List, Optional, Tuple
 
-from spacesim2.cli.common import create_and_setup_simulation
-from spacesim2.core.actor import ActorType
-from spacesim2.core.actor_brain import BrainCache, GOVERNMENT_WAGE
-from spacesim2.core.brains.industrialist import IndustrialistBrain
-from spacesim2.core.simulation import Simulation
+from spacesim.cli.common import create_and_setup_simulation
+from spacesim.core.actor import ActorType
+from spacesim.core.actor_brain import BrainCache, GOVERNMENT_WAGE
+from spacesim.core.brains.industrialist import IndustrialistBrain
+from spacesim.core.simulation import Simulation
 
 DEFAULT_TURNS = 450
 DEFAULT_PLANETS = 12

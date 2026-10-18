@@ -4,7 +4,7 @@ import contextlib
 import io
 import json
 
-from spacesim2.cli.main import main
+from spacesim.cli.main import main
 
 
 def test_summary_json_writes_parseable_summary(tmp_path):

@@ -96,7 +96,7 @@ already relies on for remittance.
 
 ## KPIs
 
-`spacesim2/analysis/summary.py`, `_summarize_fleet`: `fleet.owned_ships`,
+`spacesim/analysis/summary.py`, `_summarize_fleet`: `fleet.owned_ships`,
 `fleet.independent_ships`, `fleet.ships_built` (ships named with the
 `" Trading Co-"` substring — a proxy, since there is no setup-vs-built
 counter on `Simulation`), `fleet.remitted_total`, `fleet.hull_bids_open`
@@ -107,7 +107,7 @@ the absence of a production counter), and `fleet.company_money_median`
 (median money of actors whose brain class is `TradingCompanyBrain`, 0.0
 when none exist).
 
-`spacesim2/analysis/export/schema.py`, `SHIP_TURNS_SCHEMA`: `owner_name`,
+`spacesim/analysis/export/schema.py`, `SHIP_TURNS_SCHEMA`: `owner_name`,
 `retained_capital`, `remitted_total` columns on the per-ship, per-turn
 export.
 

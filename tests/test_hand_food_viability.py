@@ -4,21 +4,21 @@
 with no biomass still gathers 1 unit a turn: 4 gather turns plus a cook turn
 make 4 food per 5 turns against 1 eaten per turn. The gate never releases.
 ``hand_food_viable`` prices the track in labor and the brains skip the gate
-when it cannot keep up. See spacesim2/core/brains/hand_food.py.
+when it cannot keep up. See spacesim/core/brains/hand_food.py.
 """
 
 import math
 
 import pytest
 
-from spacesim2.core.actor import ActorType
-from spacesim2.core.actor_brain import BrainCache
-from spacesim2.core.brains.colonist import ColonistBrain
-from spacesim2.core.brains.hand_food import hand_food_labor_per_unit, hand_food_viable
-from spacesim2.core.brains.industrialist import IndustrialistBrain
-from spacesim2.core.commands import ProcessCommand
-from spacesim2.core.land import Land
-from spacesim2.core.simulation import Simulation
+from spacesim.core.actor import ActorType
+from spacesim.core.actor_brain import BrainCache
+from spacesim.core.brains.colonist import ColonistBrain
+from spacesim.core.brains.hand_food import hand_food_labor_per_unit, hand_food_viable
+from spacesim.core.brains.industrialist import IndustrialistBrain
+from spacesim.core.commands import ProcessCommand
+from spacesim.core.land import Land
+from spacesim.core.simulation import Simulation
 
 FOOD_CHAIN = {"gather_biomass", "make_food"}
 

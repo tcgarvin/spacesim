@@ -8,7 +8,7 @@
 - Fuel is never an add-on; the tank handles fuel.
 """
 
-from spacesim2.core.commodity import CommodityDefinition
+from spacesim.core.commodity import CommodityDefinition
 from tests.test_ship_fuel import _make_ship, _make_world
 
 

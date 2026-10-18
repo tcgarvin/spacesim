@@ -13,15 +13,15 @@ answers the question.
 
 ```bash
 uv run pytest -q                                                              # 1. unit tests (~2s)
-.venv-ft/bin/python -m spacesim2.cli.main run --workers 12 --turns 200 --planets 12 --no-export --quiet --summary   # 2. behavior (~16 s)
+.venv-ft/bin/python -m spacesim.cli.main run --workers 12 --turns 200 --planets 12 --no-export --quiet --summary   # 2. behavior (~16 s)
 # 3. read the JSON between ===SUMMARY_BEGIN=== / ===SUMMARY_END===
 ```
 
 Run sims on the free-threaded side venv with `--workers 12`, from the repo
-root. It gives the same KPIs as a serial `uv run spacesim2 run` within noise
+root. It gives the same KPIs as a serial `uv run spacesim run` within noise
 (`docs/performance.md`, "Drift check") and is about 3x faster at 100 planets
 and 4x at 12. Setup is in `docs/performance.md`; when `.venv-ft` is missing,
-`uv run spacesim2 run` takes the same flags and runs serially.
+`uv run spacesim run` takes the same flags and runs serially.
 
 Drop `--planets 12` (100-planet default, ~4 min threaded) only when the
 question is about fleet geography. See "Run cost and waiting" below before
@@ -37,7 +37,7 @@ a difference under 20% on a single run as neutral. There is no run-level seed
 knob: most randomness flows through `uuid4` and set iteration, so seeding the
 module RNG gave false determinism. Assert with tolerances, never exact
 values. For a before/after comparison that needs replicates, use the
-`sim-ab-testing` skill (`uv run spacesim2 dev ab --base <ref>`).
+`sim-ab-testing` skill (`uv run spacesim dev ab --base <ref>`).
 
 ## Tier 0: built-in KPI summary
 
@@ -45,11 +45,11 @@ For "is it broken" and "is the economy healthy". One command, one JSON
 object, a `PASS/WARN/FAIL` verdict.
 
 ```bash
-.venv-ft/bin/python -m spacesim2.cli.main run --workers 12 --turns 200 --no-export --quiet --summary
+.venv-ft/bin/python -m spacesim.cli.main run --workers 12 --turns 200 --no-export --quiet --summary
 ```
 
 The JSON has these sections; the keys inside each are self-describing, and
-`spacesim2/analysis/summary.py` is the authority on what each one measures:
+`spacesim/analysis/summary.py` is the authority on what each one measures:
 
 - `turns`, `planets`, `regular_actors`, `service_actors`, `ships`: run size.
 - `actors_aboard`: regular actors currently riding a ship as a loaded
@@ -84,7 +84,7 @@ So a 200-turn run judges food, clothing and shelter but not health, whose
 chemistry tier only bootstraps after roughly 300-400 turns. The market
 liveness check also waits for turn 400.
 
-Thresholds live in `spacesim2/analysis/summary.py`; mirror any change in
+Thresholds live in `spacesim/analysis/summary.py`; mirror any change in
 `tests/test_simulation_smoke.py`.
 
 ## Tier 1a: export analysis
@@ -93,14 +93,14 @@ For questions over logged history: prices by planet and turn, drive trends,
 distributions, correlations. The export records what happened each turn.
 
 ```bash
-.venv-ft/bin/python -m spacesim2.cli.main run --workers 12 --turns 300   # exports Parquet to data/runs/
+.venv-ft/bin/python -m spacesim.cli.main run --workers 12 --turns 300   # exports Parquet to data/runs/
 cp notebooks/scratch_template.py notebooks/my_question.py
 # edit my_question.py: load_run() -> Polars frames
-uv run spacesim2 dev analyze notebooks/my_question.py  # runs it, relays stdout
+uv run spacesim dev analyze notebooks/my_question.py  # runs it, relays stdout
 ```
 
 `dev analyze` uses the most recent run under `data/runs/`; pass `--run DIR`
-for another. `load_run()` (from `spacesim2.analysis.loading`) exposes
+for another. `load_run()` (from `spacesim.analysis.loading`) exposes
 `.actor_turns`, `.actor_drives`, `.market_transactions`,
 `.market_snapshots`, `.ship_turns` as Polars frames.
 
@@ -129,7 +129,7 @@ uv run python notebooks/my_probe.py --turns 100 --planets 12 --out tmp/my_probe.
 Run probes with `uv run python notebooks/<file>.py`, not `dev analyze`: they
 build their own run. The template takes `--turns`, `--planets`, `--actors`,
 `--sample-every`, `--warmup`, `--out`, builds the sim through
-`create_and_setup_simulation` in `spacesim2/cli/common.py`, samples every N
+`create_and_setup_simulation` in `spacesim/cli/common.py`, samples every N
 turns, writes one JSON file, and prints one table. Committed examples:
 `notebooks/medicine_probe.py` (holdings, order books, and WTP decomposition
 for one commodity), `notebooks/chem_stall_ab.py` (monkeypatch A/B arm),
@@ -186,11 +186,11 @@ Rules:
   2026-09-13 on a 100-planet/400-turn run and a 120-turn galaxy run; 12-planet
   runs are unaffected). Detach instead:
   ```bash
-  setsid nohup bash -c '/home/timg/code/spacesim2/.venv-ft/bin/python -m spacesim2.cli.main run --workers 12 --turns 400 --quiet --summary > OUT.txt 2>&1; echo EXIT $? >> OUT.txt' > /dev/null 2>&1 < /dev/null &
+  setsid nohup bash -c '/home/timg/code/spacesim/.venv-ft/bin/python -m spacesim.cli.main run --workers 12 --turns 400 --quiet --summary > OUT.txt 2>&1; echo EXIT $? >> OUT.txt' > /dev/null 2>&1 < /dev/null &
   ```
   Watch `OUT.txt` for the `EXIT` line (Monitor, or a bounded polling loop),
   then read the summary JSON. `$!` is the `setsid` wrapper, not the sim; use
-  `pgrep -f "spacesim2.cli.main run"` if you need the real PID. A
+  `pgrep -f "spacesim.cli.main run"` if you need the real PID. A
   `data/runs/` export directory appearing is not completion, only `EXIT` is.
 - Any run past the 12-planet routine loop, and any A/B (`sim-ab-testing`),
   should go to a subagent (`simulation-analyst` or general-purpose) so the

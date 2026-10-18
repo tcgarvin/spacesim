@@ -4,10 +4,10 @@ from unittest.mock import Mock
 
 import pytest
 
-from spacesim2.core.actor import Actor, ActorType
-from spacesim2.core.actor_brain import SUBSTITUTE_BID_DISCOUNT
-from spacesim2.core.commodity import CommodityRegistry, Inventory
-from spacesim2.core.drives.food_drive import (
+from spacesim.core.actor import Actor, ActorType
+from spacesim.core.actor_brain import SUBSTITUTE_BID_DISCOUNT
+from spacesim.core.commodity import CommodityRegistry, Inventory
+from spacesim.core.drives.food_drive import (
     DAILY_CONSUMPTION,
     DEBT_DECAY_FACTOR,
     DEBT_MISS_PENALTY,
@@ -219,7 +219,7 @@ class TestFoodDriveIntegration:
     @pytest.fixture
     def simulation(self):
         """Minimal simulation stand-in with a registry and data logger."""
-        from spacesim2.core.data_logger import DataLogger
+        from spacesim.core.data_logger import DataLogger
 
         registry = CommodityRegistry()
         registry.load_from_file("data/commodities.yaml")
@@ -363,7 +363,7 @@ class TestStapleDemandBid:
 
     @pytest.fixture
     def sim(self):
-        from spacesim2.core.simulation import Simulation
+        from spacesim.core.simulation import Simulation
 
         sim = Simulation()
         sim.setup_simple(

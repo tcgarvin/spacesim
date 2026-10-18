@@ -6,9 +6,9 @@ the pin a loaded payload puts on the destination, and the reposition toward
 a planet whose only export is a queue of jobs.
 """
 
-from spacesim2.core.actor import Actor, ActorType
-from spacesim2.core.actor_brain import ActorBrain
-from spacesim2.core.contracts import (
+from spacesim.core.actor import Actor, ActorType
+from spacesim.core.actor_brain import ActorBrain
+from spacesim.core.contracts import (
     GOVERNMENT,
     ConsignmentPayload,
     Contract,
@@ -16,9 +16,9 @@ from spacesim2.core.contracts import (
     PassengerPayload,
     load_contract,
 )
-from spacesim2.core.galaxy import StarLaneNetwork
-from spacesim2.core.planet import Planet
-from spacesim2.core.ship import (
+from spacesim.core.galaxy import StarLaneNetwork
+from spacesim.core.planet import Planet
+from spacesim.core.ship import (
     REFUEL_STOP_MAX_TURNS,
     REPOSITION_CONTRACT_PATIENCE,
     ContractPlan,

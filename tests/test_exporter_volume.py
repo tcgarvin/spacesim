@@ -4,15 +4,15 @@ from unittest.mock import Mock
 
 import pyarrow.parquet as pq
 
-from spacesim2.analysis.export.exporter import (
+from spacesim.analysis.export.exporter import (
     SimulationExporter,
     transactions_for_turn,
     volume_by_commodity,
 )
-from spacesim2.analysis.export.schema import SHIP_TURNS_SCHEMA
-from spacesim2.core.commodity import CommodityDefinition
-from spacesim2.core.market import Market, Transaction
-from spacesim2.core.simulation import Simulation
+from spacesim.analysis.export.schema import SHIP_TURNS_SCHEMA
+from spacesim.core.commodity import CommodityDefinition
+from spacesim.core.market import Market, Transaction
+from spacesim.core.simulation import Simulation
 
 
 def _commodity(cid: str) -> CommodityDefinition:

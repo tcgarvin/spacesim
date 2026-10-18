@@ -8,8 +8,8 @@ the same value every turn. See ``Simulation.population()`` and
 
 import pytest
 
-from spacesim2.cli.common import create_and_setup_simulation
-from spacesim2.core.contracts import ContractStatus, PassengerPayload
+from spacesim.cli.common import create_and_setup_simulation
+from spacesim.core.contracts import ContractStatus, PassengerPayload
 
 
 def _actors_aboard_by_scan(sim) -> int:

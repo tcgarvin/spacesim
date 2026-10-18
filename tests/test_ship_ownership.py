@@ -7,7 +7,7 @@
   distressed.
 """
 
-from spacesim2.core.ship import (
+from spacesim.core.ship import (
     INDEPENDENT,
     SHIP_RETAINED_CAPITAL_MULTIPLE,
     IndependentOwner,

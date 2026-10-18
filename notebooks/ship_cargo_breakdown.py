@@ -1,11 +1,11 @@
 """What goods did ships move, in what volume, and at what margin?
 
-uv run spacesim2 dev analyze ship_cargo_breakdown.py --run data/runs/<dir>
+uv run spacesim dev analyze ship_cargo_breakdown.py --run data/runs/<dir>
 """
 
 import polars as pl
 
-from spacesim2.analysis.loading import load_run
+from spacesim.analysis.loading import load_run
 
 pl.Config.set_tbl_rows(40)
 pl.Config.set_tbl_cols(-1)

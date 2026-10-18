@@ -7,9 +7,9 @@ succeed and tools never degrade, so the test is deterministic.
 
 from unittest.mock import patch
 
-from spacesim2.core.actor import Actor
-from spacesim2.core.commands import ProcessCommand
-from spacesim2.core.simulation import Simulation
+from spacesim.core.actor import Actor
+from spacesim.core.commands import ProcessCommand
+from spacesim.core.simulation import Simulation
 
 
 def _run(process_id: str, actor: Actor, times: int = 1) -> None:
@@ -35,7 +35,7 @@ class TestFullTechTree:
 
     def _setup(self):
         """One actor holding land with every resource coefficient at 1.0."""
-        from spacesim2.core.land import Land
+        from spacesim.core.land import Land
 
         sim = Simulation()
         sim.setup_simple(
@@ -65,11 +65,11 @@ class TestFullTechTree:
         # multiplier would exhaust resources mid-phase. random.random = 0.5
         # stays above the 0.01 tool-break threshold and resource-success rolls.
         with (
-            patch("spacesim2.core.skill.SkillCheck.success_check", return_value=True),
+            patch("spacesim.core.skill.SkillCheck.success_check", return_value=True),
             patch(
-                "spacesim2.core.skill.SkillCheck.multiplier_check", return_value=False
+                "spacesim.core.skill.SkillCheck.multiplier_check", return_value=False
             ),
-            patch("spacesim2.core.commands.random.random", return_value=0.5),
+            patch("spacesim.core.commands.random.random", return_value=0.5),
         ):
             self._phase_t0_raw_gathering(sim, actor)
             self._phase_t1_basic_industry(sim, actor)
@@ -424,7 +424,7 @@ class TestProcessedFoodRecipe:
 
     def test_every_required_facility_has_a_build_process(self):
         """Brains reach a facility only through _get_build_process_for_facility."""
-        from spacesim2.core.actor_brain import ActorBrain
+        from spacesim.core.actor_brain import ActorBrain
 
         sim = self._registry()
         brain = ActorBrain()
@@ -470,7 +470,7 @@ class TestFarmBiomassRecipe:
         """At biomass attribute 1.0, one run outputs the full base yield."""
         from unittest.mock import patch
 
-        from spacesim2.core.land import Land
+        from spacesim.core.land import Land
 
         sim = self._registry()
         actor = sim.actors[0]
@@ -489,9 +489,9 @@ class TestFarmBiomassRecipe:
         before = actor.inventory.get_quantity(biomass)
 
         with (
-            patch("spacesim2.core.skill.SkillCheck.success_check", return_value=True),
+            patch("spacesim.core.skill.SkillCheck.success_check", return_value=True),
             patch(
-                "spacesim2.core.skill.SkillCheck.multiplier_check", return_value=False
+                "spacesim.core.skill.SkillCheck.multiplier_check", return_value=False
             ),
         ):
             result = ProcessCommand("farm_biomass").execute(actor)
@@ -503,7 +503,7 @@ class TestFarmBiomassRecipe:
         """The output effect scales yield like gather_biomass does."""
         from unittest.mock import patch
 
-        from spacesim2.core.land import Land
+        from spacesim.core.land import Land
 
         sim = self._registry()
         actor = sim.actors[0]
@@ -522,9 +522,9 @@ class TestFarmBiomassRecipe:
         before = actor.inventory.get_quantity(biomass)
 
         with (
-            patch("spacesim2.core.skill.SkillCheck.success_check", return_value=True),
+            patch("spacesim.core.skill.SkillCheck.success_check", return_value=True),
             patch(
-                "spacesim2.core.skill.SkillCheck.multiplier_check", return_value=False
+                "spacesim.core.skill.SkillCheck.multiplier_check", return_value=False
             ),
         ):
             result = ProcessCommand("farm_biomass").execute(actor)

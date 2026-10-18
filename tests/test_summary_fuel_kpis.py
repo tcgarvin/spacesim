@@ -2,9 +2,9 @@
 
 from typing import Dict
 
-from spacesim2.analysis.summary import _ACTIVITY_WINDOW_TURNS, compute_summary
-from spacesim2.core.ship import INDEPENDENT, ShipStatus
-from spacesim2.core.simulation import Simulation
+from spacesim.analysis.summary import _ACTIVITY_WINDOW_TURNS, compute_summary
+from spacesim.core.ship import INDEPENDENT, ShipStatus
+from spacesim.core.simulation import Simulation
 
 
 def test_fleet_fuel_kpis_present_and_in_range() -> None:

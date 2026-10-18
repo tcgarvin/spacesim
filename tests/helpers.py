@@ -1,7 +1,7 @@
-from spacesim2.core.actor import Actor, ActorType
-from spacesim2.core.commands import GovernmentWorkCommand
-from spacesim2.core.commodity import CommodityRegistry
-from spacesim2.core.migration import NO_MIGRATION
+from spacesim.core.actor import Actor, ActorType
+from spacesim.core.commands import GovernmentWorkCommand
+from spacesim.core.commodity import CommodityRegistry
+from spacesim.core.migration import NO_MIGRATION
 
 
 def _get_mock_sim():

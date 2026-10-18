@@ -4,13 +4,13 @@ from unittest.mock import patch
 
 import pytest
 
-from spacesim2.core.land import Land
-from spacesim2.core.planet_attributes import (
+from spacesim.core.land import Land
+from spacesim.core.planet_attributes import (
     BIOMASS_DRAW_LOW,
     PlanetAttributes,
     _bimodal_sample,
 )
-from spacesim2.core.process import ResourceAttribute
+from spacesim.core.process import ResourceAttribute
 
 
 class TestPlanetAttributes:
@@ -143,7 +143,7 @@ class TestSimulationIntegration:
 
     def test_simulation_with_planet_attributes(self):
         """setup_simple gives every planet attributes."""
-        from spacesim2.core.simulation import Simulation
+        from spacesim.core.simulation import Simulation
 
         sim = Simulation()
         sim.setup_simple(
@@ -158,7 +158,7 @@ class TestSimulationIntegration:
 
     def test_different_planets_have_different_attributes(self):
         """Planets get independently generated attributes."""
-        from spacesim2.core.simulation import Simulation
+        from spacesim.core.simulation import Simulation
 
         sim = Simulation()
         sim.setup_simple(
@@ -179,8 +179,8 @@ class TestProcessCommandIntegration:
 
     def test_process_with_output_effect_reduces_yield(self):
         """The output effect reduces yield on a low-availability planet."""
-        from spacesim2.core.commands import ProcessCommand
-        from spacesim2.core.simulation import Simulation
+        from spacesim.core.commands import ProcessCommand
+        from spacesim.core.simulation import Simulation
 
         sim = Simulation()
         sim.setup_simple(
@@ -212,8 +212,8 @@ class TestProcessCommandIntegration:
         """The success effect fails the process on a zero-availability planet."""
         import random
 
-        from spacesim2.core.commands import ProcessCommand
-        from spacesim2.core.simulation import Simulation
+        from spacesim.core.commands import ProcessCommand
+        from spacesim.core.simulation import Simulation
 
         random.seed(42)
 
@@ -238,8 +238,8 @@ class TestProcessCommandIntegration:
 
     def test_process_without_resource_attribute_unaffected(self):
         """A process without resource_attribute ignores planet attributes."""
-        from spacesim2.core.commands import ProcessCommand
-        from spacesim2.core.simulation import Simulation
+        from spacesim.core.commands import ProcessCommand
+        from spacesim.core.simulation import Simulation
 
         sim = Simulation()
         sim.setup_simple(
@@ -273,7 +273,7 @@ def test_setup_guarantees_a_fuel_rich_planet():
 
     An all-poor bimodal roll would strand every ship.
     """
-    from spacesim2.core.simulation import Simulation
+    from spacesim.core.simulation import Simulation
 
     for _ in range(30):
         sim = Simulation()
@@ -304,14 +304,14 @@ class TestBiomassDrawClamping:
 
     def test_negative_draw_clamps_to_zero(self, monkeypatch):
         monkeypatch.setattr(
-            "spacesim2.core.planet_attributes.random.uniform",
+            "spacesim.core.planet_attributes.random.uniform",
             self._uniform_returning(-0.15),
         )
         assert PlanetAttributes.generate_random().biomass == 0.0
 
     def test_positive_draw_passes_through(self, monkeypatch):
         monkeypatch.setattr(
-            "spacesim2.core.planet_attributes.random.uniform",
+            "spacesim.core.planet_attributes.random.uniform",
             self._uniform_returning(0.42),
         )
         assert PlanetAttributes.generate_random().biomass == pytest.approx(0.42)
@@ -333,7 +333,7 @@ class TestBiomassDrawClamping:
 
 def test_a_barren_planet_runs_without_raising():
     """A planet with no biomass at all survives a run end to end."""
-    from spacesim2.core.simulation import Simulation
+    from spacesim.core.simulation import Simulation
 
     real_generate = PlanetAttributes.generate_random
     calls = {"n": 0}

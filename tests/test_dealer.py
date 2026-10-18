@@ -4,9 +4,9 @@ import random
 
 import pytest
 
-from spacesim2.core.brains import dealer
-from spacesim2.core.commodity import CommodityRegistry
-from spacesim2.core.market import TRANSACTIONS_KEEP_PER_ACTOR, Market
+from spacesim.core.brains import dealer
+from spacesim.core.commodity import CommodityRegistry
+from spacesim.core.market import TRANSACTIONS_KEEP_PER_ACTOR, Market
 
 from .helpers import get_actor
 

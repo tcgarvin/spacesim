@@ -7,12 +7,12 @@ recipe's executability, so the actor neither gathered nor cooked.
 
 import pytest
 
-from spacesim2.core.actor import ActorType
-from spacesim2.core.brains.colonist import ColonistBrain
-from spacesim2.core.brains.industrialist import IndustrialistBrain
-from spacesim2.core.commands import PlaceSellOrderCommand, ProcessCommand
-from spacesim2.core.land import Land
-from spacesim2.core.simulation import Simulation
+from spacesim.core.actor import ActorType
+from spacesim.core.brains.colonist import ColonistBrain
+from spacesim.core.brains.industrialist import IndustrialistBrain
+from spacesim.core.commands import PlaceSellOrderCommand, ProcessCommand
+from spacesim.core.land import Land
+from spacesim.core.simulation import Simulation
 
 
 def _clear(actor, commodity) -> None:

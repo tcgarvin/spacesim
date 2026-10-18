@@ -9,18 +9,18 @@ from unittest.mock import Mock
 
 import yaml
 
-from spacesim2.core.actor import Actor, ActorType
-from spacesim2.core.actor_brain import (
+from spacesim.core.actor import Actor, ActorType
+from spacesim.core.actor_brain import (
     GOVERNMENT_WAGE,
     TOOL_EXPECTED_LIFESPAN,
     ActorBrain,
     _get_bid_ask,
 )
-from spacesim2.core.brains.colonist import ColonistBrain
-from spacesim2.core.commands import PlaceSellOrderCommand
-from spacesim2.core.commodity import CommodityDefinition, CommodityRegistry
-from spacesim2.core.market import Market
-from spacesim2.core.process import ProcessRegistry
+from spacesim.core.brains.colonist import ColonistBrain
+from spacesim.core.commands import PlaceSellOrderCommand
+from spacesim.core.commodity import CommodityDefinition, CommodityRegistry
+from spacesim.core.market import Market
+from spacesim.core.process import ProcessRegistry
 
 from .helpers import get_actor
 
@@ -291,7 +291,7 @@ class TestBestProcessRankedWalkEquivalence:
         return (best_process, best_raw_profit)
 
     def test_matches_brute_force_scan_on_a_real_sim(self) -> None:
-        from spacesim2.core.simulation import Simulation
+        from spacesim.core.simulation import Simulation
 
         sim = Simulation()
         sim.setup_simple(
@@ -339,7 +339,7 @@ class TestSharedQuoteTable:
     """
 
     def test_two_colonists_share_the_table_and_a_quote_move_rebuilds(self) -> None:
-        from spacesim2.core.simulation import Simulation
+        from spacesim.core.simulation import Simulation
 
         sim = Simulation()
         sim.setup_simple(
@@ -509,7 +509,7 @@ class TestReplacementCostSplitEquivalence:
         return best
 
     def test_matches_reference_on_a_real_sim(self) -> None:
-        from spacesim2.core.simulation import Simulation
+        from spacesim.core.simulation import Simulation
 
         sim = Simulation()
         sim.setup_simple(
@@ -597,7 +597,7 @@ class TestCheapestMaterialAskEquivalence:
         return registry, market, me, other, brain
 
     def test_matches_reference_on_a_real_sim(self) -> None:
-        from spacesim2.core.simulation import Simulation
+        from spacesim.core.simulation import Simulation
 
         sim = Simulation()
         sim.setup_simple(

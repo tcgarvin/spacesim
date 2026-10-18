@@ -6,14 +6,14 @@ stays resting in the book.
 
 import pytest
 
-from spacesim2.core.commands import (
+from spacesim.core.commands import (
     CancelOrderCommand,
     PlaceBuyOrderCommand,
     PlaceSellOrderCommand,
     prune_unchanged_order_commands,
 )
-from spacesim2.core.commodity import CommodityDefinition, CommodityRegistry
-from spacesim2.core.market import Market
+from spacesim.core.commodity import CommodityDefinition, CommodityRegistry
+from spacesim.core.market import Market
 
 from .helpers import get_actor
 

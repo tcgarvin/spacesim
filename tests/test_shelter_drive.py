@@ -5,9 +5,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from spacesim2.core.commodity import CommodityDefinition, CommodityRegistry
-from spacesim2.core.drives.actor_drive import DriveMetrics
-from spacesim2.core.drives.shelter_drive import (
+from spacesim.core.commodity import CommodityDefinition, CommodityRegistry
+from spacesim.core.drives.actor_drive import DriveMetrics
+from spacesim.core.drives.shelter_drive import (
     BASE_EVENT_PROB,
     BUFFER_MAX_DAYS,
     BUFFER_TARGET_DAYS,
@@ -85,7 +85,7 @@ class TestShelterDrive:
         assert shelter_drive.metrics.urgency == URGENCY
         assert mock_commodity_registry.get_commodity.call_count == 2
 
-    @patch("spacesim2.core.drives.shelter_drive.random.random")
+    @patch("spacesim.core.drives.shelter_drive.random.random")
     def test_tick_no_event(self, mock_random, shelter_drive, mock_actor):
         """With no event, debt decays and nothing is consumed."""
         mock_random.return_value = 0.9  # above BASE_EVENT_PROB
@@ -102,7 +102,7 @@ class TestShelterDrive:
         assert abs(result.debt - 0.5 * DEBT_DECAY_FACTOR) < 1e-6
         mock_actor.inventory.remove_commodity.assert_not_called()
 
-    @patch("spacesim2.core.drives.shelter_drive.random.random")
+    @patch("spacesim.core.drives.shelter_drive.random.random")
     def test_tick_event_consumes_basic_material(
         self, mock_random, shelter_drive, mock_actor
     ):
@@ -125,7 +125,7 @@ class TestShelterDrive:
         # Basic material was used, so the standard decay applies.
         assert abs(result.debt - initial_debt * DEBT_DECAY_FACTOR) < 1e-6
 
-    @patch("spacesim2.core.drives.shelter_drive.random.random")
+    @patch("spacesim.core.drives.shelter_drive.random.random")
     def test_tick_event_prefers_the_dwelling(
         self, mock_random, shelter_drive, mock_actor
     ):
@@ -144,7 +144,7 @@ class TestShelterDrive:
         assert abs(result.debt - initial_debt * QUALITY_DEBT_DECAY_FACTOR) < 1e-6
         mock_actor.inventory.remove_commodity.assert_not_called()
 
-    @patch("spacesim2.core.drives.shelter_drive.random.random")
+    @patch("spacesim.core.drives.shelter_drive.random.random")
     def test_tick_event_wears_out_the_dwelling(
         self, mock_random, shelter_drive, mock_actor
     ):
@@ -158,7 +158,7 @@ class TestShelterDrive:
         first_call = mock_actor.inventory.remove_commodity.call_args_list[0]
         assert first_call[0][0].id == PREFAB_HOUSING_NAME
 
-    @patch("spacesim2.core.drives.shelter_drive.random.random")
+    @patch("spacesim.core.drives.shelter_drive.random.random")
     def test_tick_event_falls_back_to_basic_material(
         self, mock_random, shelter_drive, mock_actor
     ):
@@ -178,7 +178,7 @@ class TestShelterDrive:
         assert result.health == 1.0
         assert abs(result.debt - initial_debt * DEBT_DECAY_FACTOR) < 1e-6
 
-    @patch("spacesim2.core.drives.shelter_drive.random.random")
+    @patch("spacesim.core.drives.shelter_drive.random.random")
     def test_tick_event_failed_maintenance(
         self, mock_random, shelter_drive, mock_actor
     ):
@@ -203,11 +203,11 @@ class TestShelterDrive:
         mock_actor.inventory.get_available_quantity.side_effect = get_qty
 
         with patch(
-            "spacesim2.core.drives.shelter_drive.random.random", return_value=0.9
+            "spacesim.core.drives.shelter_drive.random.random", return_value=0.9
         ):
             result = shelter_drive.tick(mock_actor)
 
-        from spacesim2.core.drives.actor_drive import log_norm_ratio
+        from spacesim.core.drives.actor_drive import log_norm_ratio
 
         total_units = 50 + 50 * PREFAB_SERVINGS
         expected_coverage_days = total_units / BASE_EVENT_PROB
@@ -220,7 +220,7 @@ class TestShelterDrive:
         mock_actor.inventory.get_available_quantity.return_value = 0
 
         with patch(
-            "spacesim2.core.drives.shelter_drive.random.random", return_value=0.9
+            "spacesim.core.drives.shelter_drive.random.random", return_value=0.9
         ):
             result = shelter_drive.tick(mock_actor)
 
@@ -233,7 +233,7 @@ class TestShelterDrive:
         shelter_drive.metrics.debt = initial_debt
 
         with patch(
-            "spacesim2.core.drives.shelter_drive.random.random", return_value=0.9
+            "spacesim.core.drives.shelter_drive.random.random", return_value=0.9
         ):
             result = shelter_drive.tick(mock_actor)
 
@@ -281,7 +281,7 @@ class TestShelterDriveIntegration:
         actor.inventory.remove_commodity = Mock(return_value=False)
 
         with patch(
-            "spacesim2.core.drives.shelter_drive.random.random", return_value=0.001
+            "spacesim.core.drives.shelter_drive.random.random", return_value=0.001
         ):
             debt_progression = [drive.tick(actor).debt for _ in range(5)]
 
@@ -298,7 +298,7 @@ class TestShelterDriveIntegration:
         actor.inventory.add_commodity(quality, 10)
 
         with patch(
-            "spacesim2.core.drives.shelter_drive.random.random", return_value=0.001
+            "spacesim.core.drives.shelter_drive.random.random", return_value=0.001
         ):
             result = drive.tick(actor)
 
@@ -317,7 +317,7 @@ class TestShelterDriveIntegration:
         actor.inventory.add_commodity(quality, 5)
 
         with patch(
-            "spacesim2.core.drives.shelter_drive.random.random", return_value=0.001
+            "spacesim.core.drives.shelter_drive.random.random", return_value=0.001
         ):
             drive.tick(actor)
 

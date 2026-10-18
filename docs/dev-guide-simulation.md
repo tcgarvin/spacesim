@@ -29,16 +29,16 @@ Start with the KPI summary and Tier-1 analysis scripts (see the
 ```bash
 # Compact KPI summary with PASS/WARN/FAIL verdict, on the free-threaded
 # side venv with a threaded actor phase (setup in docs/performance.md)
-.venv-ft/bin/python -m spacesim2.cli.main run --workers 12 --turns 200 --no-export --quiet --summary
+.venv-ft/bin/python -m spacesim.cli.main run --workers 12 --turns 200 --no-export --quiet --summary
 
 # Run an ad-hoc analysis script against the latest exported run
-uv run spacesim2 dev analyze my_probe.py
+uv run spacesim dev analyze my_probe.py
 ```
 
 For interactive human-facing exploration, the marimo dashboard is available:
 
 ```bash
-uv run spacesim2 run --notebook   # exports data and opens notebooks/analysis_template.py
+uv run spacesim run --notebook   # exports data and opens notebooks/analysis_template.py
 ```
 
 See `notebooks/README.md` for notebook patterns.

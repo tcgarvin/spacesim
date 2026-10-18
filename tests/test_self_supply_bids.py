@@ -9,12 +9,12 @@ of a labor turn.
 
 import pytest
 
-from spacesim2.core.actor import ActorType
-from spacesim2.core.actor_brain import GOVERNMENT_WAGE, BrainCache
-from spacesim2.core.commodity import Inventory
-from spacesim2.core.drives.food_drive import PANTRY_TARGET, FoodDrive
-from spacesim2.core.land import Land
-from spacesim2.core.simulation import Simulation
+from spacesim.core.actor import ActorType
+from spacesim.core.actor_brain import GOVERNMENT_WAGE, BrainCache
+from spacesim.core.commodity import Inventory
+from spacesim.core.drives.food_drive import PANTRY_TARGET, FoodDrive
+from spacesim.core.land import Land
+from spacesim.core.simulation import Simulation
 
 # One run of make_food, per data/processes.yaml.
 MAKE_FOOD_OUTPUT = 4

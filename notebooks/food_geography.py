@@ -1,8 +1,8 @@
 """Two-track food chain: does the industrial track reach biomass-poor planets,
 and does processed_food surplus ever leave the planet that made it?
 
-    uv run spacesim2 dev analyze notebooks/food_geography.py
-    uv run spacesim2 dev analyze notebooks/food_geography.py --run data/runs/<dir>
+    uv run spacesim dev analyze notebooks/food_geography.py
+    uv run spacesim dev analyze notebooks/food_geography.py --run data/runs/<dir>
 
 H1: biomass-poor planets build farms and chemical plants and feed themselves
     locally instead of importing.
@@ -17,7 +17,7 @@ import json
 
 import polars as pl
 
-from spacesim2.analysis.loading import load_run
+from spacesim.analysis.loading import load_run
 
 pl.Config.set_tbl_cols(-1)
 pl.Config.set_tbl_rows(20)

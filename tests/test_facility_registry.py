@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from spacesim2.core.commodity import CommodityRegistry
-from spacesim2.core.facility import FacilityDataError, FacilityRegistry
+from spacesim.core.commodity import CommodityRegistry
+from spacesim.core.facility import FacilityDataError, FacilityRegistry
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 

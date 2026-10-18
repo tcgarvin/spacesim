@@ -6,10 +6,10 @@ from unittest.mock import patch
 
 import pytest
 
-from spacesim2.core.actor import Actor, ActorType
-from spacesim2.core.actor_brain import ActorBrain
-from spacesim2.core.commands import ProcessCommand
-from spacesim2.core.land import (
+from spacesim.core.actor import Actor, ActorType
+from spacesim.core.actor_brain import ActorBrain
+from spacesim.core.commands import ProcessCommand
+from spacesim.core.land import (
     LANDS_PER_PLANET,
     Land,
     NoFreeLandError,
@@ -17,10 +17,10 @@ from spacesim2.core.land import (
     generate_lands,
     sample_coefficient,
 )
-from spacesim2.core.market import Market
-from spacesim2.core.planet import Planet
-from spacesim2.core.planet_attributes import RESOURCE_ATTRIBUTES, PlanetAttributes
-from spacesim2.core.simulation import DEFAULT_LANDS_PER_PLANET, Simulation
+from spacesim.core.market import Market
+from spacesim.core.planet import Planet
+from spacesim.core.planet_attributes import RESOURCE_ATTRIBUTES, PlanetAttributes
+from spacesim.core.simulation import DEFAULT_LANDS_PER_PLANET, Simulation
 
 
 class TestLand:
@@ -60,9 +60,9 @@ class TestSampleCoefficient:
 
     def test_draws_below_the_barren_floor_snap_to_zero(self):
         """A denormal draw would overflow the replacement-cost division."""
-        with patch("spacesim2.core.land.random.betavariate", return_value=1e-310):
+        with patch("spacesim.core.land.random.betavariate", return_value=1e-310):
             assert sample_coefficient(0.3, 0.5) == 0.0
-        with patch("spacesim2.core.land.random.betavariate", return_value=0.02):
+        with patch("spacesim.core.land.random.betavariate", return_value=0.02):
             assert sample_coefficient(0.3, 0.5) == 0.02
 
     def test_invalid_arguments_raise(self):

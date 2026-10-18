@@ -7,14 +7,14 @@ should explain the money deltas in ``actor_turns``. The residual table
 below tests that.
 
 Run:
-    uv run spacesim2 dev analyze notebooks/ship_pnl.py --run data/runs/<dir>
+    uv run spacesim dev analyze notebooks/ship_pnl.py --run data/runs/<dir>
 """
 
 import json
 
 import polars as pl
 
-from spacesim2.analysis.loading.utils import get_run_path_with_fallback
+from spacesim.analysis.loading.utils import get_run_path_with_fallback
 
 pl.Config.set_tbl_rows(40)
 pl.Config.set_tbl_cols(20)

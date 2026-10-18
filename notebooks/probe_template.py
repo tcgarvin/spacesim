@@ -49,9 +49,9 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from spacesim2.cli.common import create_and_setup_simulation
-from spacesim2.core.ship import Ship, ShipStatus
-from spacesim2.core.simulation import Simulation
+from spacesim.cli.common import create_and_setup_simulation
+from spacesim.core.ship import Ship, ShipStatus
+from spacesim.core.simulation import Simulation
 
 DEFAULT_TURNS = 200
 DEFAULT_PLANETS = 12

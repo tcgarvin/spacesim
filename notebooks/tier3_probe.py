@@ -3,15 +3,15 @@
 import math
 from collections import Counter
 
-from spacesim2.core.actor import ActorType
-from spacesim2.core.actor_brain import GOVERNMENT_WAGE
-from spacesim2.core.brains.industrialist import (
+from spacesim.core.actor import ActorType
+from spacesim.core.actor_brain import GOVERNMENT_WAGE
+from spacesim.core.brains.industrialist import (
     MIN_OUTPUT_DEPTH_UNITS,
     NEVER_TRADED_VALUE_CAP,
     OUTPUT_SALES_HORIZON_RUNS,
     IndustrialistBrain,
 )
-from spacesim2.core.simulation import Simulation
+from spacesim.core.simulation import Simulation
 
 TURNS = 200
 SAMPLES = (100, 150, 200)

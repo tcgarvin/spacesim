@@ -1,6 +1,6 @@
 # CLAUDE.md - Agent Instructions
 
-## Project: SpaceSim2
+## Project: SpaceSim
 A turn-based economic simulation of interplanetary trade with actors, markets, and ships.
 
 ## Commands
@@ -9,17 +9,17 @@ A turn-based economic simulation of interplanetary trade with actors, markets, a
 # Build & Run
 uv sync                              # Install dependencies
 uv sync --extra analysis             # Install with analysis features
-uv run spacesim2 ui                  # Interactive UI (Pygame)
-# Every `run` flag below works the same with `.venv-ft/bin/python -m spacesim2.cli.main run --workers 12`, the preferred form.
-uv run spacesim2 run                 # Headless sim with progress bar (default)
-uv run spacesim2 run --quiet         # Suppress all output
-uv run spacesim2 run --no-export     # Quick run without data export
-uv run spacesim2 run --log-actors all  # Detailed per-actor logging (also: N, or an actor name)
-uv run spacesim2 run --planets 12    # Smaller galaxy (defaults: 100 planets, 100 actors, 2 makers, 2 operators, 1 ship, 1000 turns)
-uv run spacesim2 run --operators 2   # Spaceport operators per planet (default 2)
-.venv-ft/bin/python -m spacesim2.cli.main run --workers 12  # Preferred headless run: free-threaded 3.14t, threaded actor phase (setup in docs/performance.md)
-uv run spacesim2 run --arms 4 --lane-density 0.3  # Spiral arm count / extra star lanes beyond the spanning tree
-uv run spacesim2 run --lands-per-planet 200  # Land pool per planet (default 200); must exceed --actors so migrants can settle
+uv run spacesim ui                  # Interactive UI (Pygame)
+# Every `run` flag below works the same with `.venv-ft/bin/python -m spacesim.cli.main run --workers 12`, the preferred form.
+uv run spacesim run                 # Headless sim with progress bar (default)
+uv run spacesim run --quiet         # Suppress all output
+uv run spacesim run --no-export     # Quick run without data export
+uv run spacesim run --log-actors all  # Detailed per-actor logging (also: N, or an actor name)
+uv run spacesim run --planets 12    # Smaller galaxy (defaults: 100 planets, 100 actors, 2 makers, 2 operators, 1 ship, 1000 turns)
+uv run spacesim run --operators 2   # Spaceport operators per planet (default 2)
+.venv-ft/bin/python -m spacesim.cli.main run --workers 12  # Preferred headless run: free-threaded 3.14t, threaded actor phase (setup in docs/performance.md)
+uv run spacesim run --arms 4 --lane-density 0.3  # Spiral arm count / extra star lanes beyond the spanning tree
+uv run spacesim run --lands-per-planet 200  # Land pool per planet (default 200); must exceed --actors so migrants can settle
 
 # Development
 uv run pytest tests/                           # Run all tests
@@ -29,13 +29,13 @@ uv run ruff format .                           # Format
 uv run ruff check .                            # Lint
 
 # Dev Tools
-uv run spacesim2 dev graph             # Commodity/process dependency graph (outputs to tmp/)
-uv run spacesim2 dev graph --out foo   # Custom output path (creates foo.svg and foo.mmd)
-uv run spacesim2 dev graph -f png      # Alternative formats: svg (default), png, pdf
-uv run spacesim2 dev analyze FILE.py   # Run a Tier-1 analysis script against latest run
-uv run spacesim2 dev check             # Umbrella: format+lint+types+pytest+short sim run
-uv run spacesim2 dev check --fast      # Skip the slower types and sim stages
-uv run spacesim2 dev ab --base <ref> --python .venv-ft/bin/python --workers 12  # A/B against a baseline ref, threaded (see sim-ab-testing skill)
+uv run spacesim dev graph             # Commodity/process dependency graph (outputs to tmp/)
+uv run spacesim dev graph --out foo   # Custom output path (creates foo.svg and foo.mmd)
+uv run spacesim dev graph -f png      # Alternative formats: svg (default), png, pdf
+uv run spacesim dev analyze FILE.py   # Run a Tier-1 analysis script against latest run
+uv run spacesim dev check             # Umbrella: format+lint+types+pytest+short sim run
+uv run spacesim dev check --fast      # Skip the slower types and sim stages
+uv run spacesim dev ab --base <ref> --python .venv-ft/bin/python --workers 12  # A/B against a baseline ref, threaded (see sim-ab-testing skill)
 ```
 
 ## The Dev Loop
@@ -44,7 +44,7 @@ Change, then verify:
 
 ```bash
 uv run pytest -q                                                  # 1. unit tests (~2s)
-.venv-ft/bin/python -m spacesim2.cli.main run --workers 12 --turns 200 --planets 12 --no-export --quiet --summary   # 2. macro behavior (~16 s)
+.venv-ft/bin/python -m spacesim.cli.main run --workers 12 --turns 200 --planets 12 --no-export --quiet --summary   # 2. macro behavior (~16 s)
 # 3. read JSON between ===SUMMARY_BEGIN=== / ===SUMMARY_END=== (verdict + KPIs)
 ```
 
@@ -53,7 +53,7 @@ root. 12 is the dev laptop's physical core count; never set `--workers` above
 the physical core count (see `docs/performance.md`). The threaded actor phase gives the same KPIs as a serial stock run
 within noise (`docs/performance.md`, "Drift check") and is about 3x faster
 at 100 planets and 4x at 12. `.venv-ft` is gitignored; create it once with
-the commands in `docs/performance.md`. Fall back to `uv run spacesim2 run`
+the commands in `docs/performance.md`. Fall back to `uv run spacesim run`
 (stock 3.13, serial) when `.venv-ft` is missing. pytest, mypy, ruff, the UI,
 `dev analyze` and `dev check` stay on `uv run`.
 
@@ -69,7 +69,7 @@ Defaults are 100 planets x 100 actors x 2 makers x 2 operators x 1 ship, and
 `--turns` defaults to 1000. Measured on the dev laptop with nothing else
 running:
 
-| Config | `uv run spacesim2 run` (3.13, serial) | `.venv-ft`, `--workers 12` |
+| Config | `uv run spacesim run` (3.13, serial) | `.venv-ft`, `--workers 12` |
 |--------|------|------|
 | `--planets 12`, 200 turns | 70 s | 16 s |
 | `--planets 12`, 450 turns | | 66 s |
@@ -100,13 +100,13 @@ even with memory to spare (observed 2026-09-13: 100 planets/400 turns, and a
 past the 12-planet routine loop runs detached instead:
 
 ```bash
-setsid nohup bash -c '/home/timg/code/spacesim2/.venv-ft/bin/python -m spacesim2.cli.main run --workers 12 --turns 400 --quiet --summary > OUT.txt 2>&1; echo EXIT $? >> OUT.txt' > /dev/null 2>&1 < /dev/null &
+setsid nohup bash -c '/home/timg/code/spacesim/.venv-ft/bin/python -m spacesim.cli.main run --workers 12 --turns 400 --quiet --summary > OUT.txt 2>&1; echo EXIT $? >> OUT.txt' > /dev/null 2>&1 < /dev/null &
 ```
 
 Watch `OUT.txt` for the `EXIT` line (Monitor, or a bounded polling loop in a
 background Bash), then read the `===SUMMARY_BEGIN===`/`===SUMMARY_END===`
 JSON. `$!` is the `setsid` wrapper's PID, not the sim; use
-`pgrep -f "spacesim2.cli.main run"` to find the process. The `data/runs/`
+`pgrep -f "spacesim.cli.main run"` to find the process. The `data/runs/`
 export directory appears at start, so its presence is not completion — only
 `EXIT` is. Send A/B runs (`dev ab`, which is 100-planet-scale by default) and any
 galaxy-scale probe to a subagent (`simulation-analyst` or general-purpose) so
@@ -122,7 +122,7 @@ rewritten away, everything else is denied. Use absolute paths, `git -C DIR`,
 explicit timeout or `run_in_background: true`. Exclude `.claude/worktrees/`
 from searches; it holds stale detached copies of the repo.
 
-`uv run spacesim2 dev check` runs format, lint, types, pytest, and a short
+`uv run spacesim dev check` runs format, lint, types, pytest, and a short
 `--summary` sim as one pass/fail gate. It only checks formatting, it does not
 rewrite files. Use the three steps above when you need the KPI JSON itself.
 
@@ -445,9 +445,9 @@ The default loop is the Dev Loop above: `--summary` for the verdict, a
 human-facing dashboard.
 
 ```bash
-uv run spacesim2 run --notebook          # export and open notebooks/analysis_template.py
+uv run spacesim run --notebook          # export and open notebooks/analysis_template.py
 # or export on the faster threaded path, then open the notebook
-.venv-ft/bin/python -m spacesim2.cli.main run --workers 12
+.venv-ft/bin/python -m spacesim.cli.main run --workers 12
 uv run marimo edit --no-token notebooks/analysis_template.py   # finds the latest run via SPACESIM_RUN_PATH
 ```
 

@@ -10,7 +10,7 @@ market dynamics, actor behavior modeling, and trade systems.
 
 ## Your Role
 
-You evaluate SpaceSim2 behavior and return **compact textual verdicts and
+You evaluate SpaceSim behavior and return **compact textual verdicts and
 numbers** to your caller. Your primary loop is headless: the Tier-0 KPI
 summary and Tier-1 `dev analyze` scripts (see the `sim-evaluation` skill for
 the full tier model). Marimo notebooks are an **optional human-deliverable**,
@@ -20,8 +20,8 @@ modify project source code outside of `notebooks/`.
 ## Harness Rules
 
 - Use absolute paths everywhere. Never use the shell builtin `cd` in a Bash
-  command; a hook denies it. Use `git -C /home/timg/code/spacesim2` and
-  `uv run --project /home/timg/code/spacesim2`.
+  command; a hook denies it. Use `git -C /home/timg/code/spacesim` and
+  `uv run --project /home/timg/code/spacesim`.
 - Never write `sleep N; <command>` and never poll with repeated short
   sleeps. A command that fits in 120 s runs in the foreground with an
   explicit Bash `timeout`. Anything longer, which means every 100-planet
@@ -30,12 +30,12 @@ modify project source code outside of `notebooks/`.
   sims regardless of actual free memory:
 
   ```bash
-  setsid nohup bash -c '/home/timg/code/spacesim2/.venv-ft/bin/python -m spacesim2.cli.main run --workers 12 --turns 400 --quiet --summary > OUT.txt 2>&1; echo EXIT $? >> OUT.txt' > /dev/null 2>&1 < /dev/null &
+  setsid nohup bash -c '/home/timg/code/spacesim/.venv-ft/bin/python -m spacesim.cli.main run --workers 12 --turns 400 --quiet --summary > OUT.txt 2>&1; echo EXIT $? >> OUT.txt' > /dev/null 2>&1 < /dev/null &
   ```
 
   Then wait on the `EXIT` line in OUT.txt with a bounded `until grep -q
   "^EXIT" OUT.txt` loop in a background Bash call, or a Monitor. `$!` is
-  the `setsid` wrapper, not the sim; `pgrep -f "spacesim2.cli.main run"`
+  the `setsid` wrapper, not the sim; `pgrep -f "spacesim.cli.main run"`
   finds it.
   The export directory under `data/runs/` appears at start, so a new
   directory is not a finished run; the `EXIT` line is.
@@ -68,13 +68,13 @@ over three short ones.
 ### Tier 0 — KPI summary ("is it broken / is the economy healthy?")
 
 ```bash
-.venv-ft/bin/python -m spacesim2.cli.main run --workers 12 --turns 200 --no-export --quiet --summary
+.venv-ft/bin/python -m spacesim.cli.main run --workers 12 --turns 200 --no-export --quiet --summary
 ```
 
 Run every sim this way: the free-threaded side venv (`.venv-ft`, setup in
 `docs/performance.md`) with a threaded actor phase, from the repo root. Its
-KPIs match serial `uv run spacesim2 run` within noise and it is about 3x
-faster at 100 planets and 4x at 12. Fall back to `uv run spacesim2 run` with
+KPIs match serial `uv run spacesim run` within noise and it is about 3x
+faster at 100 planets and 4x at 12. Fall back to `uv run spacesim run` with
 the same flags only when `.venv-ft` is missing. Tier-1b probes stay serial: a
 monkeypatched brain method runs on the worker threads, and a shared counter
 updated with `+=` is not atomic across threads.
@@ -88,10 +88,10 @@ every question.
 ### Tier 1a — export analysis (questions over logged history)
 
 ```bash
-.venv-ft/bin/python -m spacesim2.cli.main run --workers 12 --turns 300   # exports Parquet to data/runs/
+.venv-ft/bin/python -m spacesim.cli.main run --workers 12 --turns 300   # exports Parquet to data/runs/
 cp notebooks/scratch_template.py notebooks/my_question.py
-# edit: load_run() from spacesim2.analysis.loading -> Polars frames
-uv run spacesim2 dev analyze notebooks/my_question.py  # runs it, relays stdout
+# edit: load_run() from spacesim.analysis.loading -> Polars frames
+uv run spacesim dev analyze notebooks/my_question.py  # runs it, relays stdout
 ```
 
 `dev analyze` runs the script against the most recent directory under
@@ -112,9 +112,9 @@ For "why did this ship not depart" or "why did no one enter this recipe",
 build the sim in a script and instrument it:
 
 1. Copy `notebooks/probe_template.py` into your scratchpad directory and
-   edit `classify()`. Never edit `spacesim2/`.
+   edit `classify()`. Never edit `spacesim/`.
 2. The template builds the sim through `create_and_setup_simulation` from
-   `spacesim2.cli.common`. To observe a decision, wrap the method you care
+   `spacesim.cli.common`. To observe a decision, wrap the method you care
    about (`TraderBrain.decide_travel`, `TraderBrain._fuel_safe_destination`,
    `IndustrialistBrain.decide_economic_action`) with a monkeypatch that
    records the branch taken and the state at that moment. Keep the original
@@ -134,7 +134,7 @@ committed examples of the genre.
 ### Before/after questions
 
 "Did my fix move KPI Y, or is that noise?" is the `sim-ab-testing` skill
-(`uv run spacesim2 dev ab --base <ref> --python .venv-ft/bin/python
+(`uv run spacesim dev ab --base <ref> --python .venv-ft/bin/python
 --workers 12`), which runs replicates on both
 sides. Do not answer it from one run per side.
 
@@ -167,7 +167,7 @@ export back into context.
 
 ## Important Constraints
 
-1. **Analysis artifacts only**: never modify `spacesim2/`, `data/` (except
+1. **Analysis artifacts only**: never modify `spacesim/`, `data/` (except
    `data/runs/`), or `tests/`.
 2. **Numbers over artifacts**: your caller reads your text; lead with the
    verdict and the 2-5 key numbers, then supporting detail.

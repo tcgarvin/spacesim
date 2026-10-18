@@ -26,7 +26,7 @@ Tier 1 instead; the A/B table only says whether a number moved.
 ## The one command
 
 ```bash
-uv run spacesim2 dev ab --base <ref> --reps 3 --turns 450 --planets 100 \
+uv run spacesim dev ab --base <ref> --reps 3 --turns 450 --planets 100 \
     --python .venv-ft/bin/python --workers 12 --out tmp/ab_out
 ```
 
@@ -47,7 +47,7 @@ uv run spacesim2 dev ab --base <ref> --reps 3 --turns 450 --planets 100 \
   stops with an error. Rerun with `--workers 1`.
 
 - `--base` is a git ref (commit, tag, branch). The command checks it out as a
-  detached worktree under `${TMPDIR:-/tmp}/spacesim2_base_<sha8>`, copies
+  detached worktree under `${TMPDIR:-/tmp}/spacesim_base_<sha8>`, copies
   the gitignored `.python-version` in, and runs `uv sync` there once. The
   worktree is reused on later calls. Never `git stash` to build a baseline:
   another agent may be editing the tree, and an interrupted stash loses work.
@@ -88,7 +88,7 @@ observed 2026-09-13). Do not background `dev ab` directly. Instead:
 2. Inside the subagent, start `dev ab` detached from the harness's task
    tracker:
    ```bash
-   setsid nohup bash -c 'uv run --project /home/timg/code/spacesim2 spacesim2 dev ab --base <ref> --reps 3 --turns 450 --planets 100 --python /home/timg/code/spacesim2/.venv-ft/bin/python --workers 12 --out tmp/ab_out > tmp/ab_out.log 2>&1; echo EXIT $? >> tmp/ab_out.log' > /dev/null 2>&1 < /dev/null &
+   setsid nohup bash -c 'uv run --project /home/timg/code/spacesim spacesim dev ab --base <ref> --reps 3 --turns 450 --planets 100 --python /home/timg/code/spacesim/.venv-ft/bin/python --workers 12 --out tmp/ab_out > tmp/ab_out.log 2>&1; echo EXIT $? >> tmp/ab_out.log' > /dev/null 2>&1 < /dev/null &
    ```
 3. `dev ab` prints one line per completed run to stderr (`[ab] before_1 done
    in 312s (1/6)`), captured in `tmp/ab_out.log` above. Watch for completion
@@ -99,7 +99,7 @@ observed 2026-09-13). Do not background `dev ab` directly. Instead:
    until [ -f tmp/ab_out/done ]; do sleep 15; done; cat tmp/ab_out/table.txt
    ```
    `$!` after `setsid ... &` is the wrapper's PID, not `dev ab`; use
-   `pgrep -f "spacesim2 dev ab"` if you need the real one.
+   `pgrep -f "spacesim dev ab"` if you need the real one.
 
 A `--reps 2 --turns 200 --planets 12` A/B (gross-breakage check only, see
 "How many replicates" below) finishes inside the foreground timeout when

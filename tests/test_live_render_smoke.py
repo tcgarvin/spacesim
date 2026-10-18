@@ -14,9 +14,9 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 import numpy as np  # noqa: E402
 import pygame  # noqa: E402
 
-from spacesim2.core.ship import ShipStatus  # noqa: E402
-from spacesim2.core.simulation import Simulation  # noqa: E402
-from spacesim2.ui.live.app import LiveGalaxyApp  # noqa: E402
+from spacesim.core.ship import ShipStatus  # noqa: E402
+from spacesim.core.simulation import Simulation  # noqa: E402
+from spacesim.ui.live.app import LiveGalaxyApp  # noqa: E402
 
 
 def _sim() -> Simulation:

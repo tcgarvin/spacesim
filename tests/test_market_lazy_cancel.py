@@ -8,8 +8,8 @@ keep book length bounded.
 
 import pytest
 
-from spacesim2.core.commodity import CommodityRegistry
-from spacesim2.core.market import Market
+from spacesim.core.commodity import CommodityRegistry
+from spacesim.core.market import Market
 
 from .helpers import get_actor
 

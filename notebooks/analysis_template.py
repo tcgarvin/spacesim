@@ -13,14 +13,14 @@ def _():
     import plotly.express as px
     import polars as pl
 
-    from spacesim2.analysis.loading.loader import SimulationData
+    from spacesim.analysis.loading.loader import SimulationData
 
     return Path, SimulationData, mo, os, pl, px
 
 
 @app.cell
 def _(mo, os, Path):
-    from spacesim2.analysis.loading import (
+    from spacesim.analysis.loading import (
         NoRunsFoundError,
         get_run_path_with_fallback,
     )
@@ -46,7 +46,7 @@ def _(mo, os, Path):
     )
 
     mo.md(f"""
-    # SpaceSim2 Analysis
+    # SpaceSim Analysis
 
     {status_msg}
 
@@ -59,7 +59,7 @@ def _(mo, os, Path):
 @app.cell
 def _(Path, SimulationData, mo, run_selector):
     if not run_selector.value:
-        mo.md("⚠️ No run path specified. Run `spacesim2 run` first.")
+        mo.md("⚠️ No run path specified. Run `spacesim run` first.")
         data = None
     else:
         try:

@@ -11,8 +11,8 @@ import statistics
 
 import pytest
 
-from spacesim2.core.commodity import CommodityDefinition, CommodityRegistry
-from spacesim2.core.market import Market
+from spacesim.core.commodity import CommodityDefinition, CommodityRegistry
+from spacesim.core.market import Market
 
 from .helpers import get_actor
 

@@ -5,8 +5,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from spacesim2.core.commodity import CommodityRegistry
-from spacesim2.core.drives.actor_drive import (
+from spacesim.core.commodity import CommodityRegistry
+from spacesim.core.drives.actor_drive import (
     ActorDrive,
     DriveMetrics,
     clamp01,

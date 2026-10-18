@@ -22,10 +22,10 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, List, Optional
 
-from spacesim2.cli.common import create_and_setup_simulation
-from spacesim2.core.market import Market
-from spacesim2.core.ship import FUEL_BUNKER_PREMIUM, Ship, ShipStatus, TraderBrain
-from spacesim2.core.simulation import Simulation
+from spacesim.cli.common import create_and_setup_simulation
+from spacesim.core.market import Market
+from spacesim.core.ship import FUEL_BUNKER_PREMIUM, Ship, ShipStatus, TraderBrain
+from spacesim.core.simulation import Simulation
 
 FUEL_ID = "nova_fuel"
 

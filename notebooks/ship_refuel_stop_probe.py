@@ -18,8 +18,8 @@ from collections import Counter
 from statistics import median
 from typing import Any, List
 
-from spacesim2.cli.common import create_and_setup_simulation
-from spacesim2.core.ship import (
+from spacesim.cli.common import create_and_setup_simulation
+from spacesim.core.ship import (
     DISTANCE_PER_TURN,
     FUEL_BUNKER_BUDGET_FRACTION_CHEAP,
     FUEL_BUNKER_PREMIUM,

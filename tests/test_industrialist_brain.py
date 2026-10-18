@@ -3,9 +3,9 @@ from unittest.mock import Mock
 
 import pytest
 
-from spacesim2.core.actor import Actor, ActorType
-from spacesim2.core.actor_brain import GOVERNMENT_WAGE, ActorBrain, BrainCache
-from spacesim2.core.brains.industrialist import (
+from spacesim.core.actor import Actor, ActorType
+from spacesim.core.actor_brain import GOVERNMENT_WAGE, ActorBrain, BrainCache
+from spacesim.core.brains.industrialist import (
     BUILD_INPUT_CEILING_CAP,
     ENTRY_MARGIN,
     NETBACK_VALUE_CAP,
@@ -13,21 +13,21 @@ from spacesim2.core.brains.industrialist import (
     RECIPE_STUCK_TURNS,
     IndustrialistBrain,
 )
-from spacesim2.core.commands import (
+from spacesim.core.commands import (
     GovernmentWorkCommand,
     PlaceBuyOrderCommand,
     PlaceSellOrderCommand,
     ProcessCommand,
 )
-from spacesim2.core.commodity import (
+from spacesim.core.commodity import (
     CommodityDefinition,
     CommodityRegistry,
     Inventory,
 )
-from spacesim2.core.drives.food_drive import FoodDrive
-from spacesim2.core.land import Land
-from spacesim2.core.market import Market
-from spacesim2.core.process import ProcessDefinition, ResourceAttribute
+from spacesim.core.drives.food_drive import FoodDrive
+from spacesim.core.land import Land
+from spacesim.core.market import Market
+from spacesim.core.process import ProcessDefinition, ResourceAttribute
 
 
 def _real_registry() -> CommodityRegistry:
@@ -396,7 +396,7 @@ class TestIndustrialistBrain:
 
     def test_recipe_viability_considers_land(self, brain, mock_actor):
         """Recipe score scales gathering output by the actor's land."""
-        from spacesim2.core.process import ResourceAttribute
+        from spacesim.core.process import ResourceAttribute
 
         output_commodity = Mock()
         output_commodity.id = "biomass"
@@ -420,7 +420,7 @@ class TestIndustrialistBrain:
         market.get_bid_ask_spread.return_value = (None, None)
         market.get_avg_price.return_value = 10
 
-        from spacesim2.core.land import Land
+        from spacesim.core.land import Land
 
         mock_actor.land = Land({"biomass": 0.9})
 
@@ -439,7 +439,7 @@ class TestIndustrialistBrain:
 
     def test_recipe_selection_prefers_profitable_recipes(self, brain, mock_actor):
         """Recipe selection is weighted by score."""
-        from spacesim2.core.process import ResourceAttribute
+        from spacesim.core.process import ResourceAttribute
 
         biomass_commodity = Mock()
         biomass_commodity.id = "biomass"
@@ -486,7 +486,7 @@ class TestIndustrialistBrain:
         market.get_avg_price.return_value = 10
 
         # The actor's land is rich in biomass and poor in fiber.
-        from spacesim2.core.land import Land
+        from spacesim.core.land import Land
 
         mock_actor.land = Land({"biomass": 0.9, "fiber": 0.1})
 

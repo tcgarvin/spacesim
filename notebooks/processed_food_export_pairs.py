@@ -20,10 +20,10 @@ returns across all commodities, so what outranks the staple is visible.
 
 Run (threaded actor phase, free-threaded interpreter):
 
-    /home/timg/code/spacesim2/.venv-ft/bin/python \
-        /home/timg/code/spacesim2/notebooks/processed_food_export_pairs.py \
+    /home/timg/code/spacesim/.venv-ft/bin/python \
+        /home/timg/code/spacesim/notebooks/processed_food_export_pairs.py \
         --turns 400 --planets 50 --ships 1 --warmup 150 --sample-every 50 \
-        --workers 6 --out /home/timg/code/spacesim2/tmp/pf_pairs.json
+        --workers 6 --out /home/timg/code/spacesim/tmp/pf_pairs.json
 """
 
 import argparse
@@ -35,12 +35,12 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from spacesim2.cli.common import create_and_setup_simulation
-from spacesim2.core.commodity import CommodityDefinition
-from spacesim2.core.market import Market
-from spacesim2.core.navigation import Navigator, get_navigator
-from spacesim2.core.planet import Planet
-from spacesim2.core.ship import (
+from spacesim.cli.common import create_and_setup_simulation
+from spacesim.core.commodity import CommodityDefinition
+from spacesim.core.market import Market
+from spacesim.core.navigation import Navigator, get_navigator
+from spacesim.core.planet import Planet
+from spacesim.core.ship import (
     DEMAND_HORIZON_TURNS,
     FUEL_MILLI,
     MAINTENANCE_CHANCE,
@@ -55,7 +55,7 @@ from spacesim2.core.ship import (
     milli_to_units_floor,
     units_to_milli,
 )
-from spacesim2.core.simulation import Simulation
+from spacesim.core.simulation import Simulation
 
 STAPLE_ID = "processed_food"
 DEFAULT_CHEAP_ASK_MAX = 2

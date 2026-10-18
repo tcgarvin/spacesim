@@ -3,12 +3,12 @@ import tempfile
 
 import yaml
 
-from spacesim2.core.commands import ProcessCommand
-from spacesim2.core.commodity import CommodityDefinition, CommodityRegistry, Inventory
-from spacesim2.core.market import Market
-from spacesim2.core.planet import Planet
-from spacesim2.core.process import ProcessDefinition, ProcessRegistry
-from spacesim2.core.simulation import Simulation
+from spacesim.core.commands import ProcessCommand
+from spacesim.core.commodity import CommodityDefinition, CommodityRegistry, Inventory
+from spacesim.core.market import Market
+from spacesim.core.planet import Planet
+from spacesim.core.process import ProcessDefinition, ProcessRegistry
+from spacesim.core.simulation import Simulation
 
 from .helpers import get_actor
 
@@ -145,7 +145,7 @@ def test_actor_execute_process(monkeypatch):
     """ProcessCommand consumes inputs, produces outputs, and keeps tools."""
     # Pin the RNG above the 1% tool-break probability so the tool assertion
     # cannot flake on a random breakage.
-    monkeypatch.setattr("spacesim2.core.commands.random.random", lambda: 0.99)
+    monkeypatch.setattr("spacesim.core.commands.random.random", lambda: 0.99)
 
     sim = Simulation()
 

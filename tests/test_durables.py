@@ -9,29 +9,29 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from spacesim2.analysis.summary import compute_summary
-from spacesim2.core.actor import Actor, ActorType
-from spacesim2.core.brains.industrialist import (
+from spacesim.analysis.summary import compute_summary
+from spacesim.core.actor import Actor, ActorType
+from spacesim.core.brains.industrialist import (
     CAPITAL_BUFFER,
     ENTRY_MARGIN,
     IndustrialistBrain,
 )
-from spacesim2.core.commands import (
+from spacesim.core.commands import (
     CAPITAL_BREAK_PROBABILITY,
     PlaceBuyOrderCommand,
     PlaceSellOrderCommand,
     ProcessCommand,
 )
-from spacesim2.core.commodity import CommodityDefinition, CommodityRegistry, Inventory
-from spacesim2.core.drives.prosperity_drive import CATEGORY_NAMES
-from spacesim2.core.drives.shelter_drive import (
+from spacesim.core.commodity import CommodityDefinition, CommodityRegistry, Inventory
+from spacesim.core.drives.prosperity_drive import CATEGORY_NAMES
+from spacesim.core.drives.shelter_drive import (
     BUILDING_MATERIALS_NAME,
     PREFAB_HOUSING_NAME,
     PREFAB_SERVINGS,
     ShelterDrive,
 )
-from spacesim2.core.process import ProcessDefinition
-from spacesim2.core.simulation import Simulation
+from spacesim.core.process import ProcessDefinition
+from spacesim.core.simulation import Simulation
 from tests.helpers import get_actor
 
 
@@ -79,7 +79,7 @@ class TestProcessDefinitionCapital:
         """Facility-gated recipes take capital; gathering and hand work do not."""
         registry = CommodityRegistry()
         registry.load_from_file("data/commodities.yaml")
-        from spacesim2.core.process import ProcessRegistry
+        from spacesim.core.process import ProcessRegistry
 
         processes = ProcessRegistry(registry)
         processes.load_from_file("data/processes.yaml")
@@ -100,7 +100,7 @@ class TestCapitalInExecution:
         workshop = process.facilities_required[0]
         actor = _process_actor(process, {metal: 1, workshop: 1, computers: 1})
 
-        with patch("spacesim2.core.commands.random.random", return_value=0.9):
+        with patch("spacesim.core.commands.random.random", return_value=0.9):
             assert ProcessCommand("make_widgets").execute(actor) is True
 
         # 4 base output, +25% for the held computer.
@@ -115,7 +115,7 @@ class TestCapitalInExecution:
         workshop = process.facilities_required[0]
         actor = _process_actor(process, {metal: 1, workshop: 1})
 
-        with patch("spacesim2.core.commands.random.random", return_value=0.9):
+        with patch("spacesim.core.commands.random.random", return_value=0.9):
             assert ProcessCommand("make_widgets").execute(actor) is True
 
         assert actor.inventory.get_quantity(widget) == 4
@@ -131,7 +131,7 @@ class TestCapitalInExecution:
             process, {metal: 1, workshop: 1, computers: 1, robots: 1}
         )
 
-        with patch("spacesim2.core.commands.random.random", return_value=0.9):
+        with patch("spacesim.core.commands.random.random", return_value=0.9):
             ProcessCommand("make_widgets").execute(actor)
 
         assert actor.inventory.get_quantity(widget) == 6  # 4 * 1.5
@@ -144,7 +144,7 @@ class TestCapitalInExecution:
         actor = _process_actor(process, {metal: 5, workshop: 1, computers: 1})
 
         with patch(
-            "spacesim2.core.commands.random.random",
+            "spacesim.core.commands.random.random",
             return_value=CAPITAL_BREAK_PROBABILITY / 2,
         ):
             ProcessCommand("make_widgets").execute(actor)
@@ -158,7 +158,7 @@ class TestCapitalInExecution:
         workshop = process.facilities_required[0]
         actor = _process_actor(process, {metal: 5, workshop: 1, computers: 1})
 
-        with patch("spacesim2.core.commands.random.random", return_value=0.9):
+        with patch("spacesim.core.commands.random.random", return_value=0.9):
             ProcessCommand("make_widgets").execute(actor)
 
         assert actor.inventory.get_quantity(computers) == 1

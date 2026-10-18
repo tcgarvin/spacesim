@@ -9,23 +9,23 @@ and that the delivery-bid price moved to the navigator without changing.
 
 import math
 
-from spacesim2.core.actor import Actor, ActorType
-from spacesim2.core.brains import dealer
-from spacesim2.core.brains.spaceport_operator import (
+from spacesim.core.actor import Actor, ActorType
+from spacesim.core.brains import dealer
+from spacesim.core.brains.spaceport_operator import (
     CONDITION_ASK_FLOOR,
     INVENTORY_SKEW_CAP,
     SpaceportOperatorBrain,
 )
-from spacesim2.core.commands import PlaceBuyOrderCommand, PlaceSellOrderCommand
-from spacesim2.core.commodity import CommodityDefinition, CommodityRegistry
-from spacesim2.core.drives.facility_upkeep_drive import FacilityUpkeepDrive
-from spacesim2.core.facility import FacilityDefinition, FailureType, UpkeepSpec
-from spacesim2.core.galaxy import StarLaneNetwork
-from spacesim2.core.market import Market
-from spacesim2.core.navigation import get_navigator
-from spacesim2.core.planet import Planet
-from spacesim2.core.ship import FUEL_MILLI, Ship, fuel_capacity_for, milli_to_units_ceil
-from spacesim2.core.simulation import Simulation
+from spacesim.core.commands import PlaceBuyOrderCommand, PlaceSellOrderCommand
+from spacesim.core.commodity import CommodityDefinition, CommodityRegistry
+from spacesim.core.drives.facility_upkeep_drive import FacilityUpkeepDrive
+from spacesim.core.facility import FacilityDefinition, FailureType, UpkeepSpec
+from spacesim.core.galaxy import StarLaneNetwork
+from spacesim.core.market import Market
+from spacesim.core.navigation import get_navigator
+from spacesim.core.planet import Planet
+from spacesim.core.ship import FUEL_MILLI, Ship, fuel_capacity_for, milli_to_units_ceil
+from spacesim.core.simulation import Simulation
 
 _COMMODITIES = [
     ("nova_fuel", "NovaFuel"),
@@ -451,7 +451,7 @@ def test_sixty_turn_smoke_leaves_an_operator_in_the_fuel_market():
 
 def _legacy_fuel_bid_price(navigator, planet, quantity):
     """The pre-move TraderBrain formula, inlined so the move can be checked."""
-    from spacesim2.core.navigation import (
+    from spacesim.core.navigation import (
         DELIVERER_WORST_FUEL_EFFICIENCY,
         FUEL_BID_MARGIN,
     )
@@ -584,7 +584,7 @@ def test_delivery_price_falls_back_to_dealer_asks_when_nobody_produces():
 
 def _legacy_fuel_bid_price_from(navigator, planet, source, ask, quantity):
     """Delivered bid price anchored on one named source, for comparison."""
-    from spacesim2.core.navigation import (
+    from spacesim.core.navigation import (
         DELIVERER_WORST_FUEL_EFFICIENCY,
         FUEL_BID_MARGIN,
     )

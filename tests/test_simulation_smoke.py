@@ -11,13 +11,13 @@ from typing import Dict, List, Tuple
 
 import pytest
 
-from spacesim2.analysis.summary import (
+from spacesim.analysis.summary import (
     _DRIVE_HEALTH_THRESHOLDS,
     _LATE_RUN_TURNS,
     compute_summary,
 )
-from spacesim2.cli.common import create_and_setup_simulation
-from spacesim2.core import planet_attributes
+from spacesim.cli.common import create_and_setup_simulation
+from spacesim.core import planet_attributes
 
 
 @pytest.fixture(scope="module")

@@ -8,14 +8,14 @@ import math
 
 import pytest
 
-from spacesim2.core.planet import Planet
-from spacesim2.core.ship import Ship, ShipStatus, units_to_milli
-from spacesim2.core.simulation import Simulation
-from spacesim2.ui.live.camera import FIT_MARGIN, Camera
-from spacesim2.ui.live.director import Director, polyline_point
-from spacesim2.ui.live.history import HistoryRecorder
-from spacesim2.ui.live.view_model import GalaxyViewModel
-from spacesim2.ui.live.worker import SimulationWorker
+from spacesim.core.planet import Planet
+from spacesim.core.ship import Ship, ShipStatus, units_to_milli
+from spacesim.core.simulation import Simulation
+from spacesim.ui.live.camera import FIT_MARGIN, Camera
+from spacesim.ui.live.director import Director, polyline_point
+from spacesim.ui.live.history import HistoryRecorder
+from spacesim.ui.live.view_model import GalaxyViewModel
+from spacesim.ui.live.worker import SimulationWorker
 
 
 def _sim(num_planets: int = 12) -> Simulation:

@@ -3,7 +3,7 @@
 Compares labor allocation, food stocks, money, and drive metrics on
 biomass-poor planets (attribute 0.2-0.3) against biomass-rich ones (> 0.8).
 
-    uv run spacesim2 dev analyze notebooks/poor_planet_food.py --run data/runs/run_20260907_103052
+    uv run spacesim dev analyze notebooks/poor_planet_food.py --run data/runs/run_20260907_103052
 """
 
 import json
@@ -11,7 +11,7 @@ from pathlib import Path
 
 import polars as pl
 
-from spacesim2.analysis.loading import get_run_path_with_fallback
+from spacesim.analysis.loading import get_run_path_with_fallback
 
 RUN = Path(get_run_path_with_fallback())
 print(f"run: {RUN}")

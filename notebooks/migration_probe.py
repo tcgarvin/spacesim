@@ -20,10 +20,10 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from spacesim2.cli.common import create_and_setup_simulation
-from spacesim2.core.actor import Actor
-from spacesim2.core.drives.prosperity_drive import prosperity_index
-from spacesim2.core.simulation import Simulation
+from spacesim.cli.common import create_and_setup_simulation
+from spacesim.core.actor import Actor
+from spacesim.core.drives.prosperity_drive import prosperity_index
+from spacesim.core.simulation import Simulation
 
 DEFAULT_TURNS = 400
 DEFAULT_PLANETS = 12

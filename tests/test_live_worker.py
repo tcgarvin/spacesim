@@ -14,13 +14,13 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 import pygame  # noqa: E402
 import pytest  # noqa: E402
 
-from spacesim2.core.simulation import Simulation  # noqa: E402
-from spacesim2.ui.live import view_model as view_model_module  # noqa: E402
-from spacesim2.ui.live.app import LiveGalaxyApp  # noqa: E402
-from spacesim2.ui.live.director import Director  # noqa: E402
-from spacesim2.ui.live.history import HistoryRecorder  # noqa: E402
-from spacesim2.ui.live.view_model import GalaxyViewModel  # noqa: E402
-from spacesim2.ui.live.worker import SimulationWorker  # noqa: E402
+from spacesim.core.simulation import Simulation  # noqa: E402
+from spacesim.ui.live import view_model as view_model_module  # noqa: E402
+from spacesim.ui.live.app import LiveGalaxyApp  # noqa: E402
+from spacesim.ui.live.director import Director  # noqa: E402
+from spacesim.ui.live.history import HistoryRecorder  # noqa: E402
+from spacesim.ui.live.view_model import GalaxyViewModel  # noqa: E402
+from spacesim.ui.live.worker import SimulationWorker  # noqa: E402
 
 
 def _sim(planets: int = 3) -> Simulation:

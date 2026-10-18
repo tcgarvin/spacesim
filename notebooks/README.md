@@ -7,7 +7,7 @@ dashboard. The `sim-evaluation` skill explains the tiers.
 
 - `scratch_template.py`: Tier 1a. Loads the latest exported run with
   `load_run()` and prints Polars aggregates. Run with
-  `uv run spacesim2 dev analyze notebooks/my_question.py`.
+  `uv run spacesim dev analyze notebooks/my_question.py`.
 - `probe_template.py`: Tier 1b. Builds its own simulation, samples a
   classifier every N turns, writes one JSON file. Run with
   `uv run python notebooks/my_probe.py --turns 200 --planets 12 --out tmp/my_probe.json`.
@@ -38,7 +38,7 @@ the others read the latest export through `dev analyze`.
 drive metrics). Open it with:
 
 ```bash
-uv run spacesim2 run --notebook              # run + auto-open
+uv run spacesim run --notebook              # run + auto-open
 # or against an existing run:
 uv run marimo edit --no-token notebooks/analysis_template.py
 ```
@@ -97,4 +97,4 @@ Each run under `data/runs/run_TIMESTAMP/` contains Parquet files:
   `departures`, `refuel_stops`, `pickup_stops`, `last_departure_turn`
 
 plus `metadata.json`, `planet_attributes.json` and `galaxy.json`. Load the
-Parquet files with `from spacesim2.analysis.loading import load_run`.
+Parquet files with `from spacesim.analysis.loading import load_run`.

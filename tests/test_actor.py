@@ -1,4 +1,4 @@
-from spacesim2.core.actor import Actor, ActorType
+from spacesim.core.actor import Actor, ActorType
 
 from .helpers import get_actor
 
@@ -18,7 +18,7 @@ def test_actor_government_work() -> None:
     """GovernmentWorkCommand pays the actor the government wage."""
     actor = get_actor(initial_money=0)
 
-    from spacesim2.core.commands import GovernmentWorkCommand
+    from spacesim.core.commands import GovernmentWorkCommand
 
     command = GovernmentWorkCommand()
     command.execute(actor)

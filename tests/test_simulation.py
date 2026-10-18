@@ -1,10 +1,10 @@
 import pytest
 
-from spacesim2.core.actor import ActorType
-from spacesim2.core.commodity import CommodityDefinition, CommodityRegistry
-from spacesim2.core.market import Market
-from spacesim2.core.planet import Planet
-from spacesim2.core.simulation import Simulation
+from spacesim.core.actor import ActorType
+from spacesim.core.commodity import CommodityDefinition, CommodityRegistry
+from spacesim.core.market import Market
+from spacesim.core.planet import Planet
+from spacesim.core.simulation import Simulation
 
 from .helpers import get_actor
 
@@ -28,7 +28,7 @@ def test_actor_government_work() -> None:
     actor = get_actor("Test Actor", mock_sim, initial_money=0)
     initial_money = actor.money
 
-    from spacesim2.core.commands import GovernmentWorkCommand
+    from spacesim.core.commands import GovernmentWorkCommand
 
     command = GovernmentWorkCommand()
     command.execute(actor)
@@ -128,7 +128,7 @@ class SimulationTestHelper:
             actor_type=ActorType.REGULAR,
         )
 
-        from spacesim2.core.commands import GovernmentWorkCommand
+        from spacesim.core.commands import GovernmentWorkCommand
 
         actor.brain.decide_economic_action = lambda _: GovernmentWorkCommand()
 
@@ -148,7 +148,7 @@ def test_simulation_run_turn() -> None:
 
     initial_turn = sim.current_turn
 
-    from spacesim2.core.commands import GovernmentWorkCommand
+    from spacesim.core.commands import GovernmentWorkCommand
 
     command = GovernmentWorkCommand()
     command.execute(actor)

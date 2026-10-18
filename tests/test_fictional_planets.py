@@ -1,7 +1,7 @@
 import math
 import random
 
-from spacesim2.core.simulation import Simulation
+from spacesim.core.simulation import Simulation
 
 
 class TestFictionalPlanets:

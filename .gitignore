@@ -61,7 +61,7 @@ coverage.xml
 tmp/
 
 # Asset pipeline (dev-only): raw/candidate generations and tool-local secrets.
-# Promoted runtime sprites under spacesim2/ui/live/assets/ ARE committed.
+# Promoted runtime sprites under spacesim/ui/live/assets/ ARE committed.
 tools/assetgen/staging/
 tools/assetgen/.env
 

@@ -2,19 +2,19 @@ from unittest.mock import Mock
 
 import pytest
 
-from spacesim2.core.actor import Actor, ActorType
-from spacesim2.core.brains.colonist import ColonistBrain
-from spacesim2.core.commands import (
+from spacesim.core.actor import Actor, ActorType
+from spacesim.core.brains.colonist import ColonistBrain
+from spacesim.core.commands import (
     PlaceBuyOrderCommand,
     ProcessCommand,
 )
-from spacesim2.core.commodity import (
+from spacesim.core.commodity import (
     CommodityDefinition,
     CommodityRegistry,
     Inventory,
 )
-from spacesim2.core.drives.food_drive import FoodDrive
-from spacesim2.core.process import ProcessDefinition
+from spacesim.core.drives.food_drive import FoodDrive
+from spacesim.core.process import ProcessDefinition
 
 
 def _real_registry() -> CommodityRegistry:

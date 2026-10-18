@@ -29,10 +29,10 @@ The printed table buckets planets by biomass mean and is the KPI to read.
 
 Run (threaded actor phase, free-threaded interpreter):
 
-    /home/timg/code/spacesim2/.venv-ft/bin/python \
-        /home/timg/code/spacesim2/notebooks/food_security_probe.py \
+    /home/timg/code/spacesim/.venv-ft/bin/python \
+        /home/timg/code/spacesim/notebooks/food_security_probe.py \
         --turns 600 --planets 100 --warmup 100 --sample-every 50 \
-        --workers 12 --out /home/timg/code/spacesim2/tmp/food_security.json
+        --workers 12 --out /home/timg/code/spacesim/tmp/food_security.json
 """
 
 import argparse
@@ -43,16 +43,16 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-from spacesim2.cli.common import create_and_setup_simulation
-from spacesim2.core import migration as migration_module
-from spacesim2.core.actor import ActorType
-from spacesim2.core.commodity import CommodityDefinition
-from spacesim2.core.contracts import PassengerPayload
-from spacesim2.core.market import Market
-from spacesim2.core.migration import MigrationRequest
-from spacesim2.core.planet import Planet
-from spacesim2.core.ship import Ship
-from spacesim2.core.simulation import Simulation
+from spacesim.cli.common import create_and_setup_simulation
+from spacesim.core import migration as migration_module
+from spacesim.core.actor import ActorType
+from spacesim.core.commodity import CommodityDefinition
+from spacesim.core.contracts import PassengerPayload
+from spacesim.core.market import Market
+from spacesim.core.migration import MigrationRequest
+from spacesim.core.planet import Planet
+from spacesim.core.ship import Ship
+from spacesim.core.simulation import Simulation
 
 FOOD_IDS = ("food", "processed_food")
 FOOD_DRIVE_NAME = "food"

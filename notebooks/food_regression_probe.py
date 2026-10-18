@@ -30,17 +30,17 @@ import sys
 from collections import Counter
 from typing import Any, Dict, List
 
-from spacesim2.core.actor import ActorType
-from spacesim2.core.actor_brain import ActorBrain
-from spacesim2.core.commands import ProcessCommand
-from spacesim2.core.drives.food_drive import FoodDrive
-from spacesim2.core.drives.prosperity_drive import (
+from spacesim.core.actor import ActorType
+from spacesim.core.actor_brain import ActorBrain
+from spacesim.core.commands import ProcessCommand
+from spacesim.core.drives.food_drive import FoodDrive
+from spacesim.core.drives.prosperity_drive import (
     GATE_MAX_DEBT,
     GATE_MIN_BUFFER,
     PROSPERITY_CATEGORIES,
 )
-from spacesim2.core.market import Market
-from spacesim2.core.simulation import Simulation
+from spacesim.core.market import Market
+from spacesim.core.simulation import Simulation
 
 DEFAULT_TURNS = 450
 DEFAULT_PLANETS = 12

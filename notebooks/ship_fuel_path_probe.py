@@ -27,11 +27,11 @@ from pathlib import Path
 from statistics import median
 from typing import Any, Optional
 
-from spacesim2.cli.common import create_and_setup_simulation
-from spacesim2.core import ship as ship_mod
-from spacesim2.core.market import Market
-from spacesim2.core.navigation import get_navigator
-from spacesim2.core.ship import (
+from spacesim.cli.common import create_and_setup_simulation
+from spacesim.core import ship as ship_mod
+from spacesim.core.market import Market
+from spacesim.core.navigation import get_navigator
+from spacesim.core.ship import (
     FUEL_BUNKER_PREMIUM,
     FUEL_MILLI,
     Ship,

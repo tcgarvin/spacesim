@@ -1,11 +1,11 @@
 """Trade and commodity-consumption probe: which cylinders fire, which don't.
 
-Run: uv run spacesim2 dev analyze notebooks/trade_consumption_probe.py
+Run: uv run spacesim dev analyze notebooks/trade_consumption_probe.py
 """
 
 import polars as pl
 
-from spacesim2.analysis.loading import load_run
+from spacesim.analysis.loading import load_run
 
 r = load_run()
 tx = r.market_transactions

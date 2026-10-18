@@ -14,11 +14,11 @@ import statistics
 from collections import Counter
 from typing import Any, Dict, List
 
-from spacesim2.cli.common import create_and_setup_simulation
-from spacesim2.core import commands as commands_mod
-from spacesim2.core.actor_brain import ActorBrain, BrainCache
-from spacesim2.core.drives import prosperity_drive as pd_mod
-from spacesim2.core.drives.prosperity_drive import ProsperityCategory, ProsperityDrive
+from spacesim.cli.common import create_and_setup_simulation
+from spacesim.core import commands as commands_mod
+from spacesim.core.actor_brain import ActorBrain, BrainCache
+from spacesim.core.drives import prosperity_drive as pd_mod
+from spacesim.core.drives.prosperity_drive import ProsperityCategory, ProsperityDrive
 
 FOOD_LABOR = {"make_food", "gather_biomass", "farm_biomass", "process_food"}
 MED_LABOR = {

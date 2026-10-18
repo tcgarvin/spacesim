@@ -8,8 +8,8 @@
   liquidates tank fuel above its survival target to trade its way back.
 """
 
-from spacesim2.core.navigation import get_navigator
-from spacesim2.core.ship import (
+from spacesim.core.navigation import get_navigator
+from spacesim.core.ship import (
     BASE_FUEL_CAPACITY,
     DISTRESS_PATIENCE,
     SHIP_CAPITAL_FLOOR,
@@ -18,7 +18,7 @@ from spacesim2.core.ship import (
     mean_round_trip_fuel,
     starting_capital,
 )
-from spacesim2.core.simulation import Simulation
+from spacesim.core.simulation import Simulation
 from tests.test_ship_fuel import _make_ship, _make_world
 
 # Mean lane routes, in map units, of a small and a large galaxy. Measured

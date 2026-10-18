@@ -30,7 +30,7 @@ rule, and the spawn queue are landing alongside this entry; see
 The user wants planets that cannot grow their own food. The biomass planet
 mean stays a uniform draw, but the lower bound goes negative and negative
 draws clamp to exactly 0.0. `BIOMASS_DRAW_LOW` in
-`spacesim2/core/planet_attributes.py` is -0.2, so the share of barren
+`spacesim/core/planet_attributes.py` is -0.2, so the share of barren
 planets is `-low / (1 - low)` = 1/6. Tune the share by changing that one
 constant.
 
@@ -64,8 +64,8 @@ and the migration land terms and the JSON exports only add and compare.
 ## 2026-09-13 - Sims run free-threaded with --workers 12 by default
 
 Sim runs and `dev ab` now use the free-threaded side venv
-(`.venv-ft/bin/python -m spacesim2.cli.main run --workers 12`) instead of
-serial `uv run spacesim2 run`, for speed. 12 is the dev laptop's physical
+(`.venv-ft/bin/python -m spacesim.cli.main run --workers 12`) instead of
+serial `uv run spacesim run`, for speed. 12 is the dev laptop's physical
 core count, the cap so other loads on the box keep headroom.
 
 | Check | Result |
@@ -910,7 +910,7 @@ Found on the way:
   sim loads `data/` relative to the current directory, so the before arm
   ran old code against the working tree's YAML (fixed in c3e57ec). Every
   earlier A/B whose change touched `data/` is suspect.
-- Inside a git worktree, `uv run ... spacesim2 run` resolves the package
+- Inside a git worktree, `uv run ... spacesim run` resolves the package
   through the editable install and executes the primary checkout's code;
   measure on main after merging, or set `PYTHONPATH` to the worktree.
 - The flip's health and shelter regression was labor, not the numeraire:
@@ -1400,7 +1400,7 @@ tiers. Medicine variance follow-up is in `TODO.md`.
 ## 2026-07-11 - Live galaxy view replaces the 3-pane inspector
 
 Built (f4ebb7b to f8f686b). The static pygame inspector was deleted for a
-live MOO-II-style galaxy view (`spacesim2/ui/live/`). Art comes from an
+live MOO-II-style galaxy view (`spacesim/ui/live/`). Art comes from an
 offline asset pipeline (`tools/assetgen/`) with a palette-snap
 post-process; runtime loads only committed PNGs. See `docs/live-view.md`.
 

@@ -3,17 +3,17 @@
 Parts 1, 2, 5: ship share of volume over time, per-trip economics
 reconstructed by FIFO lot matching, and what the fleet actually carries.
 
-Run: uv run spacesim2 dev analyze notebooks/ship_trade_volume_probe.py
+Run: uv run spacesim dev analyze notebooks/ship_trade_volume_probe.py
 """
 
 from collections import defaultdict, deque
 
 import polars as pl
 
-from spacesim2.analysis.loading import load_run
+from spacesim.analysis.loading import load_run
 
 SHIP_PAT = r"^Trader-\d+$"
-CARGO_CAPACITY = 100  # Ship.cargo_capacity default, spacesim2/core/ship.py
+CARGO_CAPACITY = 100  # Ship.cargo_capacity default, spacesim/core/ship.py
 
 run = load_run()
 tx = run.market_transactions

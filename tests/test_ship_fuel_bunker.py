@@ -9,7 +9,7 @@
   same stop.
 """
 
-from spacesim2.core.ship import (
+from spacesim.core.ship import (
     ACCUMULATION_PATIENCE,
     FUEL_BUNKER_BUDGET_FRACTION,
     FUEL_BUNKER_BUDGET_FRACTION_CHEAP,

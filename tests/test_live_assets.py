@@ -13,7 +13,7 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
 import pygame  # noqa: E402
 
-from spacesim2.ui.live.assets import (  # noqa: E402
+from spacesim.ui.live.assets import (  # noqa: E402
     GoodIcons,
     ShipSprites,
     _slice_strip,

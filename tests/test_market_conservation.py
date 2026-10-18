@@ -2,9 +2,9 @@ from typing import Tuple
 
 import pytest
 
-from spacesim2.core.actor import Actor
-from spacesim2.core.commodity import CommodityDefinition, CommodityRegistry
-from spacesim2.core.market import Market
+from spacesim.core.actor import Actor
+from spacesim.core.commodity import CommodityDefinition, CommodityRegistry
+from spacesim.core.market import Market
 
 from .helpers import get_actor
 

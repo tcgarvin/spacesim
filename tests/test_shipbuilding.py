@@ -9,14 +9,14 @@ from unittest.mock import Mock
 
 import pytest
 
-from spacesim2.core.actor import Actor, ActorType
-from spacesim2.core.brains.industrialist import ENTRY_MARGIN, IndustrialistBrain
-from spacesim2.core.commands import PlaceSellOrderCommand, ProcessCommand
-from spacesim2.core.commodity import CommodityRegistry
-from spacesim2.core.drives.food_drive import FoodDrive, food_pantry_units
-from spacesim2.core.market import Market
-from spacesim2.core.process import ProcessDefinition, ProcessRegistry
-from spacesim2.core.simulation import Simulation
+from spacesim.core.actor import Actor, ActorType
+from spacesim.core.brains.industrialist import ENTRY_MARGIN, IndustrialistBrain
+from spacesim.core.commands import PlaceSellOrderCommand, ProcessCommand
+from spacesim.core.commodity import CommodityRegistry
+from spacesim.core.drives.food_drive import FoodDrive, food_pantry_units
+from spacesim.core.market import Market
+from spacesim.core.process import ProcessDefinition, ProcessRegistry
+from spacesim.core.simulation import Simulation
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 

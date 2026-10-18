@@ -10,14 +10,14 @@ from typing import TYPE_CHECKING, Optional, cast
 
 import pytest
 
-from spacesim2.core.actor import Actor, ActorType
-from spacesim2.core.actor_brain import ActorBrain
-from spacesim2.core.brains import SpaceportOperatorBrain
-from spacesim2.core.contracts import ContractStatus, PassengerPayload
-from spacesim2.core.government import GOVERNMENT_JOB_MARGIN
-from spacesim2.core.land import Land, NoFreeLandError
-from spacesim2.core.market import Market
-from spacesim2.core.migration import (
+from spacesim.core.actor import Actor, ActorType
+from spacesim.core.actor_brain import ActorBrain
+from spacesim.core.brains import SpaceportOperatorBrain
+from spacesim.core.contracts import ContractStatus, PassengerPayload
+from spacesim.core.government import GOVERNMENT_JOB_MARGIN
+from spacesim.core.land import Land, NoFreeLandError
+from spacesim.core.market import Market
+from spacesim.core.migration import (
     NO_MIGRATION,
     PASSAGE_CONTRACT_TTL,
     PASSAGE_FARE_MARGIN,
@@ -27,13 +27,13 @@ from spacesim2.core.migration import (
     refresh_planet_stats,
     run_migration_phase,
 )
-from spacesim2.core.navigation import FUEL_BID_FALLBACK_FLOOR
-from spacesim2.core.planet import Planet
-from spacesim2.core.ship import Ship
-from spacesim2.core.simulation import Simulation
+from spacesim.core.navigation import FUEL_BID_FALLBACK_FLOOR
+from spacesim.core.planet import Planet
+from spacesim.core.ship import Ship
+from spacesim.core.simulation import Simulation
 
 if TYPE_CHECKING:
-    from spacesim2.core.navigation import Navigator
+    from spacesim.core.navigation import Navigator
 
 
 class StayPutBrain(ActorBrain):

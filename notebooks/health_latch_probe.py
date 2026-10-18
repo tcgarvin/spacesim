@@ -13,10 +13,10 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
-from spacesim2.cli.common import create_and_setup_simulation
-from spacesim2.core import actor_brain as ab_mod
-from spacesim2.core.actor import ActorType
-from spacesim2.core.actor_brain import ActorBrain, BrainCache
+from spacesim.cli.common import create_and_setup_simulation
+from spacesim.core import actor_brain as ab_mod
+from spacesim.core.actor import ActorType
+from spacesim.core.actor_brain import ActorBrain, BrainCache
 
 DEBT_THRESHOLD = 0.25
 BID_WINDOW = 10

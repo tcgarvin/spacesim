@@ -35,15 +35,15 @@ import sys
 from collections import Counter, defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
-from spacesim2.core.actor import Actor, ActorType
-from spacesim2.core.actor_brain import ActorBrain
-from spacesim2.core.brains.industrialist import IndustrialistBrain
-from spacesim2.core.commands import PlaceBuyOrderCommand
-from spacesim2.core.drives.health_drive import HealthDrive
-from spacesim2.core.drives.prosperity_drive import ProsperityDrive
-from spacesim2.core.drives.shelter_drive import ShelterDrive
-from spacesim2.core.market import Market
-from spacesim2.core.simulation import Simulation
+from spacesim.core.actor import Actor, ActorType
+from spacesim.core.actor_brain import ActorBrain
+from spacesim.core.brains.industrialist import IndustrialistBrain
+from spacesim.core.commands import PlaceBuyOrderCommand
+from spacesim.core.drives.health_drive import HealthDrive
+from spacesim.core.drives.prosperity_drive import ProsperityDrive
+from spacesim.core.drives.shelter_drive import ShelterDrive
+from spacesim.core.market import Market
+from spacesim.core.simulation import Simulation
 
 DEFAULT_TURNS = 450
 DEFAULT_PLANETS = 12
@@ -172,7 +172,7 @@ def install_patches(disable_food_bound: bool, sim_box: Dict[str, Any]) -> None:
         return result, bool(draws) and draws[0] < prob
 
     def shelter_tick(self: ShelterDrive, actor: Any) -> Any:
-        from spacesim2.core.drives import shelter_drive as sd
+        from spacesim.core.drives import shelter_drive as sd
 
         stock = actor.inventory.get_available_quantity(self.building_materials)
         quality = (
@@ -189,7 +189,7 @@ def install_patches(disable_food_bound: bool, sim_box: Dict[str, Any]) -> None:
         return result
 
     def health_tick(self: HealthDrive, actor: Any) -> Any:
-        from spacesim2.core.drives import health_drive as hd
+        from spacesim.core.drives import health_drive as hd
 
         stock = (
             actor.inventory.get_available_quantity(self.medicine)

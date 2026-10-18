@@ -4,22 +4,22 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, cast
 
 import pytest
 
-from spacesim2.core.actor import Actor, ActorType
-from spacesim2.core.brains import migration as mig
-from spacesim2.core.brains.colonist import ColonistBrain
-from spacesim2.core.brains.industrialist import IndustrialistBrain
-from spacesim2.core.commands import PlaceBuyOrderCommand, PlaceSellOrderCommand
-from spacesim2.core.contracts import Contract, ContractStatus, PassengerPayload
-from spacesim2.core.drives.food_drive import FoodDrive
-from spacesim2.core.land import Land
-from spacesim2.core.market import Market
-from spacesim2.core.migration import MigrationRequest, NoMigration, PlanetStats
-from spacesim2.core.planet import Planet
-from spacesim2.core.planet_attributes import PlanetAttributes
-from spacesim2.core.simulation import Simulation
+from spacesim.core.actor import Actor, ActorType
+from spacesim.core.brains import migration as mig
+from spacesim.core.brains.colonist import ColonistBrain
+from spacesim.core.brains.industrialist import IndustrialistBrain
+from spacesim.core.commands import PlaceBuyOrderCommand, PlaceSellOrderCommand
+from spacesim.core.contracts import Contract, ContractStatus, PassengerPayload
+from spacesim.core.drives.food_drive import FoodDrive
+from spacesim.core.land import Land
+from spacesim.core.market import Market
+from spacesim.core.migration import MigrationRequest, NoMigration, PlanetStats
+from spacesim.core.planet import Planet
+from spacesim.core.planet_attributes import PlanetAttributes
+from spacesim.core.simulation import Simulation
 
 if TYPE_CHECKING:
-    from spacesim2.core.navigation import Navigator
+    from spacesim.core.navigation import Navigator
 
 
 class StubNavigator:
