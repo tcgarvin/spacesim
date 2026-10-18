@@ -1,0 +1,9 @@
+{
+  "ships": [
+    {
+      "id": "freighter",
+      "frames": 8,
+      "size": 64
+    }
+  ]
+}

@@ -1,0 +1,247 @@
+- id: biomass
+  name: Biomass
+  transportable: true
+  description: Organic matter gathered from the local environment.
+
+- id: food
+  name: Food
+  transportable: true
+  description: Basic nourishment required by actors.
+
+- id: common_metal_ore
+  name: Common Metal Ore
+  transportable: true
+  description: Unrefined ore containing usable industrial metals.
+
+- id: common_metal
+  name: Common Metal
+  transportable: true
+  description: Refined metal suitable for construction and tool-making.
+
+- id: simple_tools
+  name: Simple Tools
+  transportable: true
+  description: Basic hand tools used in simple production processes.
+
+- id: smelting_facility
+  name: Smelting Facility
+  transportable: false
+  description: Stationary infrastructure for refining metal ores.
+
+- id: nova_fuel
+  name: NovaFuel
+  transportable: true
+  description: High-density energy source for starship travel.
+
+- id: nova_fuel_ore
+  name: NovaFuel Ore
+  transportable: true
+  description: Ore containing volatile compounds that refine into NovaFuel.
+
+- id: simple_building_materials
+  name: Simple Building Materials
+  transportable: true
+  description: Basic materials for constructing primitive structures.
+
+- id: metalworking_facility
+  name: Metalworking Facility
+  transportable: false
+  description: Static infrastructure for shaping metals and fabricating tools.
+
+- id: wood
+  name: Wood
+  transportable: true
+  description: Timber harvested from planetary forests, used for basic shelter construction.
+
+- id: fiber
+  name: Fiber
+  transportable: true
+  description: Raw plant fibers gathered from local vegetation, used to make clothing.
+
+- id: clothing
+  name: Clothing
+  transportable: true
+  description: Basic garments needed for protection and comfort.
+
+- id: silica
+  name: Silica
+  transportable: true
+  description: Sandy mineral used in glass-making and construction.
+
+- id: rare_earth_ore
+  name: Rare Earth Ore
+  transportable: true
+  description: Scarce mineral deposits containing elements vital for electronics.
+
+- id: chemicals
+  name: Chemicals
+  transportable: true
+  description: Basic chemical compounds derived from organic matter.
+
+- id: glass
+  name: Glass
+  transportable: true
+  description: Transparent material smelted from silica, used in construction and optics.
+
+- id: ship_supplies
+  name: Ship Supplies
+  transportable: true
+  description: Basic maintenance materials for keeping starships operational.
+
+# --- Tier 2 Facilities ---
+
+- id: textile_mill
+  name: Textile Mill
+  transportable: false
+  description: Industrial facility for processing raw fibers into finished textiles.
+
+- id: chemistry_lab
+  name: Chemistry Lab
+  transportable: false
+  description: Laboratory for refining chemicals and synthesizing advanced compounds.
+
+- id: chemical_plant
+  name: Chemical Plant
+  transportable: false
+  description: Industrial-scale plant for bulk chemical and food processing.
+
+- id: precision_forge
+  name: Precision Forge
+  transportable: false
+  description: Specialized metalworking facility for crafting precision components.
+
+- id: electronics_workshop
+  name: Electronics Workshop
+  transportable: false
+  description: Workshop equipped for assembling electronic components and circuits.
+
+- id: farm
+  name: Farm
+  transportable: false
+  description: An industrial farm that grows biomass at scale; needs heavy machinery to keep running.
+
+# --- Tier 2 Intermediates ---
+
+- id: textiles
+  name: Textiles
+  transportable: true
+  description: Machine-processed fabrics suitable for quality garments and industrial use.
+
+- id: refined_chemicals
+  name: Refined Chemicals
+  transportable: true
+  description: Purified chemical compounds used in medicine, food processing, and manufacturing.
+
+- id: precision_parts
+  name: Precision Parts
+  transportable: true
+  description: Finely machined metal components for advanced machinery and electronics.
+
+- id: electronics
+  name: Electronics
+  transportable: true
+  description: Circuit assemblies combining rare earth elements, glass, and precision parts.
+
+- id: rare_earth
+  name: Rare Earth Elements
+  transportable: true
+  description: Refined rare earth elements essential for electronics and luxury goods.
+
+- id: polymers
+  name: Polymers
+  transportable: true
+  description: Synthetic materials derived from chemical processing of hydrocarbons.
+
+- id: precision_tools
+  name: Precision Tools
+  transportable: true
+  description: High-quality tools for advanced manufacturing requiring fine tolerances.
+
+- id: heavy_machinery
+  name: Heavy Machinery
+  transportable: true
+  description: Industrial machinery that keeps farms and plants running; consumed as upkeep.
+
+# --- Tier 2 Consumer Goods ---
+
+- id: processed_food
+  name: Processed Food
+  transportable: true
+  description: Chemically preserved and enhanced food with superior nutritional value.
+
+- id: quality_clothing
+  name: Quality Clothing
+  transportable: true
+  description: Well-crafted garments made from industrial textiles with chemical treatments.
+
+- id: medicine
+  name: Medicine
+  transportable: true
+  description: Pharmaceutical compounds for treating illness and maintaining health.
+
+- id: prefab_housing
+  name: Prefab Housing
+  transportable: true
+  description: Pre-fabricated housing modules combining building materials, polymers, and glass.
+
+# --- Ship Maintenance Tiers ---
+
+- id: ship_parts
+  name: Ship Parts
+  transportable: true
+  description: Engineered replacement components for starship systems.
+
+- id: ship_components
+  name: Ship Components
+  transportable: true
+  description: Advanced integrated ship modules with electronic control systems.
+
+- id: ship_hull_section
+  name: Ship Hull Section
+  transportable: true
+  description: Prefabricated hull segment; several are fitted together into a starship hull.
+
+- id: ship_hull
+  name: Ship Hull
+  transportable: false
+  tradable: true
+  description: A complete starship hull. Too large to carry as cargo, so it trades only on the market of the planet that built it.
+
+# --- Tier 3 Facilities ---
+
+- id: advanced_factory
+  name: Advanced Factory
+  transportable: false
+  description: State-of-the-art automated manufacturing facility for producing advanced goods.
+
+- id: spaceport
+  name: Spaceport
+  transportable: false
+  description: Ground spaceport with fuel storage and landing pads.
+
+- id: shipyard
+  name: Shipyard
+  transportable: false
+  description: Heavy assembly hall for fitting starship hulls out of prefabricated sections.
+
+# --- Tier 3 Advanced Goods ---
+
+- id: advanced_building_materials
+  name: Advanced Building Materials
+  transportable: true
+  description: Composite construction materials combining metal, polymers, and glass.
+
+- id: computers
+  name: Computers
+  transportable: true
+  description: Programmable computing devices for automation and data processing.
+
+- id: luxury_goods
+  name: Luxury Goods
+  transportable: true
+  description: High-value items crafted from rare materials for discerning consumers.
+
+- id: advanced_medicine
+  name: Advanced Medicine
+  transportable: true
+  description: Electronically-enhanced medical treatments for superior health outcomes.

@@ -1,0 +1,821 @@
+- id: gather_biomass
+  name: Gather Biomass
+  inputs: {}
+  outputs:
+    biomass: 8
+  tools_required: []
+  facilities_required: []
+  labor: 1
+  relevant_skills:
+    - agriculture
+  description: Collects biomass from the natural environment.
+  resource_attribute:
+    commodity: biomass
+    effect: output
+
+- id: farm_biomass
+  name: Farm Biomass
+  inputs:
+    chemicals: 1
+  outputs:
+    biomass: 64
+  tools_required:
+    - simple_tools
+  facilities_required:
+    - farm
+  labor: 1
+  relevant_skills:
+    - agriculture
+  description: Grows biomass at industrial scale in a powered farm.
+  resource_attribute:
+    commodity: biomass
+    effect: output
+  upkeep:
+    heavy_machinery: 0.01
+  capital:
+    computers: 0.25
+
+- id: make_building_materials_wood
+  name: Make Building Materials (Wood)
+  inputs:
+    wood: 2
+  outputs:
+    simple_building_materials: 1
+  tools_required:
+    - simple_tools
+  facilities_required: []
+  labor: 1
+  relevant_skills:
+    - simple_manufacturing
+  description: Crafts building materials from harvested wood using basic tools.
+
+- id: make_building_materials_metal
+  name: Make Building Materials (Metal)
+  inputs:
+    common_metal: 1
+  outputs:
+    simple_building_materials: 2
+  tools_required:
+    - simple_tools
+  facilities_required: []
+  labor: 1
+  relevant_skills:
+    - simple_manufacturing
+  description: Fabricates building materials from refined metal using basic tools.
+
+- id: make_food
+  name: Make Food
+  inputs:
+    biomass: 4
+  outputs:
+    food: 4
+  tools_required: []
+  facilities_required: []
+  labor: 1
+  relevant_skills:
+    - culinary
+    - agriculture
+  description: Converts biomass into edible food using simple techniques.
+
+- id: mine_nova_fuel_ore
+  name: Mine Nova Ore
+  inputs: {}
+  outputs:
+    nova_fuel_ore: 2
+  tools_required:
+    - simple_tools
+  facilities_required: []
+  labor: 1
+  relevant_skills:
+    - mining
+  description: Extracts volatile nova fuel ore from planetary deposits.
+  resource_attribute:
+    commodity: nova_fuel_ore
+    effect: success
+
+- id: mine_common_metal_ore
+  name: Mine Ore
+  inputs: {}
+  outputs:
+    common_metal_ore: 1
+  tools_required:
+    - simple_tools
+  facilities_required: []
+  labor: 1
+  relevant_skills:
+    - mining
+  description: Extracts various ores from the planetary crust.
+  resource_attribute:
+    commodity: common_metal_ore
+    effect: success
+
+- id: refine_common_metal
+  name: Refine Common Metal
+  inputs:
+    common_metal_ore: 3
+  outputs:
+    common_metal: 2
+  tools_required: []
+  facilities_required:
+    - smelting_facility
+  labor: 2
+  relevant_skills:
+    - refining
+  description: Smelts common metal ore into usable metal.
+  capital:
+    computers: 0.25
+
+- id: refine_nova_fuel
+  name: Refine NovaFuel
+  inputs:
+    nova_fuel_ore: 4
+  outputs:
+    nova_fuel: 1
+  tools_required:
+    - simple_tools
+  facilities_required: []
+  labor: 1
+  relevant_skills:
+    - chemistry
+    - refining
+  description: Refines volatile NovaFuel Ore into high-energy starship fuel using basic techniques.
+
+- id: make_simple_tools
+  name: Make Simple Tools
+  inputs:
+    common_metal: 2
+  outputs:
+    simple_tools: 1
+  tools_required: []
+  facilities_required:
+    - metalworking_facility
+  labor: 1
+  relevant_skills:
+    - simple_manufacturing
+  description: Forges simple tools from refined metal using metalworking equipment.
+  capital:
+    computers: 0.25
+
+- id: make_heavy_machinery
+  name: Make Heavy Machinery
+  inputs:
+    common_metal: 5
+  outputs:
+    heavy_machinery: 1
+  tools_required:
+    - simple_tools
+  facilities_required:
+    - metalworking_facility
+  labor: 3
+  relevant_skills:
+    - advanced_manufacturing
+    - simple_manufacturing
+  description: Machines heavy industrial equipment from refined metal.
+  capital:
+    computers: 0.25
+
+- id: make_simple_tools_wood
+  name: Make Simple Tools (Wood)
+  inputs:
+    wood: 4
+  outputs:
+    simple_tools: 1
+  tools_required: []
+  facilities_required: []
+  labor: 2
+  relevant_skills:
+    - simple_manufacturing
+  description: Carves basic wooden tools by hand. Less efficient than metal tools but requires no facilities.
+
+- id: build_smelting_facility
+  name: Build Smelting Facility
+  inputs:
+    simple_building_materials: 5
+  outputs:
+    smelting_facility: 1
+  tools_required:
+    - simple_tools
+  facilities_required: []
+  labor: 5
+  relevant_skills:
+    - advanced_manufacturing
+    - simple_manufacturing
+  description: Constructs a stationary smelting facility for refining ores.
+
+- id: build_metalworking_facility
+  name: Build Metalworking Facility
+  inputs:
+    simple_building_materials: 5
+  outputs:
+    metalworking_facility: 1
+  tools_required:
+    - simple_tools
+  facilities_required: []
+  labor: 5
+  relevant_skills:
+    - advanced_manufacturing
+    - simple_manufacturing
+  description: Constructs a static metalworking facility for fabricating tools and shaping metals.
+
+- id: harvest_wood
+  name: Harvest Wood
+  inputs: {}
+  outputs:
+    wood: 3
+  tools_required: []
+  facilities_required: []
+  labor: 1
+  relevant_skills:
+    - agriculture
+  description: Harvest timber from planetary forests.
+  resource_attribute:
+    commodity: wood
+    effect: output
+
+- id: gather_fiber
+  name: Gather Fiber
+  inputs: {}
+  outputs:
+    fiber: 3
+  tools_required: []
+  facilities_required: []
+  labor: 1
+  relevant_skills:
+    - agriculture
+  description: Gather plant fibers from local vegetation for textile production.
+  resource_attribute:
+    commodity: fiber
+    effect: output
+
+- id: make_clothing
+  name: Make Clothing
+  inputs:
+    fiber: 4
+  outputs:
+    clothing: 2
+  tools_required:
+    - simple_tools
+  facilities_required: []
+  labor: 1
+  relevant_skills:
+    - simple_manufacturing
+  description: Weave and sew fiber into basic clothing.
+
+- id: mine_silica
+  name: Mine Silica
+  inputs: {}
+  outputs:
+    silica: 2
+  tools_required:
+    - simple_tools
+  facilities_required: []
+  labor: 1
+  relevant_skills:
+    - mining
+  description: Extracts silica deposits from planetary surface.
+  resource_attribute:
+    commodity: silica
+    effect: success
+
+- id: mine_rare_earth
+  name: Mine Rare Earth
+  inputs: {}
+  outputs:
+    rare_earth_ore: 1
+  tools_required:
+    - simple_tools
+  facilities_required: []
+  labor: 1
+  relevant_skills:
+    - mining
+  description: Extracts rare earth minerals from deep planetary deposits.
+  resource_attribute:
+    commodity: rare_earth_ore
+    effect: success
+
+- id: make_chemicals
+  name: Make Chemicals
+  inputs:
+    biomass: 3
+  outputs:
+    chemicals: 2
+  tools_required: []
+  facilities_required: []
+  labor: 1
+  relevant_skills:
+    - chemistry
+  description: Processes organic biomass into basic chemical compounds.
+
+- id: make_glass
+  name: Make Glass
+  inputs:
+    silica: 3
+  outputs:
+    glass: 2
+  tools_required: []
+  facilities_required:
+    - smelting_facility
+  labor: 1
+  relevant_skills:
+    - refining
+  description: Smelts silica into glass using high-temperature furnaces.
+  capital:
+    computers: 0.25
+
+- id: make_ship_supplies
+  name: Make Ship Supplies
+  inputs:
+    common_metal: 1
+    wood: 1
+  outputs:
+    ship_supplies: 2
+  tools_required:
+    - simple_tools
+  facilities_required: []
+  labor: 1
+  relevant_skills:
+    - simple_manufacturing
+  description: Assembles basic ship maintenance materials from metal and wood.
+
+# === Tier 2 Facility Construction ===
+
+- id: build_textile_mill
+  name: Build Textile Mill
+  inputs:
+    simple_building_materials: 5
+    common_metal: 2
+  outputs:
+    textile_mill: 1
+  tools_required:
+    - simple_tools
+  facilities_required: []
+  labor: 5
+  relevant_skills:
+    - advanced_manufacturing
+    - simple_manufacturing
+  description: Constructs an industrial facility for processing raw fibers into textiles.
+
+- id: build_chemistry_lab
+  name: Build Chemistry Lab
+  inputs:
+    simple_building_materials: 5
+    glass: 2
+    chemicals: 2
+  outputs:
+    chemistry_lab: 1
+  tools_required:
+    - simple_tools
+  facilities_required: []
+  labor: 5
+  relevant_skills:
+    - advanced_manufacturing
+    - chemistry
+  description: Constructs a laboratory for chemical refinement and synthesis.
+
+- id: build_chemical_plant
+  name: Build Chemical Plant
+  inputs:
+    simple_building_materials: 5
+    common_metal: 2
+    heavy_machinery: 1
+  outputs:
+    chemical_plant: 1
+  tools_required:
+    - simple_tools
+  facilities_required: []
+  labor: 5
+  relevant_skills:
+    - advanced_manufacturing
+    - simple_manufacturing
+  description: Constructs an industrial plant for bulk chemical and food processing.
+
+- id: build_precision_forge
+  name: Build Precision Forge
+  inputs:
+    simple_building_materials: 5
+    common_metal: 3
+  outputs:
+    precision_forge: 1
+  tools_required:
+    - simple_tools
+  facilities_required: []
+  labor: 5
+  relevant_skills:
+    - advanced_manufacturing
+    - simple_manufacturing
+  description: Constructs a specialized forge for crafting precision metal components.
+
+- id: build_electronics_workshop
+  name: Build Electronics Workshop
+  inputs:
+    simple_building_materials: 5
+    glass: 2
+    common_metal: 2
+  outputs:
+    electronics_workshop: 1
+  tools_required:
+    - simple_tools
+  facilities_required: []
+  labor: 5
+  relevant_skills:
+    - advanced_manufacturing
+  description: Constructs a workshop equipped for electronics assembly and testing.
+
+- id: build_farm
+  name: Build Farm
+  inputs:
+    simple_building_materials: 5
+    heavy_machinery: 1
+  outputs:
+    farm: 1
+  tools_required:
+    - simple_tools
+  facilities_required: []
+  labor: 5
+  relevant_skills:
+    - advanced_manufacturing
+    - agriculture
+  description: Constructs an industrial farm for large-scale biomass growth.
+
+# === Tier 2 Production ===
+
+- id: make_textiles
+  name: Make Textiles
+  inputs:
+    fiber: 4
+  outputs:
+    textiles: 2
+  tools_required: []
+  facilities_required:
+    - textile_mill
+  labor: 1
+  relevant_skills:
+    - simple_manufacturing
+  description: Processes raw fibers into finished textiles using industrial looms.
+  capital:
+    computers: 0.25
+
+- id: refine_chemicals
+  name: Refine Chemicals
+  inputs:
+    chemicals: 3
+  outputs:
+    refined_chemicals: 3
+  tools_required: []
+  facilities_required:
+    - chemistry_lab
+  labor: 1
+  relevant_skills:
+    - chemistry
+  description: Purifies crude chemicals into refined compounds for advanced manufacturing.
+  capital:
+    computers: 0.25
+
+- id: make_precision_parts
+  name: Make Precision Parts
+  inputs:
+    common_metal: 3
+  outputs:
+    precision_parts: 2
+  tools_required: []
+  facilities_required:
+    - precision_forge
+  labor: 2
+  relevant_skills:
+    - advanced_manufacturing
+  description: Machines common metal into finely toleranced precision components.
+  capital:
+    computers: 0.25
+
+- id: refine_rare_earth
+  name: Refine Rare Earth
+  inputs:
+    rare_earth_ore: 3
+  outputs:
+    rare_earth: 1
+  tools_required: []
+  facilities_required:
+    - chemistry_lab
+  labor: 2
+  relevant_skills:
+    - chemistry
+    - refining
+  description: Extracts and purifies rare earth elements from raw ore using chemical processes.
+  capital:
+    computers: 0.25
+
+- id: make_polymers
+  name: Make Polymers
+  inputs:
+    chemicals: 2
+    nova_fuel_ore: 2
+  outputs:
+    polymers: 2
+  tools_required: []
+  facilities_required:
+    - chemistry_lab
+  labor: 1
+  relevant_skills:
+    - chemistry
+  description: Synthesizes durable polymer materials from chemicals and hydrocarbon feedstock.
+  capital:
+    computers: 0.25
+
+- id: make_electronics
+  name: Make Electronics
+  inputs:
+    rare_earth: 1
+    glass: 1
+    precision_parts: 2
+  outputs:
+    electronics: 1
+  tools_required: []
+  facilities_required:
+    - electronics_workshop
+  labor: 2
+  relevant_skills:
+    - advanced_manufacturing
+  description: Assembles electronic circuits from rare earth elements, glass, and precision parts.
+  capital:
+    computers: 0.25
+
+- id: make_precision_tools
+  name: Make Precision Tools
+  inputs:
+    precision_parts: 2
+    common_metal: 1
+  outputs:
+    precision_tools: 1
+  tools_required: []
+  facilities_required:
+    - precision_forge
+  labor: 2
+  relevant_skills:
+    - advanced_manufacturing
+    - simple_manufacturing
+  description: Crafts high-quality precision tools for advanced manufacturing processes.
+  capital:
+    computers: 0.25
+
+# === Tier 2 Consumer Goods ===
+
+- id: process_food
+  name: Process Food
+  inputs:
+    biomass: 40
+    chemicals: 1
+  outputs:
+    processed_food: 60
+  tools_required: []
+  facilities_required:
+    - chemical_plant
+  labor: 1
+  relevant_skills:
+    - culinary
+    - chemistry
+  description: Bulk conversion of biomass into preserved processed food.
+  upkeep:
+    heavy_machinery: 0.01
+  capital:
+    computers: 0.25
+
+- id: make_quality_clothing
+  name: Make Quality Clothing
+  inputs:
+    textiles: 2
+    refined_chemicals: 1
+  outputs:
+    quality_clothing: 2
+  tools_required: []
+  facilities_required:
+    - textile_mill
+  labor: 1
+  relevant_skills:
+    - simple_manufacturing
+  description: Crafts durable, treated garments from industrial textiles.
+  capital:
+    computers: 0.25
+
+- id: make_medicine
+  name: Make Medicine
+  inputs:
+    refined_chemicals: 2
+    biomass: 1
+  outputs:
+    medicine: 1
+  tools_required: []
+  facilities_required:
+    - chemistry_lab
+  labor: 2
+  relevant_skills:
+    - chemistry
+  description: Synthesizes pharmaceutical compounds from refined chemicals and organic matter.
+  capital:
+    computers: 0.25
+
+- id: make_prefab_housing
+  name: Make Prefab Housing
+  inputs:
+    simple_building_materials: 2
+    polymers: 1
+    glass: 1
+  outputs:
+    prefab_housing: 1
+  tools_required:
+    - simple_tools
+  facilities_required: []
+  labor: 2
+  relevant_skills:
+    - advanced_manufacturing
+    - simple_manufacturing
+  description: Assembles pre-fabricated housing modules from construction materials.
+
+# === Ship Maintenance Production ===
+
+- id: make_ship_parts
+  name: Make Ship Parts
+  inputs:
+    precision_parts: 2
+    polymers: 1
+  outputs:
+    ship_parts: 1
+  tools_required: []
+  facilities_required:
+    - precision_forge
+  labor: 2
+  relevant_skills:
+    - advanced_manufacturing
+    - aerospace
+  description: Manufactures precision replacement parts for starship maintenance.
+  capital:
+    computers: 0.25
+
+# === Tier 3 Facility Construction ===
+
+- id: build_advanced_factory
+  name: Build Advanced Factory
+  inputs:
+    simple_building_materials: 5
+    precision_parts: 3
+    electronics: 2
+  outputs:
+    advanced_factory: 1
+  tools_required:
+    - simple_tools
+  facilities_required: []
+  labor: 8
+  relevant_skills:
+    - advanced_manufacturing
+  description: Constructs a state-of-the-art automated manufacturing facility.
+
+# === Tier 3 Production ===
+
+- id: make_advanced_building_materials
+  name: Make Advanced Building Materials
+  inputs:
+    common_metal: 2
+    polymers: 1
+    glass: 1
+  outputs:
+    advanced_building_materials: 2
+  tools_required: []
+  facilities_required:
+    - precision_forge
+  labor: 2
+  relevant_skills:
+    - advanced_manufacturing
+  description: Fabricates composite construction materials from metal, polymers, and glass.
+  capital:
+    computers: 0.25
+
+- id: make_computers
+  name: Make Computers
+  inputs:
+    electronics: 2
+    precision_parts: 1
+    polymers: 1
+  outputs:
+    computers: 1
+  tools_required: []
+  facilities_required:
+    - advanced_factory
+  labor: 3
+  relevant_skills:
+    - advanced_manufacturing
+  description: Assembles programmable computing devices from electronic and mechanical components.
+  capital:
+    computers: 0.25
+
+- id: make_luxury_goods
+  name: Make Luxury Goods
+  inputs:
+    rare_earth: 1
+    textiles: 1
+    glass: 1
+  outputs:
+    luxury_goods: 1
+  tools_required: []
+  facilities_required:
+    - electronics_workshop
+  labor: 2
+  relevant_skills:
+    - advanced_manufacturing
+  description: Crafts high-value luxury items from rare and refined materials.
+  capital:
+    computers: 0.25
+
+- id: make_advanced_medicine
+  name: Make Advanced Medicine
+  inputs:
+    medicine: 1
+    electronics: 1
+    refined_chemicals: 2
+  outputs:
+    advanced_medicine: 1
+  tools_required: []
+  facilities_required:
+    - advanced_factory
+  labor: 3
+  relevant_skills:
+    - chemistry
+    - advanced_manufacturing
+  description: Produces electronically-enhanced medical treatments for superior outcomes.
+  capital:
+    computers: 0.25
+
+- id: make_ship_components
+  name: Make Ship Components
+  inputs:
+    precision_parts: 2
+    electronics: 1
+    polymers: 1
+  outputs:
+    ship_components: 1
+  tools_required: []
+  facilities_required:
+    - advanced_factory
+  labor: 3
+  relevant_skills:
+    - advanced_manufacturing
+    - aerospace
+  description: Manufactures advanced integrated ship modules with electronic control systems.
+  capital:
+    computers: 0.25
+- id: make_ship_hull_section
+  name: Make Ship Hull Section
+  inputs:
+    advanced_building_materials: 3
+    common_metal: 4
+    precision_parts: 2
+    electronics: 1
+  outputs:
+    ship_hull_section: 1
+  tools_required: []
+  facilities_required:
+    - advanced_factory
+  labor: 3
+  relevant_skills:
+    - advanced_manufacturing
+    - aerospace
+  description: Fabricates a prefabricated hull segment from composites, metal, and control electronics.
+  capital:
+    computers: 0.25
+
+# === Shipbuilding ===
+
+- id: build_shipyard
+  name: Build Shipyard
+  inputs:
+    simple_building_materials: 10
+    advanced_building_materials: 8
+    heavy_machinery: 2
+  outputs:
+    shipyard: 1
+  tools_required:
+    - simple_tools
+  facilities_required: []
+  labor: 10
+  relevant_skills:
+    - advanced_manufacturing
+    - aerospace
+  description: Constructs an assembly hall with the gantries and cranes a starship hull needs.
+
+- id: make_ship_hull
+  name: Make Ship Hull
+  inputs:
+    ship_hull_section: 5
+    ship_components: 2
+    computers: 1
+    heavy_machinery: 2
+  outputs:
+    ship_hull: 1
+  tools_required: []
+  facilities_required:
+    - shipyard
+  labor: 6
+  relevant_skills:
+    - advanced_manufacturing
+    - aerospace
+  description: Fits hull sections, modules, and avionics into a complete starship hull.
+  capital:
+    computers: 0.25

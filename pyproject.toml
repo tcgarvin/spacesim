@@ -1,0 +1,96 @@
+[project]
+name = "spacesim2"
+version = "0.2.0"
+description = "A turn-based economic simulation modeling interplanetary trade"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "marimo>=0.18.4",
+    "matplotlib>=3.10.1",
+    "numpy>=1.26.0",
+    "pygame>=2.5.0; platform_system != 'Windows' or python_version < '3.12'",
+    "pyyaml>=6.0.2",
+    "tqdm>=4.66.0",
+    "typing-extensions>=4.15.0",
+]
+
+[project.scripts]
+spacesim2 = "spacesim2.cli.main:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "mypy>=1.0.0",
+    "types-PyYAML",
+    "ruff>=0.0.270",
+]
+analysis = [
+    "polars>=0.20.0", # Fast DataFrame library
+    "pyarrow>=14.0.0", # Parquet support
+    "plotly>=5.18.0", # Interactive visualizations
+    "pandas>=2.3.3", # plotly/marimo interop (polars .to_pandas() in notebooks)
+    "marimo>=0.1.0", # Modern reactive notebook
+]
+# Offline asset-generation pipeline (tools/assetgen). Dev-only; the shipped
+# runtime loads committed PNGs and never imports these.
+assetgen = [
+    "pillow>=10.0.0", # post-processing raw provider output into sprites
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["spacesim2*"]
+exclude = ["tests*", "temp*", "data*"]
+
+[tool.setuptools.package-data]
+# Committed live-view sprites, fonts, and their index ship in the wheel.
+"spacesim2.ui.live" = [
+    "assets/**/*.png",
+    "assets/**/*.json",
+    "assets/**/*.ttf",
+    "assets/**/*.txt",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.13"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+# Notebooks use marimo's cross-cell variable model, which mypy can't follow
+# (same reason they're exempt from ruff lint). Not an importable package, so
+# they're excluded by path, not module.
+exclude = "^notebooks/"
+
+# Tests aren't held to the annotation bar yet.
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+# Third-party packages without type stubs.
+[[tool.mypy.overrides]]
+module = ["tqdm.*", "plotly.*", "pyarrow.*"]
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+# Line length is owned by the formatter (`ruff format`); E501 would only nag
+# about long strings/comments it can't wrap.
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# Notebooks are still formatted, but not linted: marimo's cross-cell variable
+# model produces false F401/F821/I001 (names defined in other cells).
+"notebooks/**" = ["E", "F", "W", "I"]

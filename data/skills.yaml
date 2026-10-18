@@ -1,0 +1,31 @@
+- id: mining
+  name: Mining
+  description: Extracting ores and minerals
+
+- id: refining
+  name: Refining
+  description: Smelting metals, refining fuels
+
+- id: simple_manufacturing
+  name: Simple Manufacturing
+  description: Making simple tools, building materials
+
+- id: advanced_manufacturing
+  name: Advanced Manufacturing
+  description: Complex facilities, high-tech tools
+
+- id: agriculture
+  name: Agriculture
+  description: Growing biomass, making food
+
+- id: culinary
+  name: Culinary
+  description: Preparing specialized food and consumables
+
+- id: aerospace
+  name: Aerospace
+  description: Fuel refinement, starship maintenance, building spacecraft
+
+- id: chemistry
+  name: Chemistry
+  description: Processing chemicals, pharmaceuticals, advanced fuels

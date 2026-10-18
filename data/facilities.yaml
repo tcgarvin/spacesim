@@ -1,0 +1,27 @@
+# Per-facility data, keyed by the facility's commodity id.
+#
+# `upkeep` drives FacilityUpkeepDrive: each turn the owner rolls one event
+# with `event_probability`; on an event a failure type is drawn by weight and
+# consumes `quantity` of `material`. See docs/spaceport-design.md, section
+# "Upkeep failure table".
+
+- id: spaceport
+  upkeep:
+    event_probability: 0.011111111111111112 # 1/90, one failure per ~90 days
+    failures:
+      - name: structural
+        weight: 0.60
+        material: simple_building_materials
+        quantity: 3
+      - name: mechanical
+        weight: 0.25
+        material: common_metal
+        quantity: 1
+      - name: tooling
+        weight: 0.10
+        material: simple_tools
+        quantity: 1
+      - name: tank_lining
+        weight: 0.05
+        material: chemicals
+        quantity: 1
